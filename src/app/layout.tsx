@@ -62,7 +62,7 @@ export default function RootLayout({ children }: { children: ReactNode }) {
               </button>
             </div>
 
-            <div className="flex flex-wrap gap-2">
+            {/* <div className="flex flex-wrap gap-2">
               <button className="px-3 py-1 rounded-full bg-zinc-800 text-sm text-white flex items-center gap-1">
                 🟣 Xem số dư
               </button>
@@ -75,7 +75,7 @@ export default function RootLayout({ children }: { children: ReactNode }) {
               <button className="px-3 py-1 rounded-full bg-zinc-800 text-sm text-white flex items-center gap-1">
                 📄 Ví dụ giao dịch
               </button>
-            </div>
+            </div> */}
           </div>
         </div>
       </div>
