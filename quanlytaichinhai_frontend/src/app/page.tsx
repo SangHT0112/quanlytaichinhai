@@ -1,4 +1,5 @@
-
+import ExpensePieChart from "@/components/charts/ExpensePieChart"
+import WeeklyBarChart from "@/components/charts/WeeklyBarChart"
 export default function Home(){
   return (
     <div className="flex min-h-screen bg-black text-white font-sans">
@@ -33,14 +34,20 @@ export default function Home(){
           </div>
           <div className="bg-zinc-800 p-4 rounded-xl shadow">
             <h3 className="text-lg font-semibold mb-2">Biểu đồ chi tiêu</h3>
-            <div className="h-40 flex items-center justify-center text-gray-400">[Pie chart placeholder]</div>
+           <div className="h-40">
+            <ExpensePieChart />
+          </div>
+
           </div>
         </div>
 
         {/* Chi tiêu theo tuần (placeholder) */}
         <div className="bg-zinc-800 p-4 rounded-xl shadow">
           <h3 className="text-lg font-semibold mb-2">Chi tiêu trong tuần</h3>
-          <div className="h-32 flex items-center justify-center text-gray-400">[Weekly bar chart placeholder]</div>
+         <div className="h-40">
+          <WeeklyBarChart />
+        </div>
+
         </div>
       </main>
     </div>

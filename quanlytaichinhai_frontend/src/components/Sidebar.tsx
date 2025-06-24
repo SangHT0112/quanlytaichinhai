@@ -19,7 +19,7 @@ export default function Sidebar() {
         <Link href="/history">
           <div className="hover:bg-zinc-800 p-2 rounded cursor-pointer">📜 Lịch sử</div>
         </Link>
-        <Link href="/stats">
+        <Link href="/thongke">
           <div className="hover:bg-zinc-800 p-2 rounded cursor-pointer">📈 Thống kê</div>
         </Link>
         <Link href="/chatai">

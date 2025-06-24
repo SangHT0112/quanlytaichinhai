@@ -130,7 +130,7 @@ export default function ChatAI() {
                 <User className="w-5 h-5 text-white" />
               </div>
             )}
-          </div>
+          </div> 
         ))}
 
         {isLoading && (
