@@ -2,13 +2,23 @@
 
 import "./globals.css";
 import Sidebar from "@/components/Sidebar";
+import { Button } from "@/components/ui/button";
+import Link from 'next/link';
+import { useEffect } from "react";
 import { SendHorizonal } from "lucide-react";
 
 import { ReactNode, useState } from "react";
 
 export default function RootLayout({ children }: { children: ReactNode }) {
+  const [chatInput, setChatInput] = useState("")
   const [isSidebarOpen, setIsSidebarOpen] = useState(true);
-
+   const [user, setUser] = useState<{ username: string } | null>(null)
+  useEffect(() => {
+    const storedUser = localStorage.getItem("user");
+    if (storedUser) {
+      setUser(JSON.parse(storedUser));
+    }
+  }, [])
   return (
     <html lang="vi">
       <body className="flex bg-black text-white font-sans min-h-screen">
@@ -25,7 +35,15 @@ export default function RootLayout({ children }: { children: ReactNode }) {
             >
               ☰
             </button>
-            <h2 className="text-lg font-semibold">AI Finance Manager</h2>
+            <div className="flex items-center gap-4">
+              {user ? (
+                <div>Xin chào {user.username}</div>
+              ) : (
+                <Button><Link href="/login">Đăng nhập</Link></Button>
+              )}
+              <h2 className="text-lg font-semibold">AI Finance Manager</h2>
+            </div>
+
           </header>
 
           {/* Nội dung trang */}
@@ -45,10 +63,21 @@ export default function RootLayout({ children }: { children: ReactNode }) {
               <button className="text-purple-400 text-xl">🤖</button>
               <input
                 type="text"
+                value={chatInput}
+                onChange={(e) => setChatInput(e.target.value)}
                 placeholder="Nhập yêu cầu tài chính hoặc ví dụ..."
                 className="flex-1 px-4 py-2 rounded-full bg-zinc-800 text-white placeholder-zinc-400 focus:outline-none"
               />
-              <button className="bg-blue-600 hover:bg-blue-500 text-white p-2 rounded-full">
+              <button
+                className="bg-blue-600 hover:bg-blue-500 text-white p-2 rounded-full"
+                onClick={() => {
+                  if (chatInput.trim()) {
+                    // Gọi vào ChatAI qua window
+                    (window as any).sendChatMessage?.(chatInput)
+                    setChatInput("")
+                  }
+                }}
+              >
                 <svg
                   xmlns="http://www.w3.org/2000/svg"
                   fill="none"
@@ -60,6 +89,7 @@ export default function RootLayout({ children }: { children: ReactNode }) {
                   <path strokeLinecap="round" strokeLinejoin="round" d="M4.5 12l15 6V6l-15 6z" />
                 </svg>
               </button>
+
             </div>
 
             {/* <div className="flex flex-wrap gap-2">

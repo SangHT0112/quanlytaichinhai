@@ -30,12 +30,12 @@ export const financialData = {
     },
   ],
   expenseCategories: [
-    { name: "Ăn uống", amount: 2800000, percentage: 33, trend: "up" },
-    { name: "Di chuyển", amount: 1500000, percentage: 18, trend: "down" },
-    { name: "Giải trí", amount: 1200000, percentage: 14, trend: "up" },
-    { name: "Mua sắm", amount: 1000000, percentage: 12, trend: "stable" },
-    { name: "Hóa đơn", amount: 800000, percentage: 9, trend: "stable" },
-    { name: "Khác", amount: 1200000, percentage: 14, trend: "down" },
+    { name: "Ăn uống", amount: 2800000, limit: 2500000, percentage: 33, trend: "up" },
+    { name: "Di chuyển", amount: 1500000, limit: 1800000, percentage: 18, trend: "down" },
+    { name: "Giải trí", amount: 1200000, limit: 1000000, percentage: 14, trend: "up" },
+    { name: "Mua sắm", amount: 1000000, limit: 1200000, percentage: 12, trend: "stable" },
+    { name: "Hóa đơn", amount: 800000, limit: 800000, percentage: 9, trend: "stable" },
+    { name: "Khác", amount: 1200000, limit: 900000, percentage: 14, trend: "down" },
   ],
   aiRecommendations: [
     {
