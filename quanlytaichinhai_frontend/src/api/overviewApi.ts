@@ -1,0 +1,29 @@
+import axiosInstance from "@/config/axios"
+
+export interface FinancialSummary {
+  balance: number
+  income: number
+  expense: number
+}
+
+export async function fetchOverview(userId: number): Promise<FinancialSummary> {
+  const res = await axiosInstance.get<FinancialSummary>('/overview', {
+    params: { user_id: userId }
+  })
+
+  return res.data
+}
+
+export async function fetchTopCategories(userId: number) {
+  const res = await axiosInstance.get("/overview/top-categories", {
+    params: { user_id: userId },
+  })
+  return res.data // Array<{ category_name: string, total: number }>
+}
+
+export async function fetchExpensePieChart(userId: number) {
+  const res = await axiosInstance.get("/overview/expense-pie-chart", {
+    params: { user_id: userId },
+  })
+  return res.data // Array<{ category_name: string, total: number }>
+}

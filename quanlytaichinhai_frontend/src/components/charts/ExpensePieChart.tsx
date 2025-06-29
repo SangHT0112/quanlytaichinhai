@@ -1,28 +1,89 @@
 "use client"
+import { useState, useEffect } from "react"
+import {
+  PieChart,
+  Pie,
+  Cell,
+  Tooltip,
+  ResponsiveContainer
+} from "recharts"
+import { fetchExpensePieChart } from "@/api/overviewApi"
+import {
+  Card,
+  CardContent,
+  CardDescription,
+  CardHeader,
+  CardTitle
+} from "@/components/ui/card"
 
-import { PieChart, Pie, Cell, Tooltip, ResponsiveContainer } from "recharts"
+const COLORS = ["#00C49F", "#FFBB28", "#FF8042", "#8884d8", "#FF6384"]
 
-const data = [
-  { name: "Ăn uống", value: 1500000 },
-  { name: "Di chuyển", value: 900000 },
-  { name: "Giải trí", value: 750000 },
-]
+type ExpenseItemFromAPI = {
+  icon: string
+  category_name: string
+  total: string
+}
 
-const COLORS = ["#00C49F", "#FFBB28", "#FF8042"]
+type PieChartItem = {
+  name: string
+  value: number
+  color: string
+}
+
+const formatCurrency = (value: number) => {
+  return value.toLocaleString("vi-VN", { style: "currency", currency: "VND" })
+}
 
 export default function ExpensePieChart() {
+  const [categoryData, setCategoryData] = useState<PieChartItem[]>([])
+
+  useEffect(() => {
+    const userStr = localStorage.getItem("user")
+    if (!userStr) return
+    const userId = JSON.parse(userStr).user_id
+
+    fetchExpensePieChart(userId)
+      .then((res: ExpenseItemFromAPI[]) => {
+        const formatted = res.map((item, index) => ({
+          name: item.category_name,
+          value: Number(item.total),
+          color: COLORS[index % COLORS.length],
+        }))
+        setCategoryData(formatted)
+      })
+      .catch((err) => console.error("Lỗi biểu đồ chi tiêu:", err))
+  }, [])
+
+  if (!Array.isArray(categoryData) || categoryData.length === 0) {
+    return <p>Đang tải dữ liệu biểu đồ...</p>
+  }
+
   return (
-    <div className="h-48">
-      <ResponsiveContainer width="100%" height="100%">
-        <PieChart>
-          <Pie data={data} dataKey="value" cx="50%" cy="50%" outerRadius={60} label>
-            {data.map((entry, index) => (
-              <Cell key={index} fill={COLORS[index % COLORS.length]} />
-            ))}
-          </Pie>
-          <Tooltip />
-        </PieChart>
-      </ResponsiveContainer>
-    </div>
+    <Card className="bg-zinc-800 text-white">
+      <CardHeader>
+        <CardTitle>Phân bổ chi tiêu theo danh mục</CardTitle>
+        <CardDescription>Tỷ lệ chi tiêu tháng này</CardDescription>
+      </CardHeader>
+      <CardContent>
+        <ResponsiveContainer width="100%" height={300}>
+          <PieChart>
+            <Pie
+              data={categoryData}
+              cx="50%"
+              cy="50%"
+              labelLine={false}
+              label={({ name, percent }) => `${name} ${(percent * 100).toFixed(0)}%`}
+              outerRadius={80}
+              dataKey="value"
+            >
+              {categoryData.map((entry, index) => (
+                <Cell key={`cell-${index}`} fill={entry.color} />
+              ))}
+            </Pie>
+            <Tooltip formatter={(value) => formatCurrency(Number(value))} />
+          </PieChart>
+        </ResponsiveContainer>
+      </CardContent>
+    </Card>
   )
 }

@@ -9,9 +9,10 @@ interface PeriodSelectorProps {
 
 export default function PeriodSelector({ selected, onSelect }: PeriodSelectorProps) {
   const periods = [
-    { label: "Tuần", value: "week" },
+    // {label: "Ngày", value:"week"},
+    // { label: "Tuần", value: "week" },
     { label: "Tháng", value: "month" },
-    { label: "Năm", value: "year" },
+    //{ label: "Năm", value: "year" },
   ]
 
   return (

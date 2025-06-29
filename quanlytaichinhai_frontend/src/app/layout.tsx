@@ -1,17 +1,27 @@
 'use client';
-
+import { useRouter, usePathname  } from "next/navigation";
 import "./globals.css";
 import Sidebar from "@/components/Sidebar";
 import { Button } from "@/components/ui/button";
 import Link from 'next/link';
 import { useEffect } from "react";
 import { SendHorizonal } from "lucide-react";
-
+import {
+  DropdownMenu,
+  DropdownMenuTrigger,
+  DropdownMenuContent,
+  DropdownMenuItem,
+} from "@/components/ui/dropdown-menu"
 import { ReactNode, useState } from "react";
 
 export default function RootLayout({ children }: { children: ReactNode }) {
   const [chatInput, setChatInput] = useState("")
   const [isSidebarOpen, setIsSidebarOpen] = useState(true);
+  const [isNavigating, setIsNavigating] = useState(false);
+
+  const router = useRouter();
+  const pathname = usePathname();
+  
    const [user, setUser] = useState<{ username: string } | null>(null)
   useEffect(() => {
     const storedUser = localStorage.getItem("user");
@@ -19,6 +29,7 @@ export default function RootLayout({ children }: { children: ReactNode }) {
       setUser(JSON.parse(storedUser));
     }
   }, [])
+  
   return (
     <html lang="vi">
       <body className="flex bg-black text-white font-sans min-h-screen">
@@ -29,19 +40,42 @@ export default function RootLayout({ children }: { children: ReactNode }) {
         <div className="flex flex-col flex-1 min-h-screen relative">
           {/* Header */}
           <header className="h-16 border-b border-zinc-800 px-6 flex items-center justify-between">
-            <button
+            <div className="flex items-center gap-4">
+              <button
               onClick={() => setIsSidebarOpen(!isSidebarOpen)}
               className="text-zinc-400 hover:text-white text-2xl"
             >
-              ☰
+              ☰ 
             </button>
+              <h2 className="text-lg font-semibold">AI Finance Manager</h2>
+            </div>
+            
             <div className="flex items-center gap-4">
               {user ? (
-                <div>Xin chào {user.username}</div>
+                <DropdownMenu>
+                  <DropdownMenuTrigger asChild>
+                    <Button variant="ghost" className="px-3">
+                      Xin chào {user.username}
+                    </Button>
+                  </DropdownMenuTrigger>
+                  <DropdownMenuContent align="end">
+                    <DropdownMenuItem>
+                      <Link href="/profile">Sửa thông tin</Link>
+                    </DropdownMenuItem>
+                    <DropdownMenuItem
+                      onClick={() => {
+                        localStorage.removeItem("user");
+                        localStorage.removeItem("token");
+                        window.location.href = "/login"
+                      }}
+                    >
+                      Đăng xuất
+                    </DropdownMenuItem>
+                  </DropdownMenuContent>
+                </DropdownMenu>
               ) : (
                 <Button><Link href="/login">Đăng nhập</Link></Button>
               )}
-              <h2 className="text-lg font-semibold">AI Finance Manager</h2>
             </div>
 
           </header>
@@ -65,6 +99,15 @@ export default function RootLayout({ children }: { children: ReactNode }) {
                 type="text"
                 value={chatInput}
                 onChange={(e) => setChatInput(e.target.value)}
+                onKeyDown={(e) => {
+                  if (e.key === "Enter" && chatInput.trim()) {
+                    // 👉 Gửi tin nhắn khi nhấn Enter
+                    localStorage.setItem("pendingChatMessage", chatInput);
+                    (window as any).sendChatMessage?.(chatInput);
+                    setChatInput("");
+                    router.replace("/");
+                  }
+                }}
                 placeholder="Nhập yêu cầu tài chính hoặc ví dụ..."
                 className="flex-1 px-4 py-2 rounded-full bg-zinc-800 text-white placeholder-zinc-400 focus:outline-none"
               />
@@ -72,11 +115,19 @@ export default function RootLayout({ children }: { children: ReactNode }) {
                 className="bg-blue-600 hover:bg-blue-500 text-white p-2 rounded-full"
                 onClick={() => {
                   if (chatInput.trim()) {
-                    // Gọi vào ChatAI qua window
-                    (window as any).sendChatMessage?.(chatInput)
-                    setChatInput("")
+                    setIsNavigating(true); // ⏳ Bật hiệu ứng
+
+                    localStorage.setItem("pendingChatMessage", chatInput);
+                    (window as any).sendChatMessage?.(chatInput);
+                    setChatInput("");
+
+                    setTimeout(() => {
+                      router.replace("/"); // 🔄 Điều hướng về trang chính
+                      setIsNavigating(false); // ✅ Tắt hiệu ứng (nếu ở lại trang cũ vì lỗi)
+                    }, 700); // ⏱ 0.7 giây
                   }
                 }}
+
               >
                 <svg
                   xmlns="http://www.w3.org/2000/svg"
@@ -89,6 +140,7 @@ export default function RootLayout({ children }: { children: ReactNode }) {
                   <path strokeLinecap="round" strokeLinejoin="round" d="M4.5 12l15 6V6l-15 6z" />
                 </svg>
               </button>
+
 
             </div>
 

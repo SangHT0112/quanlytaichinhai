@@ -71,9 +71,7 @@ export default function ExpenseBreakdown({ categories }: { categories: any[] }) 
 
             <Progress
               value={percentUsed}
-              className={`h-2 bg-zinc-700 [&>div]:${
-                isOverLimit ? "bg-red-500" : "bg-green-500"
-              } rounded`}
+              className="h-2 bg-zinc-700 [&>div]:bg-green-400 rounded"
             />
           </div>
         )

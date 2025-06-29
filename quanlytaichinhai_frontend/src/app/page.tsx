@@ -77,7 +77,7 @@ export default function ChatAI() {
   const generateAIResponse = (userMessage: string): string => {
     const lowerMessage = userMessage.toLowerCase()
 
-    if (lowerMessage.includes("số dư") || lowerMessage.includes("tiền")) {
+    if (lowerMessage.includes(" xem số dư")) {
       return "Số dư hiện tại của bạn là 15.750.000 ₫. Đây là một mức số dư khá tốt! Bạn có muốn tôi phân tích chi tiết về tình hình tài chính không?"
     }
 
@@ -97,14 +97,56 @@ export default function ChatAI() {
       return "Với số dư hiện tại và tỷ lệ tiết kiệm tốt, bạn có thể xem xét:\n\n📈 Quỹ đầu tư cân bằng (30-40%)\n🏦 Tiền gửi có kỳ hạn (20-30%)\n🏠 Bất động sản (nếu đủ vốn)\n💰 Vàng (5-10% để đa dạng hóa)\n\nLưu ý: Chỉ đầu tư số tiền bạn có thể chấp nhận rủi ro!"
     }
 
-    return "Cảm ơn bạn đã hỏi! Tôi có thể giúp bạn về:\n\n💰 Phân tích số dư và thu chi\n📊 Thống kê chi tiêu theo danh mục\n💡 Lời khuyên tài chính cá nhân\n📈 Gợi ý đầu tư phù hợp\n📱 Lập kế hoạch ngân sách\n\nBạn muốn tìm hiểu về vấn đề nào?"
+   if (lowerMessage.includes("số dư") || lowerMessage.includes("tiền")) {
+    return "💰 Số dư hiện tại của bạn là 15.750.000 ₫. Bạn muốn phân tích thêm về chi tiêu hoặc tiết kiệm không?";
+  }
+
+  if (lowerMessage.includes("chi tiêu") || lowerMessage.includes("tiêu")) {
+    return "📊 Bạn đã chi tiêu 4.200.000 ₫ trong tháng này.\n\n• Ăn uống: 1.500.000 ₫\n• Di chuyển: 900.000 ₫\n• Giải trí: 750.000 ₫\n\nBạn muốn tôi gợi ý cách cắt giảm không?";
+  }
+
+  if (lowerMessage.includes("thu nhập") || lowerMessage.includes("lương")) {
+    return "📈 Thu nhập tháng này là 8.500.000 ₫. Tỷ lệ tiết kiệm đạt 50.6% – rất tốt!";
+  }
+
+  if (lowerMessage.includes("lời khuyên") || lowerMessage.includes("khuyên")) {
+    return "💡 Lời khuyên:\n• Duy trì tiết kiệm đều mỗi tháng\n• Nấu ăn tại nhà để giảm chi tiêu\n• Tạo quỹ khẩn cấp\n• Đầu tư an toàn nếu có thể";
+  }
+
+  if (lowerMessage.includes("đầu tư")) {
+    return "📈 Gợi ý đầu tư:\n• Quỹ đầu tư cân bằng (30-40%)\n• Gửi tiết kiệm kỳ hạn (20-30%)\n• Vàng hoặc bất động sản nếu có vốn\n\n⚠️ Đừng đầu tư số tiền bạn không thể mất.";
+  }
+
+  if (lowerMessage.includes("tiết kiệm") && lowerMessage.includes("50 triệu") && lowerMessage.includes("2 năm")) {
+    return "🎯 Bạn muốn tiết kiệm 50 triệu trong 2 năm. Vui lòng nhập lương hàng tháng của bạn để tôi tính toán lộ trình tiết kiệm.";
+  }
+
+  if (lowerMessage.includes("tôi có lương") || lowerMessage.includes("thu nhập mỗi tháng")) {
+    return "📌 Cảm ơn bạn! Bạn có ở trọ không? Nếu có, cho biết tiền thuê mỗi tháng nhé.";
+  }
+
+  if (lowerMessage.includes("trọ") && lowerMessage.includes("1 triệu")) {
+    return "✅ Đã ghi nhận tiền trọ 1 triệu. Bạn có khoản chi cố định nào khác mỗi tháng không? (ví dụ: ăn uống, xăng xe, giải trí...)";
+  }
+
+  return "🤖 Tôi có thể giúp bạn lập kế hoạch tiết kiệm, phân tích chi tiêu và đưa ra lời khuyên tài chính.\n\nVí dụ:\n• \"Tôi muốn tiết kiệm 50 triệu trong 2 năm\"\n• \"Xem thống kê chi tiêu\"\n• \"Gợi ý đầu tư an toàn\"\n\nBạn muốn bắt đầu với gì?";
+    
   }
 
   const handleQuickAction = (action: string) => {
     handleSendMessage(action)
   }
+  useEffect(() => {
+    const pending = localStorage.getItem("pendingChatMessage");
+    if (pending) {
+      localStorage.removeItem("pendingChatMessage");
+      setTimeout(() => {
+        handleSendMessage(pending);
+      }, 300); // ⏱ chờ render xong rồi mới gửi (mượt)
+    }
+  }, []);
 
-  
+    
 
   // Expose the handleSendMessage function to the parent layout
   useEffect(() => {
@@ -112,6 +154,12 @@ export default function ChatAI() {
     ;(window as any).setInputValue = setInputValue
     ;(window as any).inputValue = inputValue
   }, [inputValue])
+
+  useEffect(() => {
+    if (messages.length > 1) {
+      messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
+    }
+  }, [messages]);
 
   return (
     <div className="flex flex-col h-full">

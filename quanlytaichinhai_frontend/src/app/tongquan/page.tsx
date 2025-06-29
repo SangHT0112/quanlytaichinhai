@@ -4,28 +4,51 @@ import ExpensePieChart from "@/components/charts/ExpensePieChart"
 import WeeklyBarChart from "@/components/charts/WeeklyBarChart"
 import LoginRequiredModal from "@/components/LoginRequiredModal"
 
+import { formatCurrency } from "@/lib/format"
+import { fetchTopCategories, FinancialSummary } from "@/api/overviewApi"
+import { fetchOverview } from "@/api/overviewApi"
 export default function Home() {
   const [isLoggedIn, setIsLoggedIn] = useState(false)
   const [isLoadingData, setIsLoadingData] = useState(true)
-
+  const [summaryData, setSummaryData] = useState<FinancialSummary | null>(null)
+  const [topCategories, setTopCategories] = useState<any[]>([])
   useEffect(() => {
-    const user = localStorage.getItem("user")
-
-    if (user) {
-      setIsLoggedIn(true)
-
-      // Giả lập delay tải dữ liệu
-      const timer = setTimeout(() => {
-        setIsLoadingData(false)
-      }, 2000)
-
-      return () => clearTimeout(timer)
-    } else {
-      // Nếu chưa đăng nhập thì giữ loading mãi
+    const userStr = localStorage.getItem("user")
+    console.log("localStorage user:", localStorage.getItem("user"))
+    if (!userStr) {
       setIsLoggedIn(false)
-      setIsLoadingData(true)
+      setIsLoadingData(false) // ✅ THÊM DÒNG NÀY
+      return
     }
-  }, [])
+
+    const user = JSON.parse(userStr)
+    if (!user?.user_id) {
+      setIsLoggedIn(false)
+      setIsLoadingData(false) // ✅ THÊM DÒNG NÀY
+      return
+    }
+
+    setIsLoggedIn(true)
+
+    // Gọi cả 2 API
+  Promise.all([
+    fetchOverview(user.user_id),
+    fetchTopCategories(user.user_id)
+  ])
+    .then(([summary, topCats]) => {
+      setSummaryData(summary)
+      setTopCategories(topCats)
+      console.log("Dữ liệu top category:", topCats)
+    })
+    .catch((err) => {
+      console.error("Lỗi khi lấy dữ liệu:", err)
+    })
+    .finally(() => {
+      setIsLoadingData(false)
+    })
+    }, [])
+   
+
 
   if (isLoadingData) {
   return (
@@ -69,31 +92,70 @@ export default function Home() {
         <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
           <div className="bg-zinc-800 p-4 rounded-xl shadow">
             <h3 className="text-sm text-gray-400">Số dư hiện tại</h3>
-            <p className="text-2xl font-semibold text-green-400">15.750.000 ₫</p>
+            <p className="text-2xl font-semibold text-green-400">
+               {formatCurrency(summaryData?.balance || 0)} 
+            </p>
           </div>
           <div className="bg-zinc-800 p-4 rounded-xl shadow">
             <h3 className="text-sm text-gray-400">Thu nhập tháng này</h3>
-            <p className="text-2xl font-semibold text-green-400">8.500.000 ₫</p>
+            <p className="text-2xl font-semibold text-green-400">
+              {formatCurrency(Number(summaryData?.income) || 0)}
+
+            </p>
           </div>
           <div className="bg-zinc-800 p-4 rounded-xl shadow">
             <h3 className="text-sm text-gray-400">Chi tiêu tháng này</h3>
-            <p className="text-2xl font-semibold text-red-400">4.200.000 ₫</p>
+            <p className="text-2xl font-semibold text-red-400">
+           {formatCurrency(Number(summaryData?.expense) || 0)}
+            </p>
           </div>
         </div>
 
         {/* Thống kê danh mục và biểu đồ */}
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-          <div className="bg-zinc-800 p-4 rounded-xl shadow">
-            <h3 className="text-lg font-semibold mb-2">Top danh mục chi tiêu</h3>
-            <ul className="space-y-1 text-sm">
-              <li>🍔 Ăn uống – 1.500.000 ₫</li>
-              <li>🚗 Di chuyển – 900.000 ₫</li>
-              <li>🎮 Giải trí – 750.000 ₫</li>
-            </ul>
+          <div className="space-y-3 bg-zinc-800 p-4 rounded-xl shadow">
+             <div className="flex items-center gap-3 mb-6">
+                <div className="w-10 h-10 bg-gradient-to-r from-blue-500 to-purple-600 rounded-xl flex items-center justify-center">
+                  <span className="text-lg">📊</span>
+                </div>
+                <h3 className="text-xl font-bold text-white">Top danh mục chi tiêu</h3>
+              </div>
+            {topCategories.length > 0 ? (
+              topCategories.map((cat, idx) => (
+                <div
+                  key={idx}
+                  className="group flex items-center justify-between p-4 bg-zinc-700/30 hover:bg-zinc-700/50 rounded-xl transition-all duration-200 hover:scale-[1.02] border border-zinc-600/20"
+                >
+                  <div className="flex items-center gap-4">
+                    <div className="w-12 h-12 bg-gradient-to-r from-zinc-600 to-zinc-700 rounded-xl flex items-center justify-center text-xl group-hover:scale-110 transition-transform duration-200">
+                      <span>{cat.icon}</span>
+                    </div>
+                    <div>
+                      <span className="text-white font-medium text-base">{cat.category_name}</span>
+                      <div className="text-zinc-400 text-sm">#{idx + 1} chi tiêu cao nhất</div>
+                    </div>
+                  </div>
+                  <div className="text-right">
+                    <div className="text-red-400 font-bold text-lg">{formatCurrency(cat.total)}</div>
+                    <div className="text-zinc-500 text-xs">
+                      {((cat.total / topCategories.reduce((sum, c) => sum + c.total, 0)) * 100).toFixed(1)}%
+                    </div>
+                  </div>
+                </div>
+              ))
+            ) : (
+              <div className="flex flex-col items-center justify-center py-12 text-center">
+                <div className="w-16 h-16 bg-zinc-700/50 rounded-full flex items-center justify-center mb-4">
+                  <span className="text-2xl text-zinc-500">📝</span>
+                </div>
+                <p className="text-zinc-400 text-lg font-medium">Không có dữ liệu</p>
+                <p className="text-zinc-500 text-sm mt-1">Hãy thêm chi tiêu để xem thống kê</p>
+              </div>
+            )}
           </div>
           <div className="bg-zinc-800 p-4 rounded-xl shadow">
             <h3 className="text-lg font-semibold mb-2">Biểu đồ chi tiêu</h3>
-            <div className="h-40">
+            <div className="h-full">
               <ExpensePieChart />
             </div>
           </div>
