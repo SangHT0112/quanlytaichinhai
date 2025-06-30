@@ -4,7 +4,7 @@ import { useEffect, useState } from "react"
 import { Search, ArrowUpDown, TrendingUp, TrendingDown } from "lucide-react"
 import LoginRequiredModal from "@/components/LoginRequiredModal"
 import { mockTransactions } from "@/data/historyData"
-
+import { fetchHistoryTransactions } from "@/api/historyApi"
 const getCategoryColor = (category: string) => {
   switch (category) {
     case "Ăn uống": return "bg-pink-500"
@@ -31,21 +31,28 @@ export default function TransactionHistory() {
   const [sortBy, setSortBy] = useState("date")
   const [isLoggedIn, setIsLoggedIn] = useState(false)
   const [isLoading, setIsLoading] = useState(true)
-
+  const [transactions, setTransactions] = useState<any[]>([])
   useEffect(() => {
-    const user = localStorage.getItem("user")
-    if (user) {
-      setIsLoggedIn(true)
-      const timer = setTimeout(() => setIsLoading(false), 2000)
-      return () => clearTimeout(timer)
-    } else {
-      setIsLoggedIn(false)
-      setIsLoading(true)
+    const userStr = localStorage.getItem("user");
+    if(!userStr){
+      setIsLoggedIn(false);
+      return;
     }
+    const user = JSON.parse(userStr);
+    setIsLoggedIn(true);
+    fetchHistoryTransactions(user.user_id)
+    .then((res) => {
+      setTransactions(res)
+      setIsLoading(false);
+    })
+    .catch((err)=>{
+      console.error("Lỗi khi load lịch sử", err)
+      setIsLoading(false);
+    })
   }, [])
 
-  const categories = [...new Set(mockTransactions.map((t) => t.category))]
-  const filteredTransactions = mockTransactions
+  const categories = [...new Set(transactions.map((t) => t.category))]
+  const filteredTransactions = transactions
     .filter((t) => {
       const matchSearch = t.description.toLowerCase().includes(searchTerm.toLowerCase()) || t.category.toLowerCase().includes(searchTerm.toLowerCase())
       const matchType = filterType === "all" || t.type === filterType
@@ -58,8 +65,8 @@ export default function TransactionHistory() {
       return 0
     })
 
-  const totalIncome = mockTransactions.filter((t) => t.type === "income").reduce((sum, t) => sum + t.amount, 0)
-  const totalExpense = mockTransactions.filter((t) => t.type === "expense").reduce((sum, t) => sum + t.amount, 0)
+  const totalIncome = transactions.filter((t) => t.type === "income").reduce((sum, t) => sum + t.amount, 0)
+  const totalExpense = transactions.filter((t) => t.type === "expense").reduce((sum, t) => sum + t.amount, 0)
 
   if (isLoading) {
     return (
@@ -131,7 +138,7 @@ export default function TransactionHistory() {
           <select
             value={filterType}
             onChange={(e) => setFilterType(e.target.value)}
-            className="w-full py-2 px-3 border rounded-md bg-transparent text-sm"
+            className="w-full py-2 px-3 rounded-md border border-zinc-700 bg-zinc-800 text-white text-sm focus:outline-none"
           >
             <option value="all">Tất cả</option>
             <option value="income">Thu nhập</option>
@@ -141,7 +148,7 @@ export default function TransactionHistory() {
           <select
             value={filterCategory}
             onChange={(e) => setFilterCategory(e.target.value)}
-            className="w-full py-2 px-3 border rounded-md bg-transparent text-sm"
+            className="w-full py-2 px-3 rounded-md border border-zinc-700 bg-zinc-800 text-white text-sm focus:outline-none"
           >
             <option value="all">Tất cả danh mục</option>
             {categories.map((category) => (
@@ -152,7 +159,7 @@ export default function TransactionHistory() {
           <select
             value={sortBy}
             onChange={(e) => setSortBy(e.target.value)}
-            className="w-full py-2 px-3 border rounded-md bg-transparent text-sm"
+            className="w-full py-2 px-3 rounded-md border border-zinc-700 bg-zinc-800 text-white text-sm focus:outline-none"
           >
             <option value="date">Ngày</option>
             <option value="amount">Số tiền</option>

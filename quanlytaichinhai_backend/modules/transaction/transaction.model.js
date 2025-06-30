@@ -15,11 +15,11 @@ export const getTransactionsByUserId = async (userId) => {
   // Map category_id → name
   const categoryMap = {}
   categories.forEach((c) => {
-    categoryMap[c.id] = c.name
+    categoryMap[c.category_id] = c.name
   })
 
   return rows.map((t) => ({
-    id: t.id,
+    id: t.transaction_id,
     description: t.description,
     amount: Number(t.amount),
     type: t.type,
