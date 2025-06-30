@@ -16,3 +16,4 @@ router.get('/top-categories', topCategories)
 router.get('/', overview)
 
 export default router
+

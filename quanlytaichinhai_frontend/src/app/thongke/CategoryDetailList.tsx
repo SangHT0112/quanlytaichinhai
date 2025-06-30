@@ -1,0 +1,47 @@
+"use client"
+import { useEffect, useState } from "react"
+import { fetchTopCategories } from "@/api/overviewApi"
+import { formatCurrency } from "@/lib/format"
+
+interface CategoryItem{
+    name:string
+    value:number
+    color:string
+}
+export default function CategoryDetailList({ userId }: { userId: number }) {
+  const [data, setData] = useState<CategoryItem[]>([])
+
+  useEffect(() => {
+    fetchTopCategories(userId).then((res) => {
+      const COLORS = ["#8884d8", "#82ca9d", "#ffc658", "#ff7300", "#00ff88", "#ff0088", "#ffbb28"]
+      const formatted = res.map((item: any, index: number) => ({
+        name: item.category_name,
+        value: Number(item.total),
+        color: COLORS[index % COLORS.length],
+      }))
+      setData(formatted)
+    })
+  }, [userId])
+
+  const total = data.reduce((sum, item) => sum + item.value, 0)
+
+  return (
+    <div className="space-y-4">
+      {data.map((category, index) => {
+        const percentage = (category.value / total) * 100
+        return (
+          <div key={index} className="flex items-center justify-between p-3 border rounded-lg">
+            <div className="flex items-center space-x-3">
+              <div className="w-4 h-4 rounded-full" style={{ backgroundColor: category.color }} />
+              <span className="font-medium">{category.name}</span>
+            </div>
+            <div className="text-right">
+              <div className="font-semibold">{formatCurrency(category.value)}</div>
+              <div className="text-sm text-muted-foreground">{percentage.toFixed(1)}%</div>
+            </div>
+          </div>
+        )
+      })}
+    </div>
+  )
+}
