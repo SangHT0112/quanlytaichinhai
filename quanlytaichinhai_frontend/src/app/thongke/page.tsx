@@ -17,8 +17,8 @@ import {
   AreaChart,
 } from "recharts"
 import { TrendingUp, TrendingDown, Calendar, Target } from "lucide-react"
-import { useState } from "react"
-
+import { useEffect, useState } from "react"
+import { fetchExpensePieChart } from "@/api/overviewApi"
 const monthlyData = [
   { month: "T10", income: 15000000, expense: 8500000 },
   { month: "T11", income: 15000000, expense: 7200000 },
@@ -62,12 +62,34 @@ const formatCurrency = (amount: number) => {
 
 export default function ThongKe() {
   const [timeRange, setTimeRange] = useState("month")
+  const [expensePieChart, setExpensePieChart] =useState<any[]>([])
 
   const currentMonth = monthlyData[monthlyData.length - 1]
   const previousMonth = monthlyData[monthlyData.length - 2]
 
   const incomeChange = ((currentMonth.income - previousMonth.income) / previousMonth.income) * 100
   const expenseChange = ((currentMonth.expense - previousMonth.expense) / previousMonth.expense) * 100
+  useEffect(() => {
+  const userStr = localStorage.getItem("user");
+  if (!userStr) return;
+
+  const user = JSON.parse(userStr);
+  fetchExpensePieChart(user.user_id)
+    .then((res) => {
+      const COLORS = ["#8884d8", "#82ca9d", "#ffc658", "#ff7300", "#00ff88", "#ff0088", "#ffbb28"]
+      const formatted = res.map((item: any, index: number) => ({
+        ...item,
+        value: Number(item.total),
+        name: item.category_name,
+        color: COLORS[index % COLORS.length],
+      }))
+      setExpensePieChart(formatted)
+    })
+    .catch((err) => {
+      console.error("Lỗi khi load lịch sử", err)
+    })
+}, []);
+
 
   return (
     <div className="space-y-6">
@@ -174,7 +196,7 @@ export default function ThongKe() {
             <ResponsiveContainer width="100%" height={300}>
               <PieChart>
                 <Pie
-                  data={categoryData}
+                  data={expensePieChart}
                   cx="50%"
                   cy="50%"
                   labelLine={false}
@@ -183,10 +205,11 @@ export default function ThongKe() {
                   fill="#8884d8"
                   dataKey="value"
                 >
-                  {categoryData.map((entry, index) => (
+                  {expensePieChart.map((entry, index) => (
                     <Cell key={`cell-${index}`} fill={entry.color} />
                   ))}
                 </Pie>
+
                 <Tooltip formatter={(value) => formatCurrency(Number(value))} />
               </PieChart>
             </ResponsiveContainer>

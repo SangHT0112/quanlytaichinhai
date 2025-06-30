@@ -6,7 +6,7 @@ import dotenv from 'dotenv';
 import authRoutes from "./modules/auth/auth.routes.js"
 import overviewRoutes from "./modules/overview/overview.routes.js"
 import transactionRoutes from "./modules/transaction/transaction.routes.js"
-
+import statisticalRoutes from "./modules/statistical/statistical.routes.js"
 dotenv.config();
 const app = express();
 app.use(cors({
@@ -22,7 +22,7 @@ app.get('/', (req, res) => {
 app.use("/api/auth", authRoutes);
 app.use("/api/overview", overviewRoutes);
 app.use("/api/history", transactionRoutes);
-
+app.use('/api/statistical', statisticalRoutes)
 const PORT = process.env.PORT || 4000;
 app.listen(PORT, () => {
     console.log(`Server đang chạy tại http://localhost:${PORT}`);

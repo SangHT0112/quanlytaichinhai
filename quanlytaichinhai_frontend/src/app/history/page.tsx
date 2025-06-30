@@ -3,7 +3,7 @@
 import { useEffect, useState } from "react"
 import { Search, ArrowUpDown, TrendingUp, TrendingDown } from "lucide-react"
 import LoginRequiredModal from "@/components/LoginRequiredModal"
-import { mockTransactions } from "@/data/historyData"
+//import { mockTransactions } from "@/data/historyData"
 import { fetchHistoryTransactions } from "@/api/historyApi"
 const getCategoryColor = (category: string) => {
   switch (category) {
@@ -12,8 +12,10 @@ const getCategoryColor = (category: string) => {
     case "Lương": return "bg-green-600"
     case "Mua sắm": return "bg-purple-500"
     case "Giải trí": return "bg-yellow-500"
-    case "Hóa đơn": return "bg-red-500"
+    case "Hóa đơn": return "bg-black-500"
     case "Y tế": return "bg-rose-500"
+    case "Giáo dục": return "bg-gray-500"
+    case "Nhà cửa": return "bg-violet-500"
     default: return "bg-gray-500"
   }
 }
