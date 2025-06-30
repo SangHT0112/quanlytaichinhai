@@ -5,13 +5,18 @@ import WeeklyBarChart from "@/components/charts/WeeklyBarChart"
 import LoginRequiredModal from "@/components/LoginRequiredModal"
 
 import { formatCurrency } from "@/lib/format"
-import { fetchTopCategories, FinancialSummary } from "@/api/overviewApi"
+
+import { fetchTopCategories, 
+  FinancialSummary,
+} from "@/api/overviewApi"
+
 import { fetchOverview } from "@/api/overviewApi"
 export default function Home() {
   const [isLoggedIn, setIsLoggedIn] = useState(false)
   const [isLoadingData, setIsLoadingData] = useState(true)
   const [summaryData, setSummaryData] = useState<FinancialSummary | null>(null)
   const [topCategories, setTopCategories] = useState<any[]>([])
+  const [weeklyExpenses, setWeeklyExpenses] = useState<any[]>([])
   useEffect(() => {
     const userStr = localStorage.getItem("user")
     console.log("localStorage user:", localStorage.getItem("user"))
@@ -33,12 +38,11 @@ export default function Home() {
     // Gọi cả 2 API
   Promise.all([
     fetchOverview(user.user_id),
-    fetchTopCategories(user.user_id)
+    fetchTopCategories(user.user_id),
   ])
     .then(([summary, topCats]) => {
       setSummaryData(summary)
       setTopCategories(topCats)
-      console.log("Dữ liệu top category:", topCats)
     })
     .catch((err) => {
       console.error("Lỗi khi lấy dữ liệu:", err)
@@ -136,7 +140,7 @@ export default function Home() {
                     </div>
                   </div>
                   <div className="text-right">
-                    <div className="text-red-400 font-bold text-lg">{formatCurrency(cat.total)}</div>
+                    <div className="text-red-400 font-bold text-lg">{formatCurrency(Number(cat.total))}</div>
                     <div className="text-zinc-500 text-xs">
                       {((cat.total / topCategories.reduce((sum, c) => sum + c.total, 0)) * 100).toFixed(1)}%
                     </div>

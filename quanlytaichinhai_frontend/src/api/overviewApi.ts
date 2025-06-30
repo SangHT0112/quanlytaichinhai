@@ -27,3 +27,10 @@ export async function fetchExpensePieChart(userId: number) {
   })
   return res.data // Array<{ category_name: string, total: number }>
 }
+
+export async function fetchWeeklyExpenses(userId: number) {
+  const res = await axiosInstance.get("/overview/weekly-expenses", {
+    params: { user_id: userId },
+  })
+  return res.data // Array<{ day: string, chi: number }>
+}

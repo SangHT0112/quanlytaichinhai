@@ -15,7 +15,7 @@ import {
   CardHeader,
   CardTitle
 } from "@/components/ui/card"
-
+import { formatCurrency } from "@/lib/format"
 const COLORS = ["#00C49F", "#FFBB28", "#FF8042", "#8884d8", "#FF6384"]
 
 type ExpenseItemFromAPI = {
@@ -30,9 +30,9 @@ type PieChartItem = {
   color: string
 }
 
-const formatCurrency = (value: number) => {
-  return value.toLocaleString("vi-VN", { style: "currency", currency: "VND" })
-}
+// const formatCurrency = (value: number) => {
+//   return value.toLocaleString("vi-VN", { style: "currency", currency: "VND" })
+// }
 
 export default function ExpensePieChart() {
   const [categoryData, setCategoryData] = useState<PieChartItem[]>([])

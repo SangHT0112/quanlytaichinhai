@@ -1,25 +1,35 @@
 "use client"
-
+import { useEffect, useState } from "react"
 import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer } from "recharts"
-
-const data = [
-  { day: "T2", chi: 500000 },
-  { day: "T3", chi: 750000 },
-  { day: "T4", chi: 300000 },
-  { day: "T5", chi: 900000 },
-  { day: "T6", chi: 400000 },
-  { day: "T7", chi: 650000 },
-  { day: "CN", chi: 500000 },
-]
+import { fetchWeeklyExpenses } from "@/api/overviewApi"
+import { formatCurrency } from "@/lib/format"
 
 export default function WeeklyBarChart() {
+  const [data, setData] = useState<any[]>([])
+  useEffect(() => {
+    const userStr = localStorage.getItem("user")
+    if(!userStr) return
+    const userId = JSON.parse(userStr).user_id
+
+    fetchWeeklyExpenses(userId)
+    .then((res) =>{
+      console.log("Dữ liệu tuần:", res)
+      setData(res)
+    })
+    .catch((err) => {
+      console.error("Lỗi biểu đồ tuần:", err)
+    })
+  }, [])
   return (
     <div className="h-48">
       <ResponsiveContainer width="100%" height="100%">
-        <BarChart data={data}>
+        <BarChart
+          data={data}
+          margin={{ top: 10, right: 20, left: 20, bottom: 10 }}
+        >
           <XAxis dataKey="day" />
-          <YAxis />
-          <Tooltip />
+          <YAxis tickFormatter={(value) => formatCurrency(Number(value))}/>
+          <Tooltip formatter={(value:number)=> formatCurrency(Number(value))} />
           <Bar dataKey="chi" fill="#8884d8" radius={[4, 4, 0, 0]} />
         </BarChart>
       </ResponsiveContainer>
