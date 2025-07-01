@@ -25,23 +25,27 @@ export default function TopExpenseCategories({ userId }: Props) {
 
   return (
     <div className="space-y-3 bg-zinc-800 p-4 rounded-xl shadow">
-      <div className="flex items-center gap-3 mb-6">
-        <div className="w-10 h-10 bg-gradient-to-r from-blue-500 to-purple-600 rounded-xl flex items-center justify-center">
-          <span className="text-lg">📊</span>
-        </div>
-        <div className="flex items-center gap-2">
+     <div className="flex justify-between items-center mb-6">
+        {/* Icon bên trái */}
+        <div className="flex items-center gap-3">
+          <div className="w-10 h-10 bg-gradient-to-r from-blue-500 to-purple-600 rounded-xl flex items-center justify-center">
+            <span className="text-lg">📊</span>
+          </div>
           <h3 className="text-xl font-bold text-white">Top danh mục chi tiêu</h3>
-          <select
-            value={timeframe}
-            onChange={(e) => setTimeframe(e.target.value)}
-            className="bg-zinc-700 text-white text-sm rounded px-2 py-1 ml-2"
-          >
-            <option value="current_month">Tháng này</option>
-            <option value="last_month">Tháng trước</option>
-            <option value="current_week">Tuần này</option>
-          </select>
         </div>
+
+        {/* Dropdown bên phải */}
+        <select
+          value={timeframe}
+          onChange={(e) => setTimeframe(e.target.value)}
+          className="bg-zinc-700 text-white text-sm rounded px-2 py-1"
+        >
+          <option value="current_month">Tháng này</option>
+          <option value="last_month">Tháng trước</option>
+          <option value="current_week">Tuần này</option>
+        </select>
       </div>
+
 
       {topCategories.length > 0 ? (
         topCategories.map((cat, idx) => (

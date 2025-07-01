@@ -6,13 +6,14 @@ import LoginRequiredModal from "@/components/LoginRequiredModal"
 import { AIForecastMock } from "@/components/AI/AIForecastMock"
 import { formatCurrency } from "@/lib/format"
 import { TrendIndicator } from "@/components/TrendIndicator"
-import BalanceCard from "./BalanceCard"
+import BalanceCard from "./components/BalanceCard"
 import { fetchTopCategories,
 } from "@/api/overviewApi"
 import OverviewSkeleton from "@/components/Skeleton/OverviewSkeleton"
 import { FinancialSummary } from "@/types/financial"
 import { fetchOverview } from "@/api/overviewApi"
-import TopExpenseCategories from "./TopExpenseCategories"
+import TopExpenseCategories from "./components/TopExpenseCategories"
+import TransactionList from "./components/TransactionList"
 export default function Home() {
 
   const [user, setUser] = useState<{ user_id: number } | null>(null)
@@ -69,7 +70,6 @@ export default function Home() {
       <main className="flex-1 p-6 space-y-6">
         <h1 className="text-3xl font-bold">Tổng quan tài chính</h1>
         
-        {/* 3 ô tổng hợp */}
         {/* Sử dụng BalanceCard */}
         <BalanceCard 
           actualBalance={summaryData?.actual_balance || 0}
@@ -88,12 +88,9 @@ export default function Home() {
             <TopExpenseCategories userId={user.user_id} />
           )}
 
-          <div className="bg-zinc-800 p-4 rounded-xl shadow">
-            <h3 className="text-lg font-semibold mb-2">Biểu đồ chi tiêu</h3>
-            <div className="h-full">
-              <ExpensePieChart />
-            </div>
-          </div>
+          {user?.user_id && (
+              <TransactionList userId={user.user_id}/>
+            )}
         </div>
 
         {/* Chi tiêu theo tuần */}

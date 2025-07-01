@@ -1,29 +1,46 @@
 import db from "../../config/db.js"
 
-export const getTransactionsByUserId = async (userId) => {
-  const [rows] = await db.execute(
-    `SELECT transaction_id, description, amount, type, category_id, transaction_date
-     FROM transactions
-     WHERE user_id = ?
-     ORDER BY transaction_date DESC`,
-    [userId]
-  )
+export const getTransactionsByUserId = async (userId, limit = null) => {
+  let query = `
+    SELECT 
+      t.transaction_id, 
+      t.description, 
+      t.amount, 
+      t.type, 
+      t.category_id, 
+      t.transaction_date,
+      c.name AS category_name,
+      c.icon AS category_icon
+    FROM transactions t
+    LEFT JOIN categories c ON t.category_id = c.category_id
+    WHERE t.user_id = ?
+    ORDER BY t.transaction_date DESC
+  `
+  
+  const params = [userId]
+  
+  // Thêm LIMIT nếu có yêu cầu
+  if (limit && Number.isInteger(limit)) {
+    query += ' LIMIT ?'
+    params.push(limit)
+  }
 
-  // Lấy tên danh mục
-  const [categories] = await db.execute(`SELECT category_id, name FROM categories`)
-
-  // Map category_id → name
-  const categoryMap = {}
-  categories.forEach((c) => {
-    categoryMap[c.category_id] = c.name
-  })
+  const [rows] = await db.execute(query, params)
 
   return rows.map((t) => ({
     id: t.transaction_id,
     description: t.description,
     amount: Number(t.amount),
     type: t.type,
-    category: categoryMap[t.category_id] || "Không rõ",
+    category: t.category_name || "Không rõ",
+    icon: t.category_icon || (t.type === 'income' ? '💰' : '💸'),
     date: t.transaction_date
   }))
 }
+
+
+// Lấy 5 giao dịch gần nhất
+//const recentTransactions = await getTransactionsByUserId(userId, 5)
+
+// Lấy tất cả giao dịch (không giới hạn)
+//const allTransactions = await getTransactionsByUserId(userId)

@@ -39,7 +39,7 @@ export default function BalanceCard({
       {/* --- Hàng 2: Thu nhập/Chi tiêu --- */}
       <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
         {/* Ô thu nhập */}
-        <div className="bg-emerald-900/30 p-4 rounded-lg">
+        <div className="bg-emerald-900 p-4 rounded-lg">
           <div className="flex justify-between">
             <h3 className="text-gray-300">Thu nhập</h3>
             <TrendIndicator value={incomeChangePercentage || 0} />
@@ -53,7 +53,7 @@ export default function BalanceCard({
         </div>
 
         {/* Ô chi tiêu */}
-        <div className="bg-rose-900/30 p-4 rounded-lg">
+        <div className="bg-rose-900 p-4 rounded-lg">
           <div className="flex justify-between">
             <h3 className="text-gray-300">Chi tiêu</h3>
             <TrendIndicator value={expenseChangePercentage || 0} />
