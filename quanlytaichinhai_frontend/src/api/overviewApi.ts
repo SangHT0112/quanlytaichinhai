@@ -7,13 +7,14 @@ export async function fetchOverview(userId: number): Promise<FinancialSummary> {
 
   return res.data
 }
-
-export async function fetchTopCategories(userId: number) {
-  const res = await axiosInstance.get("/overview/top-categories", {
-    params: { user_id: userId },
+// src/api/overviewApi.ts
+export async function fetchTopCategories(userId: number, timeframe: string = "current_month") {
+  const res = await axiosInstance.get("/overview/expense-top-categories", {
+    params: { user_id: userId, timeframe },
   })
   return res.data // Array<{ category_name: string, total: number }>
 }
+
 
 export async function fetchExpensePieChart(userId: number) {
   const res = await axiosInstance.get("/overview/expense-pie-chart", {

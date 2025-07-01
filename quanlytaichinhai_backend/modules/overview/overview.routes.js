@@ -7,7 +7,7 @@ import { getOverview,
 
 const router = express.Router();
 router.get('/', getOverview)
-router.get("/top-categories", getTopExpenseCategories) 
+router.get("/expense-top-categories", getTopExpenseCategories) 
 router.get("/expense-pie-chart", getExpensePieChart)
 router.get("/weekly-expenses", getWeeklyExpenses)
 export default router;  
