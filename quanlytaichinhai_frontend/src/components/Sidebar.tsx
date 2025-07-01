@@ -25,12 +25,12 @@ export default function Sidebar() {
         <Link href="/thongke" onClick={() => handleLinkClick('/thongke')}>
           <div className="hover:bg-zinc-800 p-2 rounded cursor-pointer">📈 Thống kê</div>
         </Link>
-        <Link href="/chatai" onClick={() => handleLinkClick('/chatai')}>
+        {/* <Link href="/chatai" onClick={() => handleLinkClick('/chatai')}>
           <div className="hover:bg-zinc-800 p-2 rounded cursor-pointer">🤖 Gợi ý AI</div>
         </Link>
         <Link href="/settings">
           <div className="hover:bg-zinc-800 p-2 rounded cursor-pointer">⚙️ Cài đặt</div>
-        </Link>
+        </Link> */}
       </nav>
     </aside>
   );

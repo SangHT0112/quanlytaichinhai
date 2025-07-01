@@ -24,7 +24,7 @@ import MonthlyBarChart from "./MonthlyBarChart"
 import ExpensePieChart from "./ExpensePieChart"
 import DailySpendingAreaChart from "./DailySpendingAreaChart"
 import CategoryDetailList from "./CategoryDetailList"
-import {FinancialSummary} from "@/api/overviewApi"
+import { FinancialSummary } from "@/types/financial"
 const monthlyData = [
   { month: "T10", income: 15000000, expense: 8500000 },
   { month: "T11", income: 15000000, expense: 7200000 },
@@ -87,7 +87,7 @@ export default function ThongKe() {
       </div>
 
       {/* Comparison Cards */}
-      <div className="grid gap-4 md:grid-cols-4">
+      {/* <div className="grid gap-4 md:grid-cols-4">
         <Card className="">
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
             <CardTitle className="text-sm font-medium">Thu nhập tháng này</CardTitle>
@@ -141,12 +141,12 @@ export default function ThongKe() {
             <p className="text-xs text-muted-foreground">Dựa trên 30 ngày</p>
           </CardContent>
         </Card>
-      </div>
+      </div> */}
 
        {userId && (
         <>
           <div className="grid gap-6 md:grid-cols-2">
-            <Card>
+            <Card className="">
               <CardHeader>
                 <CardTitle>Thu nhập vs Chi tiêu theo tháng</CardTitle>
                 <CardDescription>So sánh thu chi 4 tháng gần nhất</CardDescription>
@@ -156,7 +156,7 @@ export default function ThongKe() {
               </CardContent>
             </Card>
 
-            <Card>
+            <Card className="">
               <CardHeader>
                 <CardTitle>Phân bổ chi tiêu theo danh mục</CardTitle>
                 <CardDescription>Tỷ lệ chi tiêu tháng này</CardDescription>
@@ -167,7 +167,7 @@ export default function ThongKe() {
             </Card>
           </div>
 
-          <Card>
+          <Card className="">
             <CardHeader>
               <CardTitle>Xu hướng chi tiêu hàng ngày</CardTitle>
               <CardDescription>Chi tiêu 15 ngày gần nhất</CardDescription>

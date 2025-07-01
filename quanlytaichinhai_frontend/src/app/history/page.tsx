@@ -90,7 +90,7 @@ export default function TransactionHistory() {
     )
   }
   return (
-    <div className="space-y-6">
+    <div className="space-y-6" id="transactions-history">
       <h1 className="text-3xl font-bold">Lịch sử giao dịch</h1>
 
       {/* Tổng quan */}

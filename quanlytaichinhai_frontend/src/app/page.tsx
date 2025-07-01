@@ -76,7 +76,66 @@ export default function ChatAI() {
 
   const generateAIResponse = (userMessage: string): string => {
     const lowerMessage = userMessage.toLowerCase()
+    // Danh sách từ khóa điều hướng (không phân biệt vị trí trong câu)
+    const NAV_TRIGGERS = [
+      'đến trang', 'vào trang','qua trang',
+      'đưa tôi đến', 'đưa tôi tới', 'đi tới', 'đi đến',
+      'tôi muốn vào', 'mở trang', 'chuyển tới', 'chuyển đến',
+      'nhảy tới', 'hiển thị trang'
+    ];
 
+    // Kiểm tra có phải là yêu cầu điều hướng không
+    const isNavigationRequest = NAV_TRIGGERS.some(trigger => 
+      lowerMessage.includes(trigger)
+    );
+
+    // 1. Xử lý yêu cầu điều hướng
+    if (isNavigationRequest) {
+      // 1.1 Thêm giao dịch
+      if (/thêm giao dịch|tạo giao dịch|add transaction/i.test(lowerMessage)) {
+        window.postMessage({
+          type: 'NAVIGATE',
+          payload: { path: '/', target: 'add-transaction-form' }
+        }, '*');
+        return "🔄 Đang chuyển đến trang thêm giao dịch...";
+      }
+
+      // 1.2 Trang tổng quan
+      if (/tổng quan|trang chủ|dashboard|home/i.test(lowerMessage)) {
+        window.postMessage({
+          type: 'NAVIGATE',
+          payload: { path: '/tongquan', target: 'financial-overview' }
+        }, '*');
+        return "📊 Đang mở bảng tổng quan...";
+      }
+
+      // 1.3 Lịch sử giao dịch
+      if (/lịch sử|giao dịch gần đây|history/i.test(lowerMessage)) {
+        window.postMessage({
+          type: 'NAVIGATE',
+          payload: { path: '/history', target: 'transactions-history' }
+        }, '*');
+        return "📜 Đang tải lịch sử giao dịch...";
+      }
+
+      // 1.4 Thống kê
+      if (/thống kê|báo cáo|analytics|stats/i.test(lowerMessage)) {
+        window.postMessage({
+          type: 'NAVIGATE',
+          payload: { path: '/thongke', target: 'stats-section' }
+        }, '*');
+        return "📈 Đang mở báo cáo thống kê...";
+      }
+    }
+
+    // 2. Xử lý hỏi đáp thông thường (không chứa từ khóa điều hướng)
+    if (/số dư|balance/i.test(lowerMessage)) {
+      return "💰 Số dư hiện tại của bạn là 15.750.000 ₫";
+    }
+
+    if (/chi tiêu|spending/i.test(lowerMessage)) {
+      return "💸 Tháng này bạn đã chi tiêu 4.200.000 ₫";
+    }
     if (lowerMessage.includes(" xem số dư")) {
       return "Số dư hiện tại của bạn là 15.750.000 ₫. Đây là một mức số dư khá tốt! Bạn có muốn tôi phân tích chi tiết về tình hình tài chính không?"
     }
@@ -101,6 +160,26 @@ export default function ChatAI() {
   const handleQuickAction = (action: string) => {
     handleSendMessage(action)
   }
+
+  useEffect(() => {
+    const stored = localStorage.getItem("chatHistory")
+    if (stored) {
+      const { date, messages: savedMessages } = JSON.parse(stored)
+      const today = new Date().toDateString()
+      if (date === today) {
+        // Convert lại timestamp từ string → Date
+        const restoredMessages = savedMessages.map((m: any) => ({
+          ...m,
+          timestamp: new Date(m.timestamp),
+        }))
+        setMessages(restoredMessages)
+      } else {
+        localStorage.removeItem("chatHistory")
+      }
+    }
+  }, [])
+
+
   useEffect(() => {
     const pending = localStorage.getItem("pendingChatMessage");
     if (pending) {
@@ -122,9 +201,23 @@ export default function ChatAI() {
 
   useEffect(() => {
     if (messages.length > 1) {
-      messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
+      localStorage.setItem("chatHistory", JSON.stringify({
+        date: new Date().toDateString(),
+        messages
+      }))
     }
-  }, [messages]);
+  }, [messages])
+  useEffect(() => {
+    const timeout = setTimeout(() => {
+      if (messagesEndRef.current) {
+        messagesEndRef.current.scrollIntoView({ behavior: "smooth" });
+      }
+    }, 50) // trì hoãn 50ms cho nội dung render xong
+
+    return () => clearTimeout(timeout)
+  }, [messages])
+
+
 
   return (
     <div className="flex flex-col h-full">
@@ -217,6 +310,14 @@ export default function ChatAI() {
             className="px-3 py-2 rounded-full bg-zinc-800 hover:bg-zinc-700 text-sm text-white flex items-center gap-2 transition-colors"
           >
             Lời khuyên
+          </button>
+
+          {/* Trong phần Quick Actions của ChatAI */}
+          <button
+            onClick={() => handleQuickAction("Vào trang lịch sử giao dịch gần đây")}
+            className="px-3 py-2 rounded-full bg-zinc-800 hover:bg-zinc-700 text-sm text-white flex items-center gap-2 transition-colors"
+          >
+            📜 Lịch sử giao dịch
           </button>
         </div>
       </div>

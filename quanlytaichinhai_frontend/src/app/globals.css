@@ -121,3 +121,34 @@
     @apply bg-background text-foreground;
   }
 }
+
+
+/* Thêm vào file CSS global */
+.transition-all {
+  transition-property: all;
+  transition-timing-function: cubic-bezier(0.4, 0, 0.2, 1);
+  transition-duration: 300ms;
+}
+
+
+/* Thêm vào file global CSS */
+body.waiting-navigation {
+  cursor: wait;
+}
+
+body.waiting-navigation::after {
+  content: "";
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  height: 5px;
+  background: linear-gradient(to right, #4f46e5, #ec4899);
+  z-index: 9999;
+  animation: loadingAnimation 3s linear forwards;
+}
+
+@keyframes loadingAnimation {
+  0% { width: 0% }
+  100% { width: 100% }
+}

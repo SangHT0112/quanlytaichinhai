@@ -23,6 +23,63 @@ export default function RootLayout({ children }: { children: ReactNode }) {
   const pathname = usePathname();
   
    const [user, setUser] = useState<{ username: string } | null>(null)
+
+    // ==================== THÊM PHẦN NÀY ====================
+    useEffect(() => {
+      const handleNavigationMessage = (event: MessageEvent) => {
+        if (event.data?.type === 'NAVIGATE') {
+        const { path, target } = event.data.payload;
+        
+        if (pathname !== path) {
+          // Thêm loading state nếu cần
+          document.body.classList.add('waiting-navigation');
+          
+          // Delay 3 giây trước khi chuyển trang
+          setTimeout(() => {
+            router.push(path);
+            localStorage.setItem('scrollTarget', target);
+            
+            // Remove loading state khi hoàn thành
+            setTimeout(() => {
+              document.body.classList.remove('waiting-navigation');
+            }, 1000);
+          }, 3000); // 👈 Delay 3 giây ở đây
+        } else {
+          setTimeout(() => {
+            scrollToTarget(target);
+          }, 300);
+        }
+      }
+
+      };
+
+      const scrollToTarget = (targetId: string) => {
+        const element = document.getElementById(targetId);
+        if (element) {
+          element.scrollIntoView({ 
+            behavior: 'smooth',
+            block: 'start' 
+          });
+          element.classList.add('ring-2', 'ring-blue-500', 'transition-all');
+          setTimeout(() => {
+            element.classList.remove('ring-2', 'ring-blue-500');
+          }, 3000);
+        }
+      };
+
+      // Xử lý khi trang load (kiểm tra có target trong localStorage không)
+      const target = localStorage.getItem('scrollTarget');
+      if (target) {
+        localStorage.removeItem('scrollTarget');
+        setTimeout(() => scrollToTarget(target), 500);
+      }
+
+      window.addEventListener('message', handleNavigationMessage);
+
+      return () => {
+        window.removeEventListener('message', handleNavigationMessage);
+      };
+    }, [pathname, router]);
   useEffect(() => {
     const storedUser = localStorage.getItem("user");
     if (storedUser) {
@@ -101,13 +158,17 @@ export default function RootLayout({ children }: { children: ReactNode }) {
                 onChange={(e) => setChatInput(e.target.value)}
                 onKeyDown={(e) => {
                   if (e.key === "Enter" && chatInput.trim()) {
-                    // 👉 Gửi tin nhắn khi nhấn Enter
+                    e.preventDefault(); // Ngăn hành vi mặc định
                     localStorage.setItem("pendingChatMessage", chatInput);
                     (window as any).sendChatMessage?.(chatInput);
                     setChatInput("");
-                    router.replace("/");
+                    
+                    if (pathname !== "/") {
+                      router.replace("/");
+                    }
                   }
                 }}
+
                 placeholder="Nhập yêu cầu tài chính hoặc ví dụ..."
                 className="flex-1 px-4 py-2 rounded-full bg-zinc-800 text-white placeholder-zinc-400 focus:outline-none"
               />
@@ -116,7 +177,7 @@ export default function RootLayout({ children }: { children: ReactNode }) {
                 onClick={() => {
                   if (chatInput.trim()) {
                     setIsNavigating(true); // ⏳ Bật hiệu ứng
-
+                    
                     localStorage.setItem("pendingChatMessage", chatInput);
                     (window as any).sendChatMessage?.(chatInput);
                     setChatInput("");
@@ -168,3 +229,4 @@ export default function RootLayout({ children }: { children: ReactNode }) {
     </html>
   );
 }
+

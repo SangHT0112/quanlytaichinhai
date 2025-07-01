@@ -1,7 +1,7 @@
 "use client"
 import { useEffect, useState } from "react"
 import ExpensePieChart from "@/components/charts/ExpensePieChart"
-import WeeklyBarChart from "@/components/charts/WeeklyBarChart"
+import WeeklyBarChart from "@/app/tongquan/components/WeeklyBarChart"
 import LoginRequiredModal from "@/components/LoginRequiredModal"
 import { AIForecastMock } from "@/components/AI/AIForecastMock"
 import { formatCurrency } from "@/lib/format"
