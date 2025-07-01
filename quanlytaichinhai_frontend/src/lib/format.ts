@@ -5,3 +5,7 @@ export function formatCurrency(value: number): string {
     maximumFractionDigits: 0,
   })
 }
+
+export function formatPercentage(change: number): string {
+  return `${change >= 0 ? '+' : ''}${change.toFixed(1)}%`;
+}

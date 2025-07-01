@@ -1,11 +1,5 @@
+import { TopCategory, FinancialSummary } from './../types/financial.d';
 import axiosInstance from "@/config/axios"
-
-export interface FinancialSummary {
-  balance: number
-  income: number
-  expense: number
-}
-
 export async function fetchOverview(userId: number): Promise<FinancialSummary> {
   const res = await axiosInstance.get<FinancialSummary>('/overview', {
     params: { user_id: userId }

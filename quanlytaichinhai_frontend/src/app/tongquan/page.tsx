@@ -3,12 +3,13 @@ import { useEffect, useState } from "react"
 import ExpensePieChart from "@/components/charts/ExpensePieChart"
 import WeeklyBarChart from "@/components/charts/WeeklyBarChart"
 import LoginRequiredModal from "@/components/LoginRequiredModal"
-
+import { AIForecastMock } from "@/components/AI/AIForecastMock"
 import { formatCurrency } from "@/lib/format"
-
-import { fetchTopCategories, 
-  FinancialSummary,
+import { TrendIndicator } from "@/components/TrendIndicator"
+import { fetchTopCategories,
 } from "@/api/overviewApi"
+
+import { FinancialSummary } from "@/types/financial"
 
 import { fetchOverview } from "@/api/overviewApi"
 export default function Home() {
@@ -91,27 +92,54 @@ export default function Home() {
     <div className="flex min-h-screen bg-black text-white font-sans">
       <main className="flex-1 p-6 space-y-6">
         <h1 className="text-3xl font-bold">Tổng quan tài chính</h1>
-
+        
         {/* 3 ô tổng hợp */}
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-          <div className="bg-zinc-800 p-4 rounded-xl shadow">
-            <h3 className="text-sm text-gray-400">Số dư hiện tại</h3>
-            <p className="text-2xl font-semibold text-green-400">
-               {formatCurrency(summaryData?.balance || 0)} 
+        <div className="grid gap-6">
+          {/* --- Hàng 1: Số dư nổi bật --- */}
+          <div className="bg-gradient-to-r from-blue-800 to-purple-900 p-6 rounded-xl text-white">
+            <h2 className="text-lg font-light">Số dư hiện tại</h2>
+            <p className="text-4xl font-bold my-2">
+              {formatCurrency(Number(summaryData?.actual_balance) || 0)}
             </p>
+            <div className="flex gap-4">
+              <span className="text-sm">Thặng dư tháng: {formatCurrency(summaryData?.monthly_surplus || 0)}</span>
+            </div>
           </div>
-          <div className="bg-zinc-800 p-4 rounded-xl shadow">
-            <h3 className="text-sm text-gray-400">Thu nhập tháng này</h3>
-            <p className="text-2xl font-semibold text-green-400">
-              {formatCurrency(Number(summaryData?.income) || 0)}
 
-            </p>
-          </div>
-          <div className="bg-zinc-800 p-4 rounded-xl shadow">
-            <h3 className="text-sm text-gray-400">Chi tiêu tháng này</h3>
-            <p className="text-2xl font-semibold text-red-400">
-           {formatCurrency(Number(summaryData?.expense) || 0)}
-            </p>
+          {/* --- Hàng 2: Thu nhập/Chi tiêu --- */}
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            {/* Ô thu nhập */}
+            <div className="bg-emerald-900/30 p-4 rounded-lg">
+              <div className="flex justify-between">
+                <h3 className="text-gray-300">Thu nhập</h3>
+                <TrendIndicator value={summaryData?.income_change_percentage || 0} />
+              </div>
+              <p className="text-2xl font-semibold text-emerald-400">
+                {formatCurrency(summaryData?.current_income || 0)}
+              </p>
+              <p className="text-xs text-gray-400 mt-1">
+                So với tháng trước: {formatCurrency(summaryData?.previous_income || 0)}
+              </p>
+            </div>
+
+            {/* Ô chi tiêu */}
+            <div className="bg-rose-900/30 p-4 rounded-lg">
+              <div className="flex justify-between">
+                <h3 className="text-gray-300">Chi tiêu</h3>
+                {/* Có thể thêm expense_change_percentage nếu backend hỗ trợ */}
+                <TrendIndicator value={summaryData?.expense_change_percentage || 0} />
+              </div>
+              <p className="text-2xl font-semibold text-rose-400">
+                {formatCurrency(summaryData?.current_expense || 0)}
+              </p>
+               <p className="text-xs text-gray-400 mt-1">
+                Tháng trước: {formatCurrency(summaryData?.previous_expense || 0)}
+              </p>
+              <p className="text-xs text-gray-400 mt-1">
+                {/* Có thể thêm budgetRemaining nếu có */}
+                Chi tiêu trung bình: {formatCurrency((summaryData?.current_expense || 0)/30).slice(0,-3)}/ngày
+              </p>
+            </div>
           </div>
         </div>
 
@@ -171,6 +199,11 @@ export default function Home() {
           <div className="h-40">
             <WeeklyBarChart />
           </div>
+        </div>
+
+        {/* // Thêm vào phần JSX (sau phần WeeklyBarChart) */}
+        <div className="space-y-6">
+          <AIForecastMock />
         </div>
       </main>
     </div>
