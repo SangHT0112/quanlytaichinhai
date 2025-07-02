@@ -1,13 +1,14 @@
 "use client"
 
 import { useEffect, useState } from "react"
-import LoginRequiredModal from "@/components/LoginRequiredModal"
+import LoginRequiredModal from "@/components/Layouts/LoginRequiredModal"
 import StatisticalSkeleton from "@/components/Skeleton/StatisticalSkeleton"
 import SummaryCards from "./components/SummaryCards"
 import FilterControls from "./components/FilterControls"
 import TransactionItem from "./components/TransactionItem"
 import { fetchHistoryTransactions } from "@/api/historyApi"
 import { useFilteredTransactions } from "./components/useFilter"
+import { applyFilterFromAi } from "./components/aiFilterHelper"
 export default function TransactionHistory() {
   const [searchTerm, setSearchTerm] = useState("")
   const [filterType, setFilterType] = useState("all")
@@ -39,6 +40,23 @@ export default function TransactionHistory() {
         setIsLoading(false)
       })
   }, [])
+  useEffect(() => {
+  const handleChatMessage = (event: MessageEvent) => {
+    if (event.data?.type === "FILTER") {
+      const { message } = event.data.payload
+      applyFilterFromAi(message, {
+        setFilterType,
+        setFilterCategory,
+        setFilterMonth,
+        setSearchTerm
+      })
+    }
+  }
+
+  window.addEventListener("message", handleChatMessage)
+  return () => window.removeEventListener("message", handleChatMessage)
+}, [])
+
 
   const categories = [...new Set(transactions.map((t) => t.category))]
   const filteredTransactions = useFilteredTransactions(transactions, {
@@ -56,7 +74,7 @@ export default function TransactionHistory() {
   const totalExpense = transactions
     .filter((t) => t.type === "expense")
     .reduce((sum, t) => sum + t.amount, 0)
-
+  
   if (isLoading) return <StatisticalSkeleton />
 
   return (

@@ -2,10 +2,10 @@
 import { useEffect, useState } from "react"
 import ExpensePieChart from "@/components/charts/ExpensePieChart"
 import WeeklyBarChart from "@/app/tongquan/components/WeeklyBarChart"
-import LoginRequiredModal from "@/components/LoginRequiredModal"
+import LoginRequiredModal from "@/components/Layouts/LoginRequiredModal"
 import { AIForecastMock } from "@/components/AI/AIForecastMock"
 import { formatCurrency } from "@/lib/format"
-import { TrendIndicator } from "@/components/TrendIndicator"
+import { TrendIndicator } from "@/components/Layouts/TrendIndicator"
 import BalanceCard from "./components/BalanceCard"
 import { fetchTopCategories,
 } from "@/api/overviewApi"

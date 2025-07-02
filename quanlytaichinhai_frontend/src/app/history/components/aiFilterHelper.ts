@@ -1,4 +1,3 @@
-// utils/aiFilterHelper.ts
 export function applyFilterFromAi(message: string, setFns: {
   setFilterType: (val: string) => void
   setFilterCategory: (val: string) => void
@@ -9,10 +8,14 @@ export function applyFilterFromAi(message: string, setFns: {
 
   if (msg.includes("chi tiêu")) setFns.setFilterType("expense")
   if (msg.includes("thu nhập")) setFns.setFilterType("income")
+
   if (msg.includes("ăn uống")) setFns.setFilterCategory("Ăn uống")
   if (msg.includes("mua sắm")) setFns.setFilterCategory("Mua sắm")
-  if (msg.includes("tháng 6")) setFns.setFilterMonth("06")
   if (msg.includes("giải trí")) setFns.setFilterCategory("Giải trí")
 
-  // Có thể mở rộng thêm…
+  if (msg.includes("tháng 6")) setFns.setFilterMonth("6")
+  if (msg.includes("tháng 7")) setFns.setFilterMonth("7")
+
+  // fallback nếu không khớp gì hết → set ô tìm kiếm
+  setFns.setSearchTerm(message)
 }

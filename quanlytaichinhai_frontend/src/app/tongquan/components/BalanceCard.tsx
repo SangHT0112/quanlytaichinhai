@@ -1,6 +1,6 @@
 "use client"
 import { formatCurrency } from "@/lib/format"
-import { TrendIndicator } from "@/components/TrendIndicator"
+import { TrendIndicator } from "@/components/Layouts/TrendIndicator"
 
 interface BalanceCardProps {
   actualBalance: number

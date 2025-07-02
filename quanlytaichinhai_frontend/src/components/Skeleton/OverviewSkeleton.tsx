@@ -1,6 +1,6 @@
 "use client"
 
-import LoginRequiredModal from "@/components/LoginRequiredModal"
+import LoginRequiredModal from "@/components/Layouts/LoginRequiredModal"
 
 interface Props {
   isLoggedIn: boolean
