@@ -16,7 +16,7 @@ export async function getExpensePieChart(userId) {
 
 export async function getDailySpendingTrend(userId) {
   const sql = `
-    SELECT DATE_FORMAT(t.transaction_date, "%e") AS day, SUM(t.amount) AS amount
+    SELECT DATE_FORMAT(t.transaction_date, "%d/%m") AS day, SUM(t.amount) AS amount
     FROM transactions t
     WHERE t.user_id = ? AND t.type = 'expense'
       AND t.transaction_date >= CURDATE() - INTERVAL 15 DAY
@@ -26,6 +26,7 @@ export async function getDailySpendingTrend(userId) {
   const [rows] = await db.execute(sql, [userId])
   return rows
 }
+
 
 export async function getMonthlyIncomeVsExpense(userId) {
   const sql = `
