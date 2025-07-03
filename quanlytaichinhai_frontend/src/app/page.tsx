@@ -114,6 +114,8 @@ export default function ChatAI() {
         return "📈 Đang mở báo cáo thống kê...";
       }
     }
+
+
     // Xử lý tìm kiếm
      // Xử lý tìm kiếm với regex đồng bộ với aiFilterHelper
     const searchMatch = userMessage.match(/(?:tìm kiếm|tìm|search)\s*(?:giao dịch|transaction)?\s*(.+)/i);
@@ -154,6 +156,8 @@ export default function ChatAI() {
 
       return "🔍 Đang lọc các giao dịch chi tiêu...";
     }
+
+
     // ===================Xử lý yêu cầu lọc lịch sử theo category=======================
     if (/lịch sử ăn uống|giao dịch ăn uống|chi tiêu ăn uống|đồ ăn|thức ăn/i.test(lowerMessage)) {
       // Gửi message đến trang history để áp dụng filter
@@ -194,8 +198,6 @@ export default function ChatAI() {
         return `🔎 Đang lọc các giao dịch trong tháng ${parseInt(month)}...`;
       }
 
-      
-
 
 
     // ===============Xử lý hỏi đáp thông thường (không chứa từ khóa điều hướng =======================
@@ -221,7 +223,6 @@ export default function ChatAI() {
     if (lowerMessage.includes("lời khuyên") || lowerMessage.includes("khuyên")) {
       return "Dựa trên phân tích tài chính của bạn, tôi có một số lời khuyên:\n\n💡 Tiếp tục duy trì tỷ lệ tiết kiệm cao\n💡 Có thể giảm chi tiêu ăn uống bằng cách nấu ăn tại nhà\n💡 Xem xét đầu tư một phần tiền tiết kiệm\n💡 Thiết lập quỹ khẩn cấp 6 tháng chi tiêu\n\nBạn muốn tôi giải thích chi tiết về điểm nào?"
     }
-
 
 
   return "🤖 Tôi có thể giúp bạn lập kế hoạch tiết kiệm, phân tích chi tiêu và đưa ra lời khuyên tài chính.\n\nVí dụ:\n• \"Tôi muốn tiết kiệm 50 triệu trong 2 năm\"\n• \"Xem thống kê chi tiêu\"\n• \"Gợi ý đầu tư an toàn\"\n\nBạn muốn bắt đầu với gì?";

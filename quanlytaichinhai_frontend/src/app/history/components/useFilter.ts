@@ -14,6 +14,7 @@ export function useFilteredTransactions(transactions: any[], filters: {
     return transactions
       .filter((t) => {
         // Chuẩn hóa chuỗi Unicode và xử lý case sensitivity
+        //Cho phép tìm kiếm không phân biệt hoa thường hoặc dấu (ví dụ: "Luong" khớp với "Lương").
         const normalize = (str: string) => str.toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "")
         
         const matchSearch = searchTerm === "" || 

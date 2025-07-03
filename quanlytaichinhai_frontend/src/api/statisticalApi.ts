@@ -39,17 +39,20 @@ export async function fetchWeeklyExpenses(userId: number) {
 }
 
 // Biểu đồ xu hướng chi tiêu 15 ngày gần nhất
-export async function fetchDailySpendingTrend(userId: number) {
+export async function fetchDailySpendingTrend(userId: number, days:number) {
   const res = await axiosInstance.get("/statistical/daily-trend", {
-    params: { user_id: userId },
+    params: { user_id: userId, days },
   })
   return res.data // Array<{ day: string, amount: number }>
 }
 
 // Biểu đồ thu nhập vs chi tiêu theo tháng
-export async function fetchMonthlyIncomeVsExpense(userId: number) {
+export async function fetchMonthlyIncomeVsExpense(userId: number, months:number) {
   const res = await axiosInstance.get("/statistical/monthly-income-expense", {
-    params: { user_id: userId },
+    params: {
+      user_id: userId,
+      months: months
+    },
   })
   return res.data // Array<{ month: string, income: number, expense: number }>
 }

@@ -72,8 +72,8 @@ export default function FilterControls({
           onChange={(e) => setSortBy(e.target.value)}
           className="w-full py-2 px-3 rounded-md border border-zinc-700 bg-zinc-800 text-white text-sm focus:outline-none"
         >
-          <option value="date">Ngày</option>
-          <option value="amount">Số tiền</option>
+          <option value="date">Sắp xếp theo ngày</option>
+          <option value="amount">Sắp xếp theo số tiền</option>
         </select>
 
         <select

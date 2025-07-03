@@ -110,7 +110,6 @@ export default function RootLayout({ children }: { children: ReactNode }) {
       }
     };
 
-    
 
     // Hàm scroll đến phần tử với hiệu ứng highlight
     const scrollToTarget = (targetId: string) => {

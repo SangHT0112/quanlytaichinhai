@@ -147,10 +147,10 @@ export default function ThongKe() {
         <>
           <div className="grid gap-6 md:grid-cols-2">
             <Card className="">
-              <CardHeader>
+              {/* <CardHeader>
                 <CardTitle>Thu nhập vs Chi tiêu theo tháng</CardTitle>
                 <CardDescription>So sánh thu chi 4 tháng gần nhất</CardDescription>
-              </CardHeader>
+              </CardHeader> */}
               <CardContent>
                 <MonthlyBarChart userId={userId} />
               </CardContent>
@@ -168,10 +168,10 @@ export default function ThongKe() {
           </div>
 
           <Card className="">
-            <CardHeader>
+            {/* <CardHeader>
               <CardTitle>Xu hướng chi tiêu hàng ngày</CardTitle>
               <CardDescription>Chi tiêu 15 ngày gần nhất</CardDescription>
-            </CardHeader>
+            </CardHeader> */}
             <CardContent>
               <DailySpendingAreaChart userId={userId} />
             </CardContent>

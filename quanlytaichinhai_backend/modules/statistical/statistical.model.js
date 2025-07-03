@@ -1,4 +1,5 @@
 import db from "../../config/db.js"
+import { format, subDays } from "date-fns"
 
 export async function getExpensePieChart(userId) {
   const sql = `
@@ -14,21 +15,42 @@ export async function getExpensePieChart(userId) {
   return rows
 }
 
-export async function getDailySpendingTrend(userId) {
+
+export async function getDailySpendingTrend(userId, days = 5) {
+  const today = new Date()
+
+  const dayList = Array.from({ length: days }).map((_, i) => {
+    const date = subDays(today, days - 1 - i) // ngày trước đến hôm nay
+    return {
+      dateKey: format(date, "dd/MM"),
+      sqlDate: format(date, "yyyy-MM-dd"),
+    }
+  })
+
   const sql = `
-    SELECT DATE_FORMAT(t.transaction_date, "%d/%m") AS day, SUM(t.amount) AS amount
+    SELECT DATE(t.transaction_date) as raw_date, SUM(t.amount) AS amount
     FROM transactions t
     WHERE t.user_id = ? AND t.type = 'expense'
-      AND t.transaction_date >= CURDATE() - INTERVAL 15 DAY
+      AND t.transaction_date >= CURDATE() - INTERVAL ? DAY
     GROUP BY DATE(t.transaction_date)
-    ORDER BY t.transaction_date
   `
-  const [rows] = await db.execute(sql, [userId])
-  return rows
+
+  const [rows] = await db.execute(sql, [userId, days - 1])
+
+  const dataMap = Object.fromEntries(
+    rows.map((row) => [format(new Date(row.raw_date), "dd/MM"), Number(row.amount)])
+  )
+
+  const result = dayList.map((d) => ({
+    day: d.dateKey,
+    amount: dataMap[d.dateKey] || 0,
+  }))
+
+  return result
 }
 
 
-export async function getMonthlyIncomeVsExpense(userId) {
+export async function getMonthlyIncomeVsExpense(userId, months = 4) {
   const sql = `
     SELECT 
       DATE_FORMAT(t.transaction_date, "%m/%Y") AS month,
@@ -36,13 +58,16 @@ export async function getMonthlyIncomeVsExpense(userId) {
       SUM(CASE WHEN t.type = 'expense' THEN t.amount ELSE 0 END) AS expense
     FROM transactions t
     WHERE t.user_id = ?
-      AND t.transaction_date >= CURDATE() - INTERVAL 4 MONTH
     GROUP BY YEAR(t.transaction_date), MONTH(t.transaction_date)
-    ORDER BY t.transaction_date
+    ORDER BY YEAR(t.transaction_date) DESC, MONTH(t.transaction_date) DESC
+    LIMIT ?
   `
-  const [rows] = await db.execute(sql, [userId])
-  return rows
+  const [rows] = await db.execute(sql, [userId, months])
+
+  // Đảo ngược để đưa về tháng tăng dần: 4, 5, 6, 7
+  return rows.reverse()
 }
+
 
 export async function getTopCategories(userId) {
   const sql = `

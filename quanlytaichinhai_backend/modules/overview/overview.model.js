@@ -170,8 +170,7 @@ export async function fetchExpensePieChart(userId) {
     [userId, currentMonth, currentYear]
   );
   
-  // Kiểm tra debug
-  console.log(`Dữ liệu tháng ${currentMonth}/${currentYear}:`, rows);
+
   
   return rows;
 }
