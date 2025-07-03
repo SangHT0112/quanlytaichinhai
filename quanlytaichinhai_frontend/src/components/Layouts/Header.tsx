@@ -1,7 +1,6 @@
-"use client"
-
-import { Button } from "@/components/ui/button"
-import Link from 'next/link'
+'use client';
+import { Button } from "@/components/ui/button";
+import Link from 'next/link';
 import {
   DropdownMenu,
   DropdownMenuTrigger,
@@ -9,18 +8,20 @@ import {
   DropdownMenuItem,
 } from "@/components/ui/dropdown-menu"
 
-interface HeaderProps {
-  isSidebarOpen: boolean
-  toggleSidebar: () => void
+export const Header = ({ 
+  isSidebarOpen, 
+  setIsSidebarOpen,
+  user
+}: { 
+  isSidebarOpen: boolean, 
+  setIsSidebarOpen: (value: boolean) => void,
   user: { username: string } | null
-}
-
-export default function Header({ isSidebarOpen, toggleSidebar, user }: HeaderProps) {
+}) => {
   return (
-    <header className="h-16 border-b border-zinc-800 px-6 flex items-center justify-between">
+    <header className="sticky top-0 z-40 h-16 border-b border-zinc-800 px-6 flex items-center justify-between bg-black">
       <div className="flex items-center gap-4">
         <button
-          onClick={toggleSidebar}
+          onClick={() => setIsSidebarOpen(!isSidebarOpen)}
           className="text-zinc-400 hover:text-white text-2xl"
         >
           ☰ 
@@ -42,8 +43,8 @@ export default function Header({ isSidebarOpen, toggleSidebar, user }: HeaderPro
               </DropdownMenuItem>
               <DropdownMenuItem
                 onClick={() => {
-                  localStorage.removeItem("user")
-                  localStorage.removeItem("token")
+                  localStorage.removeItem("user");
+                  localStorage.removeItem("token");
                   window.location.href = "/login"
                 }}
               >
@@ -56,5 +57,5 @@ export default function Header({ isSidebarOpen, toggleSidebar, user }: HeaderPro
         )}
       </div>
     </header>
-  )
-}
+  );
+};

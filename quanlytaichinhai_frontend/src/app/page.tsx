@@ -2,7 +2,9 @@
 
 import { useState, useRef, useEffect } from "react"
 import { Bot, User } from "lucide-react"
-
+import { LoadingIndicator } from "@/components/LoadingIndicator"
+import { MessageItem } from "@/components/MessageItem"
+import QuickActions from "@/components/QuickActions"
 interface Message {
   id: string
   content: string
@@ -24,22 +26,22 @@ export default function ChatAI() {
   const messagesEndRef = useRef<HTMLDivElement>(null)
 
   // Gọi API AI (OpenAI hoặc local)
-  const fetchAIResponse = async (userMessage: string): Promise<string> => {
-  try {
-    const response = await fetch("/api/ai", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ message: userMessage })
-    })
+//   const fetchAIResponse = async (userMessage: string): Promise<string> => {
+//   try {
+//     const response = await fetch("/api/ai", {
+//       method: "POST",
+//       headers: { "Content-Type": "application/json" },
+//       body: JSON.stringify({ message: userMessage })
+//     })
     
-    if (!response.ok) throw new Error("Lỗi API")
-    const data = await response.json()
-    return data.reply
-  } catch (error) {
-    console.error("Lỗi OpenAI:", error)
-    return "Xin lỗi, tôi đang bận. Vui lòng thử lại sau."
-  }
-}
+//     if (!response.ok) throw new Error("Lỗi API")
+//     const data = await response.json()
+//     return data.reply
+//   } catch (error) {
+//     console.error("Lỗi OpenAI:", error)
+//     return "Xin lỗi, tôi đang bận. Vui lòng thử lại sau."
+//   }
+// }
 
   const handleSendMessage = async (message: string) => {
     if (!message.trim()) return
@@ -54,20 +56,20 @@ export default function ChatAI() {
     setMessages((prev) => [...prev, userMessage])
     setInputValue("")
     setIsLoading(true)
-    // ⏱ Giả lập loading bằng setTimeout
-  setTimeout(() => {
-    const aiResponse = generateAIResponse(message)
+    // Giả lập loading bằng setTimeout
+    setTimeout(() => {
+      const aiResponse = generateAIResponse(message)
 
-    const aiMessage: Message = {
-      id: (Date.now() + 1).toString(),
-      content: aiResponse,
-      role: "assistant",
-      timestamp: new Date(),
-    }
+      const aiMessage: Message = {
+        id: (Date.now() + 1).toString(),
+        content: aiResponse,
+        role: "assistant",
+        timestamp: new Date(),
+      }
 
-    setMessages((prev) => [...prev, aiMessage])
-    setIsLoading(false)
-  }, 1500) // ⏱ 1.5 giây loading
+      setMessages((prev) => [...prev, aiMessage])
+      setIsLoading(false)
+    }, 1500) //  1.5 giây loading
 
     // Gọi AI và nhận phản hồi
     //const aiResponse = await fetchAIResponse(message)
@@ -89,27 +91,12 @@ export default function ChatAI() {
       lowerMessage.includes(trigger)
     );
 
-    // 1. Xử lý yêu cầu điều hướng
+    
+
+    // ======================= Xử lý yêu cầu điều hướng ==========================
     if (isNavigationRequest) {
-      // 1.1 Thêm giao dịch
-      if (/thêm giao dịch|tạo giao dịch|add transaction/i.test(lowerMessage)) {
-        window.postMessage({
-          type: 'NAVIGATE',
-          payload: { path: '/', target: 'add-transaction-form' }
-        }, '*');
-        return "🔄 Đang chuyển đến trang thêm giao dịch...";
-      }
 
-      // 1.2 Trang tổng quan
-      if (/tổng quan|trang chủ|dashboard|home/i.test(lowerMessage)) {
-        window.postMessage({
-          type: 'NAVIGATE',
-          payload: { path: '/tongquan', target: 'financial-overview' }
-        }, '*');
-        return "📊 Đang mở bảng tổng quan...";
-      }
-
-      // 1.3 Lịch sử giao dịch
+      // 1.Lịch sử giao dịch
       if (/lịch sử|giao dịch gần đây|history/i.test(lowerMessage)) {
         window.postMessage({
           type: 'NAVIGATE',
@@ -118,7 +105,7 @@ export default function ChatAI() {
         return "📜 Đang tải lịch sử giao dịch...";
       }
 
-      // 1.4 Thống kê
+      // 2. Thống kê
       if (/thống kê|báo cáo|analytics|stats/i.test(lowerMessage)) {
         window.postMessage({
           type: 'NAVIGATE',
@@ -127,8 +114,91 @@ export default function ChatAI() {
         return "📈 Đang mở báo cáo thống kê...";
       }
     }
+    // Xử lý tìm kiếm
+     // Xử lý tìm kiếm với regex đồng bộ với aiFilterHelper
+    const searchMatch = userMessage.match(/(?:tìm kiếm|tìm|search)\s*(?:giao dịch|transaction)?\s*(.+)/i);
+    if (searchMatch) {
+      const rawKeyword = searchMatch[1].trim();
+      const cleanedKeyword = rawKeyword
+        .replace(/giao dịch|transaction/gi, '')
+        .trim();
+      
+      if (cleanedKeyword) {
+        window.postMessage({
+          type: 'SEARCH',
+          payload: { keyword: cleanedKeyword }
+        }, '*');
+        
+        if (!window.location.pathname.includes('/history')) {
+          return `🔍 Đang chuyển đến trang lịch sử để tìm kiếm "${cleanedKeyword}"...`;
+        }
+        return `🔎 Đang tìm kiếm "${cleanedKeyword}"...`;
+      }
+      return "Vui lòng nhập từ khóa tìm kiếm. Ví dụ: \"Tìm kiếm Starbucks\"";
+    }
 
-    // 2. Xử lý hỏi đáp thông thường (không chứa từ khóa điều hướng)
+
+    //===========================DÙNG FILTER ĐỂ LỌC==============================================================
+          //Lọc chi tiêu hoặc giao dịch
+    if (/lịch sử chi tiêu|giao dịch chi tiêu|lọc chi tiêu|xem chi tiêu|tiền ra|mua sắm|thanh toán/i.test(lowerMessage)) {
+      window.postMessage({
+        type: 'FILTER',
+        payload: {
+          message: 'lọc loại giao dịch chi tiêu' // hoặc: 'filter type=expense'
+        }
+      }, '*')
+
+      if (!window.location.pathname.includes('/history')) {
+        return "💸 Đang chuyển đến trang lịch sử giao dịch chi tiêu...";
+      }
+
+      return "🔍 Đang lọc các giao dịch chi tiêu...";
+    }
+    // ===================Xử lý yêu cầu lọc lịch sử theo category=======================
+    if (/lịch sử ăn uống|giao dịch ăn uống|chi tiêu ăn uống|đồ ăn|thức ăn/i.test(lowerMessage)) {
+      // Gửi message đến trang history để áp dụng filter
+      window.postMessage({
+        type: 'FILTER',
+        payload: {
+          message: 'filter category=Ăn uống' // Đảm bảo khớp với category trong database
+        }
+      }, '*');
+
+      // Nếu đang ở trang khác, thông báo sẽ chuyển trang
+      if (!window.location.pathname.includes('/history')) {
+        return "🍔 Đang chuyển đến trang lịch sử với các giao dịch ăn uống...";
+      }
+      
+      return "🍽️ Đang lọc các giao dịch ăn uống...";
+    }
+
+
+    // ===================Xử lý yêu cầu lọc lịch sử theo tháng=======================
+      const matchMonth = lowerMessage.match(/tháng\s*(\d{1,2})/);
+      if (matchMonth) {
+        const rawMonth = matchMonth[1];
+        const month = rawMonth.padStart(2, '0'); // "6" → "06", "11" → "11"
+
+        // Gửi message đến trang history
+        window.postMessage({
+          type: 'FILTER',
+          payload: {
+            message: `lọc giao dịch tháng ${parseInt(month)}`
+          }
+        }, '*');
+
+        if (!window.location.pathname.includes('/history')) {
+          return `🗓️ Đang chuyển đến lịch sử giao dịch tháng ${parseInt(month)}...`;
+        }
+
+        return `🔎 Đang lọc các giao dịch trong tháng ${parseInt(month)}...`;
+      }
+
+      
+
+
+
+    // ===============Xử lý hỏi đáp thông thường (không chứa từ khóa điều hướng =======================
     if (/số dư|balance/i.test(lowerMessage)) {
       return "💰 Số dư hiện tại của bạn là 15.750.000 ₫";
     }
@@ -153,6 +223,7 @@ export default function ChatAI() {
     }
 
 
+
   return "🤖 Tôi có thể giúp bạn lập kế hoạch tiết kiệm, phân tích chi tiêu và đưa ra lời khuyên tài chính.\n\nVí dụ:\n• \"Tôi muốn tiết kiệm 50 triệu trong 2 năm\"\n• \"Xem thống kê chi tiêu\"\n• \"Gợi ý đầu tư an toàn\"\n\nBạn muốn bắt đầu với gì?";
     
   }
@@ -160,7 +231,7 @@ export default function ChatAI() {
   const handleQuickAction = (action: string) => {
     handleSendMessage(action)
   }
-
+  //Date = ngày hiện tại thì lưu còn ngược lại thì xóa
   useEffect(() => {
     const stored = localStorage.getItem("chatHistory")
     if (stored) {
@@ -179,7 +250,7 @@ export default function ChatAI() {
     }
   }, [])
 
-
+  //Dùng khi một hành động ở trang khác yêu cầu chat bot trả lời
   useEffect(() => {
     const pending = localStorage.getItem("pendingChatMessage");
     if (pending) {
@@ -192,7 +263,7 @@ export default function ChatAI() {
 
     
 
-  // Expose the handleSendMessage function to the parent layout
+  // Cho phép các thành phần khác trong ứng dụng truy cập chúng từ ngoài component ChatAI
   useEffect(() => {
     ;(window as any).sendChatMessage = handleSendMessage
     ;(window as any).setInputValue = setInputValue
@@ -224,103 +295,17 @@ export default function ChatAI() {
       {/* Chat Messages */}
       <div className="flex-1 overflow-y-auto space-y-4 pb-4">
         {messages.map((message) => (
-          <div key={message.id} className={`flex gap-3 ${message.role === "user" ? "justify-end" : "justify-start"}`}>
-            {message.role === "assistant" && (
-              <div className="flex-shrink-0 w-8 h-8 bg-purple-600 rounded-full flex items-center justify-center">
-                <Bot className="w-5 h-5 text-white" />
-              </div>
-            )}
-
-            <div
-              className={`max-w-[80%] rounded-2xl px-4 py-3 ${
-                message.role === "user" ? "bg-blue-600 text-white" : "bg-zinc-800 text-white border border-zinc-700"
-              }`}
-            >
-              <div className="whitespace-pre-wrap text-sm leading-relaxed">{message.content}</div>
-              <div className={`text-xs mt-2 opacity-70 ${message.role === "user" ? "text-blue-100" : "text-zinc-400"}`}>
-                {message.timestamp.toLocaleTimeString("vi-VN", {
-                  hour: "2-digit",
-                  minute: "2-digit",
-                })}
-              </div>
-            </div>
-
-            {message.role === "user" && (
-              <div className="flex-shrink-0 w-8 h-8 bg-blue-600 rounded-full flex items-center justify-center">
-                <User className="w-5 h-5 text-white" />
-              </div>
-            )}
-          </div> 
+          <MessageItem key={message.id} message={message} />
         ))}
 
-        {isLoading && (
-          <div className="flex gap-3 justify-start">
-            <div className="flex-shrink-0 w-8 h-8 bg-purple-600 rounded-full flex items-center justify-center">
-              <Bot className="w-5 h-5 text-white" />
-            </div>
-            <div className="bg-zinc-800 border border-zinc-700 rounded-2xl px-4 py-3">
-              <div className="flex space-x-1">
-                <div className="w-2 h-2 bg-zinc-500 rounded-full animate-bounce"></div>
-                <div
-                  className="w-2 h-2 bg-zinc-500 rounded-full animate-bounce"
-                  style={{ animationDelay: "0.1s" }}
-                ></div>
-                <div
-                  className="w-2 h-2 bg-zinc-500 rounded-full animate-bounce"
-                  style={{ animationDelay: "0.2s" }}
-                ></div>
-              </div>
-            </div>
-          </div>
-        )}
+        {isLoading && <LoadingIndicator />}
 
         <div ref={messagesEndRef} />
       </div>
 
-      {/* Quick Actions */}
-      <div className="border-t border-zinc-800 pt-4 mb-4">
-        <div className="flex flex-wrap gap-2">
-            
-          <button
-            onClick={() => handleQuickAction("Xem số dư hiện tại")}
-            className="px-3 py-2 rounded-full bg-zinc-800 hover:bg-zinc-700 text-sm text-white flex items-center gap-2 transition-colors"
-          >
-            🟣 Xem số dư
-          </button>
-          <button
-            onClick={() => handleQuickAction("Thống kê chi tiêu tháng này")}
-            className="px-3 py-2 rounded-full bg-zinc-800 hover:bg-zinc-700 text-sm text-white flex items-center gap-2 transition-colors"
-          >
-            📊 Thống kê
-          </button>
-          <button
-            onClick={() => handleQuickAction("Đưa ra lời khuyên tài chính")}
-            className="px-3 py-2 rounded-full bg-zinc-800 hover:bg-zinc-700 text-sm text-white flex items-center gap-2 transition-colors"
-          >
-            💡 Lời khuyên
-          </button>
-          <button
-            onClick={() => handleQuickAction("Gợi ý đầu tư phù hợp")}
-            className="px-3 py-2 rounded-full bg-zinc-800 hover:bg-zinc-700 text-sm text-white flex items-center gap-2 transition-colors"
-          >
-            📈 Đầu tư
-          </button>
-          <button
-            onClick={() => handleQuickAction("Gợi ý đầu tư phù hợp")}
-            className="px-3 py-2 rounded-full bg-zinc-800 hover:bg-zinc-700 text-sm text-white flex items-center gap-2 transition-colors"
-          >
-            Lời khuyên
-          </button>
-
-          {/* Trong phần Quick Actions của ChatAI */}
-          <button
-            onClick={() => handleQuickAction("Vào trang lịch sử giao dịch gần đây")}
-            className="px-3 py-2 rounded-full bg-zinc-800 hover:bg-zinc-700 text-sm text-white flex items-center gap-2 transition-colors"
-          >
-            📜 Lịch sử giao dịch
-          </button>
-        </div>
-      </div>
+      <QuickActions onAction={handleQuickAction} />
     </div>
   )
 }
+
+

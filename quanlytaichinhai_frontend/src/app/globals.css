@@ -132,8 +132,10 @@
 
 
 /* Thêm vào file global CSS */
+/* Thêm vào file global CSS */
 body.waiting-navigation {
   cursor: wait;
+  position: relative;
 }
 
 body.waiting-navigation::after {
@@ -145,10 +147,21 @@ body.waiting-navigation::after {
   height: 5px;
   background: linear-gradient(to right, #4f46e5, #ec4899);
   z-index: 9999;
-  animation: loadingAnimation 3s linear forwards;
+  animation: loadingAnimation 5s linear forwards;
 }
 
 @keyframes loadingAnimation {
   0% { width: 0% }
   100% { width: 100% }
 }
+
+/* Trong globals.css */
+.transaction-highlight {
+  animation: highlight 2s ease-out;
+}
+
+@keyframes highlight {
+  0% { background-color: rgba(59, 130, 246, 0.2); }
+  100% { background-color: transparent; }
+}
+

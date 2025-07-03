@@ -13,11 +13,21 @@ export function useFilteredTransactions(transactions: any[], filters: {
   return useMemo(() => {
     return transactions
       .filter((t) => {
-        const matchSearch = t.description.toLowerCase().includes(searchTerm.toLowerCase()) || 
-                            t.category.toLowerCase().includes(searchTerm.toLowerCase())
+        // Chuẩn hóa chuỗi Unicode và xử lý case sensitivity
+        const normalize = (str: string) => str.toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "")
+        
+        const matchSearch = searchTerm === "" || 
+                          normalize(t.description).includes(normalize(searchTerm)) || 
+                          normalize(t.category).includes(normalize(searchTerm))
+        
+        // So sánh category chính xác (không phân biệt hoa thường)
+        const matchCategory = filterCategory === "all" || 
+                            normalize(t.category) === normalize(filterCategory)
+        
         const matchType = filterType === "all" || t.type === filterType
-        const matchCategory = filterCategory === "all" || t.category === filterCategory
-        const matchMonth = filterMonth === "all" || (new Date(t.date).getMonth() + 1 === Number(filterMonth))
+        const matchMonth = filterMonth === "all" || 
+                          (new Date(t.date).getMonth() + 1 === Number(filterMonth))
+        
         return matchSearch && matchType && matchCategory && matchMonth
       })
       .sort((a, b) => {

@@ -55,14 +55,16 @@ export default function FilterControls({
         </select>
 
         <select
-          value={filterCategory}
-          onChange={(e) => setFilterCategory(e.target.value)}
-          className="w-full py-2 px-3 rounded-md border border-zinc-700 bg-zinc-800 text-white text-sm focus:outline-none"
-        >
-          <option value="all">Tất cả danh mục</option>
-          {categories.map((category) => (
-            <option key={category} value={category}>{category}</option>
-          ))}
+            value={filterCategory}
+            onChange={(e) => setFilterCategory(e.target.value)}
+            className="w-full py-2 px-3 rounded-md border border-zinc-700 bg-zinc-800 text-white text-sm focus:outline-none"
+            >
+            <option value="all">Tất cả danh mục</option>
+            {categories.map((category) => (
+                <option key={category} value={category}>
+                {category}
+                </option>
+            ))}
         </select>
 
         <select

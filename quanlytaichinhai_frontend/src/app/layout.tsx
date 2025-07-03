@@ -1,49 +1,184 @@
-"use client"
+'use client';
+import { useRouter, usePathname } from "next/navigation";
+import "./globals.css";
+import Sidebar from "@/components/Layouts/Sidebar";
+import { Header } from "@/components/Layouts/Header";
+import { ChatInput } from "@/components/Layouts/ChatInput";
+import { ReactNode, useState, useEffect } from "react";
 
-import { useRouter, usePathname } from "next/navigation"
-import "./globals.css"
-import Sidebar from "@/components/Layouts/Sidebar"
-import { Button } from "@/components/ui/button"
-import Link from 'next/link'
-import { useEffect, useState } from "react"
-import Header from "@/components/Layouts/Header"
-import ChatInput from "@/components/Layouts/ChatInput"
-import { useNavigationHandler } from "@/components/hooks/useNavigationHandler"
-
-export default function RootLayout({ children }: { children: React.ReactNode }) {
-  const [isSidebarOpen, setIsSidebarOpen] = useState(true)
-  const [user, setUser] = useState<{ username: string } | null>(null)
-  
-  useNavigationHandler()
+export default function RootLayout({ children }: { children: ReactNode }) {
+  const [isSidebarOpen, setIsSidebarOpen] = useState(true);
+  const router = useRouter();
+  const pathname = usePathname();
+  const [user, setUser] = useState<{ username: string } | null>(null);
 
   useEffect(() => {
-    const storedUser = localStorage.getItem("user")
-    if (storedUser) {
-      setUser(JSON.parse(storedUser))
+    // Hàm xử lý message từ bên ngoài (ví dụ từ iframe hoặc window.postMessage)
+    const handleNavigationMessage = (event: MessageEvent) => {
+      // Kiểm tra nếu message có type là 'NAVIGATE'
+      if (event.data?.type === 'NAVIGATE') {
+        const { path, target } = event.data.payload;
+        
+        // Nếu path hiện tại khác path cần chuyển đến
+        if (pathname !== path) {
+          // Thêm class để hiển thị trạng thái loading
+          document.body.classList.add('waiting-navigation');
+          
+          // Delay 3s trước khi chuyển trang (có thể để làm animation)
+          setTimeout(() => {
+            router.push(path);
+            // Lưu target (ID phần tử cần scroll đến) vào localStorage
+            localStorage.setItem('scrollTarget', target);
+            
+            // Sau 1s, xóa class loading
+            setTimeout(() => {
+              document.body.classList.remove('waiting-navigation');
+            }, 1000);
+          }, 3000);
+        } else {
+          // Nếu đang ở trang đích, chỉ cần scroll đến phần tử
+          setTimeout(() => {
+            scrollToTarget(target);
+          }, 300);
+        }
+      }
+
+      // Kiểm tra nếu message có type là "FILTER"
+      if (event.data?.type === 'FILTER') {
+        const { message } = event.data.payload;
+        
+        // Thêm hiệu ứng loading
+        document.body.classList.add('waiting-navigation');
+        
+        if (pathname !== '/history') {
+          localStorage.setItem('pendingFilter', message);
+          
+          setTimeout(() => {
+            router.push('/history');
+            
+            setTimeout(() => {
+              document.body.classList.remove('waiting-navigation');
+            }, 1000);
+          }, 5000); // Giảm thời gian chờ so với NAVIGATE
+        } else {
+          setTimeout(() => {
+            window.postMessage({
+              type: 'APPLY_FILTER',
+              payload: { message }
+            }, '*');
+            
+            setTimeout(() => {
+              document.body.classList.remove('waiting-navigation');
+            }, 2000);
+          }, 3000); // Thời gian chờ ngắn hơn khi đã ở trang history
+        }
+      }
+      //Kiểm tra nếu Message có type là 'SEARCH'
+      // Trong layout chính
+      if (event.data?.type === 'SEARCH') {
+        const { keyword } = event.data.payload;
+        
+        // Thêm hiệu ứng loading
+        document.body.classList.add('waiting-navigation');
+        
+        // Lưu từ khóa vào localStorage với key chính xác
+        localStorage.setItem('pendingSearch', keyword);
+        
+        // Nếu không ở trang history thì chuyển trang
+        if (pathname !== '/history') {
+          setTimeout(() => {
+            router.push('/history');
+            
+            setTimeout(() => {
+              document.body.classList.remove('waiting-navigation');
+            }, 1000);
+          }, 1000); // Giảm thời gian chờ xuống 1s cho mượt
+        } 
+        // Nếu đang ở trang history thì gửi message APPLY_SEARCH ngay
+        else {
+          setTimeout(() => {
+            window.postMessage({
+              type: 'APPLY_SEARCH',
+              payload: { keyword }
+            }, '*');
+            
+            setTimeout(() => {
+              document.body.classList.remove('waiting-navigation');
+            }, 1000);
+          }, 300);
+        }
+      }
+    };
+
+    
+
+    // Hàm scroll đến phần tử với hiệu ứng highlight
+    const scrollToTarget = (targetId: string) => {
+      const element = document.getElementById(targetId);
+      if (element) {
+        // Scroll mượt đến phần tử
+        element.scrollIntoView({ 
+          behavior: 'smooth',
+          block: 'start' 
+        });
+        // Thêm hiệu ứng highlight (vòng màu xanh)
+        element.classList.add('ring-2', 'ring-blue-500', 'transition-all');
+        // Sau 3s, xóa hiệu ứng
+        setTimeout(() => {
+          element.classList.remove('ring-2', 'ring-blue-500');
+        }, 3000);
+      }
+    };
+
+    // Kiểm tra nếu có target được lưu trong localStorage (sau khi chuyển trang)
+    const target = localStorage.getItem('scrollTarget');
+    if (target) {
+      localStorage.removeItem('scrollTarget'); // Xóa target sau khi dùng
+      setTimeout(() => scrollToTarget(target), 500); // Scroll sau 0.5s
     }
-  }, [])
+
+    // Lắng nghe sự kiện message từ window
+    window.addEventListener('message', handleNavigationMessage);
+
+    // Cleanup: Gỡ bỏ event listener khi component unmount
+    return () => {
+      window.removeEventListener('message', handleNavigationMessage);
+    };
+  }, [pathname, router]); // Dependency: pathname và router
+
   
+  useEffect(() => {
+    const storedUser = localStorage.getItem("user");
+    if (storedUser) {
+      setUser(JSON.parse(storedUser));
+    }
+  }, []);
+
   return (
     <html lang="vi">
       <body className="flex bg-black text-white font-sans min-h-screen">
-        {/* Sidebar */}
+        {/* Hiển thị Sidebar nếu isSidebarOpen = true */}
         {isSidebarOpen && <Sidebar />}
 
-        {/* Main content */}
+        {/* Phần nội dung chính */}
         <div className="flex flex-col flex-1 min-h-screen relative">
+          {/* Header với nút toggle sidebar và thông tin user */}
           <Header 
             isSidebarOpen={isSidebarOpen} 
-            toggleSidebar={() => setIsSidebarOpen(!isSidebarOpen)} 
-            user={user} 
+            setIsSidebarOpen={setIsSidebarOpen}
+            user={user}
           />
 
-          {/* Nội dung trang */}
+          {/* Nội dung chính (children) */}
           <main className="flex-1 p-6 pb-40">{children}</main>
 
-          {/* Chat input */}
-          <ChatInput isSidebarOpen={isSidebarOpen} />
+          {/* Ô nhập chat (luôn ở dưới cùng) */}
+          <ChatInput 
+            isSidebarOpen={isSidebarOpen}
+            pathname={pathname}
+          />
         </div>
       </body>
     </html>
-  )
+  );
 }
