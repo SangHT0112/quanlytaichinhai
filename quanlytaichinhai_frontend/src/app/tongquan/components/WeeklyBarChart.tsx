@@ -3,23 +3,23 @@ import { useEffect, useState } from "react"
 import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer } from "recharts"
 import { fetchWeeklyExpenses } from "@/api/overviewApi"
 import { formatCurrency } from "@/lib/format"
-
+import { useUser } from "@/contexts/UserProvider"
 export default function WeeklyBarChart() {
   const [data, setData] = useState<any[]>([])
+  const user = useUser()
+  const userId = user?.user_id
   useEffect(() => {
-    const userStr = localStorage.getItem("user")
-    if(!userStr) return
-    const userId = JSON.parse(userStr).user_id
+    if (!userId) return
 
     fetchWeeklyExpenses(userId)
-    .then((res) =>{
-      console.log("Dữ liệu tuần:", res)
-      setData(res)
-    })
-    .catch((err) => {
-      console.error("Lỗi biểu đồ tuần:", err)
-    })
-  }, [])
+      .then((res) => {
+        console.log("Dữ liệu tuần:", res)
+        setData(res)
+      })
+      .catch((err) => {
+        console.error("Lỗi biểu đồ tuần:", err)
+      })
+  }, [userId]) // ✅ có userId thì mới fetch
   return (
     <div className="h-48">
       <ResponsiveContainer width="100%" height="100%">

@@ -19,26 +19,26 @@ export async function fetchFinancialSummary(userId) {
 
   // 3. Query cải tiến (thêm so sánh chi tiêu)
   const [summaryRows] = await db.query(`
-    SELECT 
-      /* Thu nhập */
+     SELECT 
+      /* Income */
       COALESCE(SUM(CASE 
-        WHEN type = 'income' AND MONTH(created_at) = ? AND YEAR(created_at) = ? 
+        WHEN type = 'income' AND MONTH(transaction_date) = ? AND YEAR(transaction_date) = ? 
         THEN amount ELSE 0 END), 0) as current_income,
       
       COALESCE(SUM(CASE 
-        WHEN type = 'income' AND MONTH(created_at) = ? AND YEAR(created_at) = ? 
+        WHEN type = 'income' AND MONTH(transaction_date) = ? AND YEAR(transaction_date) = ? 
         THEN amount ELSE 0 END), 0) as previous_income,
       
-      /* Chi tiêu */
+      /* Expenses */
       COALESCE(SUM(CASE 
-        WHEN type = 'expense' AND MONTH(created_at) = ? AND YEAR(created_at) = ? 
+        WHEN type = 'expense' AND MONTH(transaction_date) = ? AND YEAR(transaction_date) = ? 
         THEN amount ELSE 0 END), 0) as current_expense,
         
       COALESCE(SUM(CASE 
-        WHEN type = 'expense' AND MONTH(created_at) = ? AND YEAR(created_at) = ? 
+        WHEN type = 'expense' AND MONTH(transaction_date) = ? AND YEAR(transaction_date) = ? 
         THEN amount ELSE 0 END), 0) as previous_expense
     FROM transactions 
-    WHERE user_id = ? AND created_at IS NOT NULL`,
+    WHERE user_id = ? AND transaction_date IS NOT NULL`,
     [
       currentMonth, currentYear,
       prevMonth, prevYear,
@@ -152,6 +152,9 @@ export async function fetchTopExpenseCategories(
   
   return rows;
 }
+
+
+
 //load danh sách các danh mục để tạo biểu đò tròn
 export async function fetchExpensePieChart(userId) {
   const currentDate = new Date();

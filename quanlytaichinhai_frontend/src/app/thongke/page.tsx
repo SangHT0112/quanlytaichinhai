@@ -152,7 +152,7 @@ export default function ThongKe() {
                 <CardDescription>So sánh thu chi 4 tháng gần nhất</CardDescription>
               </CardHeader> */}
               <CardContent>
-                <MonthlyBarChart userId={userId} />
+                <MonthlyBarChart />
               </CardContent>
             </Card>
 
@@ -162,7 +162,7 @@ export default function ThongKe() {
                 <CardDescription>Tỷ lệ chi tiêu tháng này</CardDescription>
               </CardHeader>
               <CardContent>
-                <ExpensePieChart userId={userId} />
+                <ExpensePieChart />
               </CardContent>
             </Card>
           </div>
@@ -173,7 +173,7 @@ export default function ThongKe() {
               <CardDescription>Chi tiêu 15 ngày gần nhất</CardDescription>
             </CardHeader> */}
             <CardContent>
-              <DailySpendingAreaChart userId={userId} />
+              <DailySpendingAreaChart />
             </CardContent>
           </Card>
 
@@ -183,7 +183,7 @@ export default function ThongKe() {
               <CardDescription>Phân tích chi tiết từng danh mục chi tiêu</CardDescription>
             </CardHeader>
             <CardContent>
-              <CategoryDetailList userId={userId} />
+              <CategoryDetailList />
             </CardContent>
           </Card>
         </>

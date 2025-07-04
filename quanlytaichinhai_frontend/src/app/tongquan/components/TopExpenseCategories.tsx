@@ -1,31 +1,33 @@
 "use client"
+
 import { useEffect, useState } from "react"
 import { formatCurrency } from "@/lib/format"
 import { fetchTopCategories } from "@/api/overviewApi"
-interface Props {
-  userId: number
-}
-
-export default function TopExpenseCategories({ userId }: Props) {
- const [topCategories, setTopCategories] = useState<any[]>([])
+import { useUser } from "@/contexts/UserProvider"
+export default function TopExpenseCategories() {
+  const [topCategories, setTopCategories] = useState<any[]>([])
   const [timeframe, setTimeframe] = useState("current_month")
+  const user = useUser();
+  const userId = user?.user_id
 
   useEffect(() => {
-    if (!userId) return
-    const fetchData = async () => {
-      try {
-        const data = await fetchTopCategories(userId, timeframe)
-        setTopCategories(data)
-      } catch (err) {
-        console.error("L    ỗi khi lấy top danh mục:", err)
+      if (!userId) return
+
+      const fetchData = async () => {
+        try {
+          const data = await fetchTopCategories(userId, timeframe)
+          setTopCategories(data)
+        } catch (err) {
+          console.error("Lỗi khi lấy top danh mục:", err)
+        }
       }
-    }
-    fetchData()
-  }, [userId, timeframe])
+
+      fetchData()
+    }, [userId, timeframe])
 
   return (
     <div className="space-y-3 bg-zinc-800 p-4 rounded-xl shadow">
-     <div className="flex justify-between items-center mb-6">
+      <div className="flex justify-between items-center mb-6">
         {/* Icon bên trái */}
         <div className="flex items-center gap-3">
           <div className="w-10 h-10 bg-gradient-to-r from-blue-500 to-purple-600 rounded-xl flex items-center justify-center">
@@ -45,7 +47,6 @@ export default function TopExpenseCategories({ userId }: Props) {
           <option value="current_week">Tuần này</option>
         </select>
       </div>
-
 
       {topCategories.length > 0 ? (
         topCategories.map((cat, idx) => (

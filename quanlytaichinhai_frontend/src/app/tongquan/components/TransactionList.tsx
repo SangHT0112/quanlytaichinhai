@@ -1,14 +1,14 @@
 "use client"
+
 import { useEffect, useState } from "react"
 import { formatCurrency } from "@/lib/format"
 import { fetchRecentTransactions } from "@/api/historyApi"
+import { useUser } from "@/contexts/UserProvider"
 
-interface Props {
-  userId: number
-}
-
-export default function TransactionList({ userId }: Props) {
+export default function TransactionList() {
   const [transactions, setTransactions] = useState<any[]>([])
+  const user = useUser()
+  const userId = user?.user_id
 
   useEffect(() => {
     if (!userId) return

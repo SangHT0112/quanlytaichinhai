@@ -12,26 +12,24 @@ import {
 } from "recharts"
 import { fetchMonthlyIncomeVsExpense } from "@/api/statisticalApi"
 import { formatCurrency } from "@/lib/format"
-
-export default function MonthlyBarChart({
-  userId,
-  initialMonths = 3,
-}: {
-  userId: number
-  initialMonths?: number
-}) {
+import { useUser } from "@/contexts/UserProvider"
+export default function MonthlyBarChart({ initialMonths = 3 }: { initialMonths?: number }) {
   const [data, setData] = useState([])
   const [months, setMonths] = useState(initialMonths)
   const [isLoading, setIsLoading] = useState(false)
+  const user = useUser()
+  const userId = user?.user_id
 
   useEffect(() => {
+    if (!userId) return
+
     const fetchData = async () => {
       setIsLoading(true)
       try {
         const result = await fetchMonthlyIncomeVsExpense(userId, months)
         setData(result)
       } catch (error) {
-        console.error("Failed to fetch data:", error)
+        console.error("Lỗi khi fetch thu chi:", error)
       } finally {
         setIsLoading(false)
       }
@@ -39,6 +37,7 @@ export default function MonthlyBarChart({
 
     fetchData()
   }, [userId, months])
+
 
   return (
     <div className="bg-white rounded-lg border border-gray-200 p-6 shadow-sm">
@@ -101,20 +100,22 @@ export default function MonthlyBarChart({
           Không có dữ liệu
         </div>
       ) : (
-        <div className="mt-6">
-          <ResponsiveContainer width="100%" height={300}>
-            <BarChart data={data}>
-              <CartesianGrid strokeDasharray="3 3" />
-              <XAxis dataKey="month" />
-              <YAxis tickFormatter={(value) => `${value / 1000000}M`} />
-              <Tooltip
-                formatter={(value) => formatCurrency(Number(value))}
-                labelFormatter={(month) => `Tháng ${month}`}
-              />
-              <Bar dataKey="income" fill="#22c55e" name="Thu nhập" radius={[4, 4, 0, 0]} />
-              <Bar dataKey="expense" fill="#ef4444" name="Chi tiêu" radius={[4, 4, 0, 0]} />
-            </BarChart>
-          </ResponsiveContainer>
+        <div className="mt-6 overflow-x-auto">
+           <div style={{ width: `${months * 120}px`, minWidth: "100%" }}>
+              <ResponsiveContainer width="100%" height={300}>
+                <BarChart data={data}   margin={{ top: 10, right: 20, left: 0, bottom: 0 }} barCategoryGap="20%">
+                  <CartesianGrid strokeDasharray="3 3" />
+                  <XAxis dataKey="month" />
+                  <YAxis tickFormatter={(value) => `${value / 1000000}M`} />
+                  <Tooltip
+                    formatter={(value) => formatCurrency(Number(value))}
+                    labelFormatter={(month) => `Tháng ${month}`}
+                  />
+                  <Bar dataKey="income" fill="#22c55e" name="Thu nhập" radius={[4, 4, 0, 0]} />
+                  <Bar dataKey="expense" fill="#ef4444" name="Chi tiêu" radius={[4, 4, 0, 0]} />
+                </BarChart>
+              </ResponsiveContainer>
+           </div>
         </div>
       )}
     </div>

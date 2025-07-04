@@ -3,15 +3,18 @@ import { useEffect, useState } from "react"
 import { ResponsiveContainer, PieChart, Pie, Cell, Tooltip } from "recharts"
 import { fetchExpensePieChart } from "@/api/overviewApi"
 import { formatCurrency } from "@/lib/format"
+import { useUser } from "@/contexts/UserProvider"
 interface PieDataItem {
   name: string
   value: number
   color: string
 }
-export default function ExpensePieChart({ userId }: { userId: number }) {
+export default function ExpensePieChart() {
   const [data, setData] = useState<PieDataItem[]>([])
-
+  const user = useUser();
+  const userId = user?.user_id
   useEffect(() => {
+    if(!userId) return
     fetchExpensePieChart(userId).then((res) => {
       const COLORS = ["#8884d8", "#82ca9d", "#ffc658", "#ff7300", "#00ff88", "#ff0088", "#ffbb28"]
       const formatted = res.map((item: any, index: number) => ({

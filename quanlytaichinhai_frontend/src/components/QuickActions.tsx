@@ -15,13 +15,17 @@ export const QuickActions = (props: QuickActionsProps) => {
     { text: "Lời khuyên", emoji: "💡", prompt: "Đưa ra lời khuyên tài chính" },
     { text: "Đầu tư", emoji: "📈", prompt: "Gợi ý đầu tư phù hợp" },
     { text: "Lịch sử giao dịch", emoji: "📜", prompt: "Vào trang lịch sử giao dịch gần đây" },
-    { text: "Lịch sử ăn uống", emoji:"📈", prompt: "Vào trang lịch sử và xem mục ăn uống"},
+    { text: "Lịch sử ăn uống", emoji:"📈", prompt: "Vào trang lịch sử và xem mục ăn uống" },
+    { text: "Tìm giao dịch ăn uống", emoji:"🍔", prompt: "Tìm kiếm giao dịch ăn uống" },
 
-    { text: "Tìm giao dịch ăn uống",emoji:"food", prompt: "Tìm kiếm giao dịch ăn uống" },
-  ];
+    // ✅ Mới thêm
+    { text: "Tổng quan số dư", emoji: "🧾", prompt: "Tổng quan về số dư" },
+    { text: "Chi tiêu nhiều", emoji: "🔥", prompt: "Các danh mục chi tiêu nhiều" },
+  ]
+
 
   return (
-    <div className="border-t border-zinc-800 pt-4 mb-4">
+    <div className="border-t border-zinc-800 pt-4">
       <div className="flex flex-wrap gap-2">
         {actions.map((action, index) => (
           <button

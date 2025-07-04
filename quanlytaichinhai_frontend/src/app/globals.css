@@ -165,3 +165,47 @@ body.waiting-navigation::after {
   100% { background-color: transparent; }
 }
 
+/* chinh scoll dẹp */
+::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+::-webkit-scrollbar-thumb {
+  background: #444;
+  border-radius: 4px;
+  transition: background 0.2s ease;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: #666;
+}
+
+/* Ngăn chặn tràn nội dung */
+.break-words {
+  word-break: break-word;
+  overflow-wrap: break-word;
+}
+
+/* Xử lý pre/code trong tin nhắn */
+.whitespace-pre-wrap pre, 
+.whitespace-pre-wrap code {
+  white-space: pre-wrap !important;
+  word-break: break-all !important;
+  max-width: 100%;
+  display: block;
+  overflow-x: auto;
+}
+
+/* Thanh cuộn tùy chỉnh */
+.overflow-x-auto::-webkit-scrollbar {
+  height: 5px;
+}
+.overflow-x-auto::-webkit-scrollbar-thumb {
+  background: #888;
+  border-radius: 10px;
+}

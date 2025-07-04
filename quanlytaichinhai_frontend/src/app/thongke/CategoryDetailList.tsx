@@ -2,16 +2,21 @@
 import { useEffect, useState } from "react"
 import { fetchTopCategories } from "@/api/overviewApi"
 import { formatCurrency } from "@/lib/format"
-
-interface CategoryItem{
-    name:string
-    value:number
-    color:string
+import { useUser } from "@/contexts/UserProvider"
+interface CategoryItem {
+  name: string
+  value: number
+  color: string
 }
-export default function CategoryDetailList({ userId }: { userId: number }) {
-  const [data, setData] = useState<CategoryItem[]>([])
 
+export default function CategoryDetailList() {
+  const [data, setData] = useState<CategoryItem[]>([])
+  const user = useUser();
+  const userId = user?.user_id
   useEffect(() => {
+
+    if (!userId) return
+
     fetchTopCategories(userId).then((res) => {
       const COLORS = ["#8884d8", "#82ca9d", "#ffc658", "#ff7300", "#00ff88", "#ff0088", "#ffbb28"]
       const formatted = res.map((item: any, index: number) => ({

@@ -5,21 +5,25 @@ import { ResponsiveContainer, AreaChart, Area, XAxis, YAxis, CartesianGrid, Tool
 import { fetchDailySpendingTrend } from "@/api/statisticalApi"
 import { formatCurrency } from "@/lib/format"
 import { TooltipProps } from "recharts"
-
+import { useUser } from "@/contexts/UserProvider"
 interface SpendingPoint {
   day: string
   amount: number
 }
 
-export default function DailySpendingAreaChart({ userId }: { userId: number }) {
+export default function DailySpendingAreaChart() {
+  const user = useUser()
   const [data, setData] = useState<SpendingPoint[]>([])
   const [days, setDays] = useState(5)
 
   useEffect(() => {
-    fetchDailySpendingTrend(userId, days)
+    if (!user?.user_id) return;
+
+    fetchDailySpendingTrend(user.user_id, days)
       .then(setData)
       .catch(console.error)
-  }, [userId, days])
+  }, [user, days])
+
 
   const maxValue = Math.max(...data.map((item) => item.amount), 0)
 

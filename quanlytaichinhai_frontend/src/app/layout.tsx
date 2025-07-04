@@ -5,7 +5,7 @@ import Sidebar from "@/components/Layouts/Sidebar";
 import { Header } from "@/components/Layouts/Header";
 import { ChatInput } from "@/components/Layouts/ChatInput";
 import { ReactNode, useState, useEffect } from "react";
-
+import { UserProvider } from "@/contexts/UserProvider"
 export default function RootLayout({ children }: { children: ReactNode }) {
   const [isSidebarOpen, setIsSidebarOpen] = useState(true);
   const router = useRouter();
@@ -92,7 +92,7 @@ export default function RootLayout({ children }: { children: ReactNode }) {
             setTimeout(() => {
               document.body.classList.remove('waiting-navigation');
             }, 1000);
-          }, 1000); // Giảm thời gian chờ xuống 1s cho mượt
+          }, 5000); // Giảm thời gian chờ xuống 1s cho mượt
         } 
         // Nếu đang ở trang history thì gửi message APPLY_SEARCH ngay
         else {
@@ -104,8 +104,8 @@ export default function RootLayout({ children }: { children: ReactNode }) {
             
             setTimeout(() => {
               document.body.classList.remove('waiting-navigation');
-            }, 1000);
-          }, 300);
+            }, 2000);
+          }, 3000);
         }
       }
     };
@@ -155,28 +155,34 @@ export default function RootLayout({ children }: { children: ReactNode }) {
 
   return (
     <html lang="vi">
-      <body className="flex bg-black text-white font-sans min-h-screen">
-        {/* Hiển thị Sidebar nếu isSidebarOpen = true */}
-        {isSidebarOpen && <Sidebar />}
-
-        {/* Phần nội dung chính */}
-        <div className="flex flex-col flex-1 min-h-screen relative">
-          {/* Header với nút toggle sidebar và thông tin user */}
-          <Header 
-            isSidebarOpen={isSidebarOpen} 
-            setIsSidebarOpen={setIsSidebarOpen}
-            user={user}
-          />
-
-          {/* Nội dung chính (children) */}
-          <main className="flex-1 p-6 pb-40">{children}</main>
-
-          {/* Ô nhập chat (luôn ở dưới cùng) */}
-          <ChatInput 
-            isSidebarOpen={isSidebarOpen}
-            pathname={pathname}
-          />
+     <body className="flex bg-black text-white font-sans min-h-screen w-full overflow-x-hidden">
+        {/* Sidebar - Luôn hiển thị nhưng có thể bị ẩn bằng transform */}
+        <div 
+          className={`fixed inset-y-0 left-0 z-50 w-64 bg-gray-900 transition-all duration-300 ease-in-out ${
+            isSidebarOpen ? 'translate-x-0' : '-translate-x-full'
+          }`}
+        >
+          <Sidebar />
         </div>
+
+        {/* Main content */}
+        <UserProvider>
+          <div className={`flex flex-col flex-1 min-h-screen transition-all duration-300 ${isSidebarOpen ? 'ml-64' : 'ml-0'}`}>
+            <Header 
+              isSidebarOpen={isSidebarOpen} 
+              setIsSidebarOpen={setIsSidebarOpen}
+              user={user}
+            />
+            <main className="flex-1 p-6 pb-24 w-full max-w-screen-2xl mx-auto">
+              {children}
+            </main>
+            <ChatInput 
+              isSidebarOpen={isSidebarOpen}
+              pathname={pathname}
+            />
+          </div>
+        </UserProvider>
+
       </body>
     </html>
   );
