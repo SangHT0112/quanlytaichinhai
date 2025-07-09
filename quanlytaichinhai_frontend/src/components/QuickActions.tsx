@@ -10,10 +10,6 @@ export const QuickActions = (props: QuickActionsProps) => {
   const { onAction } = props;
   
   const actions = [
-    { text: "Xem số dư", emoji: "🟣", prompt: "Xem số dư hiện tại" },
-    { text: "Thống kê", emoji: "📊", prompt: "Thống kê chi tiêu tháng này" },
-    { text: "Lời khuyên", emoji: "💡", prompt: "Đưa ra lời khuyên tài chính" },
-    { text: "Đầu tư", emoji: "📈", prompt: "Gợi ý đầu tư phù hợp" },
     { text: "Lịch sử giao dịch", emoji: "📜", prompt: "Vào trang lịch sử giao dịch gần đây" },
     { text: "Lịch sử ăn uống", emoji:"📈", prompt: "Vào trang lịch sử và xem mục ăn uống" },
     { text: "Tìm giao dịch ăn uống", emoji:"🍔", prompt: "Tìm kiếm giao dịch ăn uống" },
@@ -21,6 +17,7 @@ export const QuickActions = (props: QuickActionsProps) => {
     // ✅ Mới thêm
     { text: "Tổng quan số dư", emoji: "🧾", prompt: "Tổng quan về số dư" },
     { text: "Chi tiêu nhiều", emoji: "🔥", prompt: "Các danh mục chi tiêu nhiều" },
+    { text: "Xem chi tiêu trong tuần này", emoji: "📈", prompt: "Xem chi tiêu trong tuần này"}
   ]
 
 

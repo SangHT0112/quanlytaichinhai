@@ -44,3 +44,35 @@ export const getTransactionsByUserId = async (userId, limit = null) => {
 
 // Lấy tất cả giao dịch (không giới hạn)
 //const allTransactions = await getTransactionsByUserId(userId)
+
+
+
+export const addTransaction = async (transactionData) => {
+  const {
+    user_id,
+    amount,
+    category_id,
+    purpose_id,
+    type,
+    description,
+    transaction_date,
+  } = transactionData
+
+  const query = `
+    INSERT INTO transactions 
+    (user_id, amount, category_id, purpose_id, type, description, transaction_date, created_at, updated_at)
+    VALUES (?, ?, ?, ?, ?, ?, ?, NOW(), NOW())
+  `
+
+  const [result] = await db.execute(query, [
+    user_id,
+    amount,
+    category_id,
+    purpose_id || null,
+    type,
+    description,
+    transaction_date,
+  ])
+
+  return result.insertId // trả về ID giao dịch mới
+}

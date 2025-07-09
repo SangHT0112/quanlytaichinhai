@@ -73,7 +73,6 @@ export function applyFilterFromAi(
   }
   
 
-  
 
 
   // Xử lý tháng

@@ -64,6 +64,37 @@ export const generateAIResponse = (userMessage: string): MessageContent => {
     ]
   }
 
+  if(/Xem chi tiêu trong tuần này/i.test(lowerMessage)){
+    return[
+      {
+        type: 'text',
+        text: 'Chi tieu trong tuan qua:',
+        style: 'default'
+      },
+      {
+        type: 'component',
+        name: 'WeeklyBarChart',
+        layout: 'block',
+      }
+    ]
+  }
+
+  if(/Xác nhận/i.test(lowerMessage)){
+    return[
+      {
+        type: 'text',
+        text: 'Xac nhan lai dum tui:',
+        style: 'default'
+      },
+      {
+        type: 'component',
+        name: 'TransactionConfirmationForm',
+        layout: 'block',
+      }
+    ]
+  }
+
+
   return [
     {
       type: 'text',
@@ -71,4 +102,6 @@ export const generateAIResponse = (userMessage: string): MessageContent => {
       style: 'default'
     }
   ]
+
+
 }

@@ -1,0 +1,43 @@
+Database schema:
+
+1. users
+- user_id (int, primary key)
+- username (varchar)
+- email (varchar, unique)
+- password_hash (varchar)
+- currency_preference (varchar, default 'VND')
+- monthly_income (decimal)
+- language_preference (varchar)
+- created_at (timestamp)
+- updated_at (timestamp)
+
+2. categories
+- category_id (int, primary key)
+- user_id (int, foreign key to users)
+- name (varchar)
+- type (enum: 'income' | 'expense')
+- parent_id (nullable)
+- color (varchar)
+- icon (varchar)
+- created_at (timestamp)
+- updated_at (timestamp)
+
+3. transactions
+- transaction_id (int, primary key)
+- user_id (int, foreign key to users)
+- amount (decimal)
+- category_id (foreign key to categories)
+- purpose_id (nullable)
+- type (enum: 'income' | 'expense')
+- description (varchar)
+- transaction_date (datetime)
+- created_at (timestamp)
+- updated_at (timestamp)
+
+4. ai_feedback_logs
+- id (int, primary key)
+- user_input (text)
+- ai_suggested (JSON)
+- user_corrected (nullable JSON)
+- confirmed (boolean)
+- created_at (timestamp)

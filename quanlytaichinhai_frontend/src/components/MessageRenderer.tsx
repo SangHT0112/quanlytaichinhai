@@ -5,13 +5,16 @@ import BalanceCardPage from '@/app/tongquan/components/BalanceCard';
 import TopExpenseCategories from '@/app/tongquan/components/TopExpenseCategories';
 import TransactionList from '@/app/tongquan/components/TransactionList';
 import MonthlyBarChart from '@/app/thongke/MonthlyBarChart';
-
+import WeeklyBarChart from '@/app/tongquan/components/WeeklyBarChart';
+import TransactionConfirmationForm from './transaction-confirmation-form';
 // 1. Tạo bản đồ component với TypeScript type safety
 const COMPONENT_MAP: Record<AllowedComponents, React.ComponentType<any>> = {
   BalanceCardPage: BalanceCardPage,
   TopExpenseCategories: TopExpenseCategories,
   TransactionList: TransactionList,
-  MonthlyBarChart: MonthlyBarChart
+  MonthlyBarChart: MonthlyBarChart,
+  WeeklyBarChart: WeeklyBarChart,
+  TransactionConfirmationForm: TransactionConfirmationForm,
 };
 
 // 2. Kiểu props cho MessageRenderer

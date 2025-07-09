@@ -12,7 +12,11 @@ const ALLOWED_COMPONENTS = [
   'BalanceCardPage',
   'TopExpenseCategories',
   'TransactionList',
-  'MonthlyBarChart'
+  'WeeklyBarChart',
+  
+  'MonthlyBarChart',
+  'TransactionConfirmationForm'
+
 ] as const;
 
 export type AllowedComponents = typeof ALLOWED_COMPONENTS[number];
@@ -40,10 +44,12 @@ export type MessageContentPart =
 export type ChatMessage = {
   id: string;
   role: MessageRole;
-  content: string | null; // Chuẩn OpenAI (luôn có)
-  custom_content?: MessageContentPart[]; // Phần mở rộng của bạn
-  name?: string; // Cho function/components
-  function_call?: { // Chuẩn OpenAI
+  content: string | null;                   // Chuẩn OpenAI (luôn có)
+  custom_content?: MessageContentPart[];    // Mở rộng để render component/text phức tạp.
+  structured?: any
+  name?: string; 
+  user_input?: string                           // Cho function/components
+  function_call?: {                        //Dữ liệu khi AI gọi hàm (ví dụ: get_current_weather).
     name: string;
     arguments: string;
   };
@@ -79,3 +85,39 @@ export type QuickAction = {
 // Export const (giữ nguyên)
 export const AllowedComponentsList = ALLOWED_COMPONENTS;
 export type MessageContent = string | MessageContentPart | MessageContentPart[];
+
+
+
+
+// ========= Ví dụ các trường hợp ============== //
+// Tin nhắn text thông thường
+const simpleMessage: ChatMessage = {
+  id: "1",
+  role: MessageRole.ASSISTANT,
+  content: "Xin chào!",
+  timestamp: new Date()
+};
+
+// Tin nhắn kết hợp text + component
+const complexMessage: ChatMessage = {
+  id: "2",
+  role: MessageRole.ASSISTANT,
+  content: "Đây là biểu đồ:",
+  custom_content: [
+    { type: "text", text: "Chi tiết:", style: "important" },
+    { type: "component", name: "MonthlyBarChart", props: { months: 6 } }
+  ],
+  timestamp: new Date()
+};
+
+// Function call từ AI
+const functionCallMessage: ChatMessage = {
+  id: "3",
+  role: MessageRole.ASSISTANT,
+  content: null,
+  function_call: {
+    name: "get_current_weather",
+    arguments: '{"location": "Hà Nội"}'
+  },
+  timestamp: new Date()
+};
