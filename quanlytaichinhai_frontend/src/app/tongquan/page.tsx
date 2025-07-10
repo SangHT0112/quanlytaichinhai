@@ -2,7 +2,6 @@
 import { useEffect, useState } from "react"
 import WeeklyBarChart from "@/app/tongquan/components/WeeklyBarChart"
 import LoginRequiredModal from "@/components/Layouts/LoginRequiredModal"
-import { AIForecastMock } from "@/components/AI/AIForecastMock"
 import BalanceCardPage from "./components/BalanceCard"
 import { fetchTopCategories } from "@/api/overviewApi"
 import OverviewSkeleton from "@/components/Skeleton/OverviewSkeleton"
@@ -76,7 +75,6 @@ export default function Home() {
 
         {/* Dự đoán AI */}
         <div className="space-y-6">
-          <AIForecastMock />
         </div>
       </main>
     </div>

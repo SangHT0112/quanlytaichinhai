@@ -1,27 +1,35 @@
-import MonthlyBarChart from "@/app/thongke/MonthlyBarChart"
-// ... import các component khác
-
-import { MessageContentPart } from "@/components/types"
+// components/hooks/renderCustomContent.tsx
+import React from 'react'
+import { MessageContentPart } from "../types"
+import { componentMap } from './componentMap'
 
 export const renderCustomContent = (part: MessageContentPart, index: number) => {
   if (part.type === "text") {
     return (
-      <p key={index} className={`text-sm ${part.style === "important" ? "font-semibold" : ""}`}>
+      <div className={`text-sm ${part.style === "important" ? "font-bold text-yellow-400" : ""}`}>
         {part.text}
-      </p>
+      </div>
     )
   }
 
   if (part.type === "component") {
-    const props = part.props || {}
-
-    switch (part.name) {
-      case "MonthlyBarChart":
-        return <MonthlyBarChart key={index} {...props} />
-      default:
-        return null
+    const Component = componentMap[part.name]
+    if (!Component) {
+      return <div className="text-red-400 text-sm">⚠️ Component không hỗ trợ: {part.name}</div>
     }
+    return <Component {...(part.props || {})} />
   }
 
-  return null
+  if (part.type === "function_call") {
+    return (
+      <div className="p-2 bg-zinc-700 rounded text-xs">
+        <strong>Function:</strong> {part.name}
+        <pre className="overflow-x-auto mt-1">
+          {JSON.stringify(JSON.parse(part.arguments), null, 2)}
+        </pre>
+      </div>
+    )
+  }
+
+  return <div>⚠️ Không thể hiển thị nội dung</div>
 }

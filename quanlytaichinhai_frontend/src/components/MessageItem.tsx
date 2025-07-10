@@ -6,7 +6,6 @@ import { ChatMessage } from "./types"
 import { MessageRenderer } from './MessageRenderer'
 import TransactionConfirmationForm from './transaction-confirmation-form'
 import { renderCustomContent } from './hooks/renderCustomContent'
-
 export const MessageItem = ({
   message,
   onConfirm,
@@ -56,23 +55,23 @@ export const MessageItem = ({
         )}
 
         {/* Nếu là structured transaction và chưa được xác nhận */}
-        {message.structured && !message.structured.error && (
-          <div className="mt-2">
-            <TransactionConfirmationForm
-              transactionData={{
-                user_id: message.structured.user_id || 1,
-                amount: message.structured.amount,
-                category: message.structured.category,
-                type: message.structured.type,
-                description: message.user_input || message.content || "Không có mô tả",
-                transaction_date: message.structured.date,
-              }}
-              isConfirmed={confirmedIds.includes(message.id)}
-              onConfirm={() => onConfirm?.(message)}
-              onCancel={() => console.log("❌ Huỷ xác nhận")}
-            />
-          </div>
-        )}
+       {["expense", "income"].includes(message.structured?.type) && !message.structured.error && (
+            <div className="mt-2">
+              <TransactionConfirmationForm
+                transactionData={{
+                  user_id: message.structured.user_id || 1,
+                  amount: message.structured.amount,
+                  category: message.structured.category,
+                  type: message.structured.type,
+                  description: message.user_input || message.content || "Không có mô tả",
+                  transaction_date: message.structured.date,
+                }}
+                isConfirmed={confirmedIds.includes(message.id)}
+                onConfirm={() => onConfirm?.(message)}
+                onCancel={() => console.log("❌ Huỷ xác nhận")}
+              />
+            </div>
+          )}
 
         {/* Nếu là function call từ AI */}
         {message.function_call && (
