@@ -44,9 +44,10 @@ export type MessageContentPart =
 export type ChatMessage = {
   id: string;
   role: MessageRole;
-  content: string | null;                   // Chuẩn OpenAI (luôn có)
+  content: string;                 // Chuẩn OpenAI (luôn có)
   custom_content?: MessageContentPart[];    // Mở rộng để render component/text phức tạp.
   structured?: any
+  user_id?: number;
   name?: string; 
   user_input?: string                           // Cho function/components
   function_call?: {                        //Dữ liệu khi AI gọi hàm (ví dụ: get_current_weather).
@@ -55,6 +56,7 @@ export type ChatMessage = {
   };
   timestamp: Date;
   status?: 'sending' | 'sent' | 'failed';
+  intent?: string
 };
 
 // 5. Kiểu response tổng (tương thích OpenAI)
@@ -89,35 +91,35 @@ export type MessageContent = string | MessageContentPart | MessageContentPart[];
 
 
 
-// ========= Ví dụ các trường hợp ============== //
-// Tin nhắn text thông thường
-const simpleMessage: ChatMessage = {
-  id: "1",
-  role: MessageRole.ASSISTANT,
-  content: "Xin chào!",
-  timestamp: new Date()
-};
+// // ========= Ví dụ các trường hợp ============== //
+// // Tin nhắn text thông thường
+// const simpleMessage: ChatMessage = {
+//   id: "1",
+//   role: MessageRole.ASSISTANT,
+//   content: "Xin chào!",
+//   timestamp: new Date()
+// };
 
-// Tin nhắn kết hợp text + component
-const complexMessage: ChatMessage = {
-  id: "2",
-  role: MessageRole.ASSISTANT,
-  content: "Đây là biểu đồ:",
-  custom_content: [
-    { type: "text", text: "Chi tiết:", style: "important" },
-    { type: "component", name: "MonthlyBarChart", props: { months: 6 } }
-  ],
-  timestamp: new Date()
-};
+// // Tin nhắn kết hợp text + component
+// const complexMessage: ChatMessage = {
+//   id: "2",
+//   role: MessageRole.ASSISTANT,
+//   content: "Đây là biểu đồ:",
+//   custom_content: [
+//     { type: "text", text: "Chi tiết:", style: "important" },
+//     { type: "component", name: "MonthlyBarChart", props: { months: 6 } }
+//   ],
+//   timestamp: new Date()
+// };
 
-// Function call từ AI
-const functionCallMessage: ChatMessage = {
-  id: "3",
-  role: MessageRole.ASSISTANT,
-  content: null,
-  function_call: {
-    name: "get_current_weather",
-    arguments: '{"location": "Hà Nội"}'
-  },
-  timestamp: new Date()
-};
+// // Function call từ AI
+// const functionCallMessage: ChatMessage = {
+//   id: "3",
+//   role: MessageRole.ASSISTANT,
+//   content: null,
+//   function_call: {
+//     name: "get_current_weather",
+//     arguments: '{"location": "Hà Nội"}'
+//   },
+//   timestamp: new Date()
+// };

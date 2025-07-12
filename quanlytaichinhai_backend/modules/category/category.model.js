@@ -1,5 +1,10 @@
 import db from "../../config/db.js"
 
+export const getCategory = async () => {
+  const [rows] = await db.execute('SELECT name FROM categories');
+  return rows.map(row => row.name);
+};
+
 export const getCategoryIdByName = async (name) => {
   const [rows] = await db.execute(
     'SELECT category_id FROM categories WHERE LOWER(name) = LOWER(?) LIMIT 1',

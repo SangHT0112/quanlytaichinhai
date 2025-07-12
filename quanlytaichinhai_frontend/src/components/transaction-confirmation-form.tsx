@@ -7,7 +7,7 @@ import { Badge } from "@/components/ui/badge"
 import { Separator } from "@/components/ui/separator"
 import { CheckCircle, XCircle, Calendar, DollarSign, Tag, User, FileText } from "lucide-react"
 
-interface TransactionData {
+export interface TransactionData {
   user_id: number
   amount: number
   category: string
@@ -22,6 +22,7 @@ interface TransactionConfirmationFormProps {
   onConfirm?: (data: TransactionData) => void
   onCancel?: () => void
   isConfirmed?: boolean 
+   onEdit?: () => void 
 }
 
 export default function TransactionConfirmationForm({
@@ -35,7 +36,8 @@ export default function TransactionConfirmationForm({
   },
   onConfirm,
   onCancel,
-  isConfirmed = false
+  isConfirmed = false,
+  onEdit
 }: TransactionConfirmationFormProps) {
   const [isSubmitting, setIsSubmitting] = useState(false)
 
@@ -132,22 +134,14 @@ export default function TransactionConfirmationForm({
       </CardContent>
 
       <CardFooter className="flex gap-3  min-w-[300px]">
-        {isConfirmed ? (
+        {isConfirmed ? onEdit && (
           <Button className="w-full justify-center" disabled>
             <CheckCircle className="h-4 w-4 mr-2" />
             Đã xác nhận
           </Button>
         ) : (
           <>
-            <Button
-              variant="outline"
-              className="flex-1 bg-transparent"
-              onClick={handleCancel}
-              disabled={isSubmitting}
-            >
-              <XCircle className="h-4 w-4 mr-2" />
-              Hủy bỏ
-            </Button>
+            <Button onClick={onEdit}>Sửa</Button>
             <Button
               className="flex-1 bg-green-600 text-white"
               onClick={handleConfirm}

@@ -8,7 +8,7 @@ export async function fetchFinancialSummary(userId) {
      FROM transactions WHERE user_id = ?`,
     [userId]
   );
-  const actualBalance = balanceRows[0]?.balance || 0;
+  const actualBalance = parseFloat(balanceRows[0]?.balance || 0);
 
   // 2. Lấy ngày chính xác
   const now = new Date();
@@ -56,19 +56,13 @@ export async function fetchFinancialSummary(userId) {
 
   // 5. Tính % thay đổi
   const calculateChange = (current, previous) => {
-    // Trường hợp đầu tháng: cả tháng này và tháng trước đều = 0
     if (current === 0 && previous === 0) return 0;
-    
-    // Tháng trước = 0, tháng này có giao dịch
-    if (previous === 0) return current > 0 ? Infinity : -Infinity;
-    
-    // Tháng này = 0 (dù tháng trước có giao dịch)
+    if (previous === 0) return current > 0 ? 100 : -100; // Trả về giá trị hợp lý thay vì Infinity
     if (current === 0) return -100;
-    
-    // Tính toán bình thường
     return ((current - previous) / previous * 100);
   };
 
+  // 6. Trả về kết quả
   return {
     actual_balance: actualBalance,
     current_income: income,
@@ -79,8 +73,6 @@ export async function fetchFinancialSummary(userId) {
     expense_change_percentage: parseFloat(calculateChange(expense, prevExpense).toFixed(1)),
     monthly_surplus: income - expense,
     last_updated: new Date().toISOString(),
-    income_change_percentage: calculateChange(income, prevIncome),
-    expense_change_percentage: calculateChange(expense, prevExpense),
     warnings: [
       ...(income === 0 && expense === 0 ? ["Chưa có giao dịch nào trong tháng này"] : []),
       ...(prevIncome === 0 && prevExpense === 0 ? ["Không có dữ liệu tháng trước để so sánh"] : [])
