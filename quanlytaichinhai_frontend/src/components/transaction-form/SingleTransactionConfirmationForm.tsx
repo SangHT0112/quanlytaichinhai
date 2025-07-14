@@ -6,16 +6,7 @@ import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle }
 import { Badge } from "@/components/ui/badge"
 import { Separator } from "@/components/ui/separator"
 import { CheckCircle, XCircle, Calendar, DollarSign, Tag, User, FileText } from "lucide-react"
-
-export interface TransactionData {
-  user_id: number
-  amount: number
-  category: string
-  type: "expense" | "income"
-  description: string
-  transaction_date: string
-  disabled?: boolean
-}
+import { TransactionData } from "@/types/transaction"
 
 interface TransactionConfirmationFormProps {
   transactionData: TransactionData
@@ -25,7 +16,7 @@ interface TransactionConfirmationFormProps {
    onEdit?: () => void 
 }
 
-export default function TransactionConfirmationForm({
+export default function SingleTransactionConfirmationForm({
   transactionData = {
     user_id: 1,
     amount: 50000,

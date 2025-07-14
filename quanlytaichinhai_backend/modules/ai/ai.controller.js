@@ -76,7 +76,7 @@ export const handleChat = async (req, res) => {
     let prompt = ""
     let formatType = "json"
     if (intent === "transaction") {
-      prompt = await generateTransactionPrompt({ user_input, historyText, now, user_id })
+      prompt = await generateTransactionPrompt({ user_input, now, user_id })
     } else if (intent === "component") {
       prompt = generateComponentPrompt({ user_input, historyText })
     } else if(intent === "followup") {
@@ -108,27 +108,61 @@ export const handleChat = async (req, res) => {
     let structured = null
 
     if (intent === "transaction") {
+      // Cắt lấy phần JSON từ response
       const jsonStart = aiText.indexOf('{')
       const jsonEnd = aiText.lastIndexOf('}') + 1
       aiText = aiText.slice(jsonStart, jsonEnd)
 
       try {
-        structured = JSON.parse(aiText)
-        if (structured.date === "today") {
-          structured.date = format(new Date(), 'yyyy-MM-dd')
+        const parsed = JSON.parse(aiText)
+
+        // Nếu là format mới (gồm group)
+        if (parsed.transactions && Array.isArray(parsed.transactions)) {
+          structured = {
+            group_name: parsed.group_name || null,
+            transaction_date: parsed.transaction_date || now,
+            user_id: parsed.user_id || user_id,
+            transactions: parsed.transactions.map(tx => ({
+              ...tx,
+              amount: Number(tx.amount) || 0
+            }))
+          }
         }
+
+        // Nếu vẫn là mảng đơn giản (format cũ)
+        else if (Array.isArray(parsed)) {
+          structured = {
+            group_name: null,
+            transaction_date: now,
+            user_id,
+            transactions: parsed.map(tx => ({
+              ...tx,
+              amount: Number(tx.amount) || 0
+            }))
+          }
+        }
+
+        // Nếu là 1 object đơn
+        else if (parsed && typeof parsed === "object") {
+          structured = {
+            group_name: null,
+            transaction_date: now,
+            user_id,
+            transactions: [{
+              ...parsed,
+              amount: Number(parsed.amount) || 0
+            }]
+          }
+        } else {
+          structured = { group_name: null, transaction_date: now, user_id, transactions: [] }
+        }
+
       } catch (e) {
         console.warn("⚠️ Parse JSON failed:", aiText)
-        structured = { error: "Không hiểu" }
+        structured = { group_name: null, transaction_date: now, user_id, transactions: [] }
       }
-
-      await saveFeedback({
-        user_input,
-        ai_suggested: structured,
-        user_corrected: null,
-        confirmed: null,
-      })
-    } else if (intent === "component") {
+    }
+else if (intent === "component") {
       try {
         structured = JSON.parse(aiText)
       } catch (e) {
@@ -152,50 +186,52 @@ export const handleChat = async (req, res) => {
 
 export const confirmTransaction = async (req, res) => {
   try {
-    const { user_id, user_input, ai_suggested, user_corrected, confirmed } = req.body
+    const { user_id, user_input, ai_suggested, user_corrected, confirmed } = req.body;
 
-    if (!user_input || !ai_suggested) {
-      return res.status(400).json({ error: "Thiếu dữ liệu bắt buộc" })
+    if (!user_input || !ai_suggested || ai_suggested.length === 0) {
+      return res.status(400).json({ error: "Thiếu dữ liệu bắt buộc" });
     }
 
-    const transactionData = user_corrected || ai_suggested
-    const category_id = await getCategoryIdByKeyword(transactionData.category)
-    if (!category_id && confirmed) {
-      return res.status(400).json({
-        error: `Không tìm thấy danh mục "${transactionData.category}"`
-      })
-    }
+    const transactions = Array.isArray(ai_suggested) ? ai_suggested : [ai_suggested];
 
     await saveFeedback({
       user_input,
       ai_suggested,
       user_corrected,
       confirmed,
-    })
+    });
 
     if (confirmed) {
-      const dbData = {
-        user_id,
-        amount: transactionData.amount,
-        category_id,
-        purpose_id: null,
-        type: transactionData.type,
-        description: user_input,
-        transaction_date: transactionData.date || new Date().toISOString().split('T')[0],
-      }
+      for (const tx of transactions) {
+        const category_id = await getCategoryIdByKeyword(tx.category);
+        if (!category_id) {
+          return res.status(400).json({
+            error: `Không tìm thấy danh mục "${tx.category}"`,
+          });
+        }
 
-      await addTransaction(dbData)
+        const dbData = {
+          user_id,
+          amount: tx.amount,
+          category_id,
+          purpose_id: null,
+          type: tx.type,
+          description: user_input,
+          transaction_date: tx.date || new Date().toISOString().split("T")[0],
+        };
+
+        await addTransaction(dbData);
+      }
     }
 
     res.json({
       success: true,
       message: confirmed
-        ? "✅ Đã lưu giao dịch vào hệ thống"
+        ? "✅ Đã lưu các giao dịch vào hệ thống"
         : "⚠️ Giao dịch không được xác nhận",
-      category_id
-    })
+    });
   } catch (error) {
-    console.error("❌ Lỗi xác nhận:", error.message)
-    res.status(500).json({ error: `Lỗi server khi xử lý giao dịch: ${error.message}` })
+    console.error("❌ Lỗi xác nhận:", error.message);
+    res.status(500).json({ error: `Lỗi server khi xử lý giao dịch: ${error.message}` });
   }
-}
+};

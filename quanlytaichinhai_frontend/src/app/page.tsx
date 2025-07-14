@@ -116,6 +116,7 @@ export default function ChatAI() {
       return newMessages;
     });
 
+
     setInputValue("");
     setIsLoading(true);
   };
@@ -125,6 +126,7 @@ export default function ChatAI() {
   };
 
   const handleConfirm = async (message: ChatMessage) => {
+
     try {
       await axiosInstance.post("/ai/confirm", {
         user_id: currentUser?.user_id || 1,

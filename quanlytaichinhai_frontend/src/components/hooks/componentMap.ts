@@ -4,7 +4,7 @@ import BalanceCardPage from '@/app/tongquan/components/BalanceCard'
 import TopExpenseCategories from '@/app/tongquan/components/TopExpenseCategories'
 import TransactionList from '@/app/tongquan/components/TransactionList'
 import WeeklyBarChart from '@/app/tongquan/components/WeeklyBarChart'
-import TransactionConfirmationForm from '../transaction-confirmation-form'
+import TransactionConfirmationForm from '../transaction-form/SingleTransactionConfirmationForm'
 
 export const componentMap: Record<string, React.ComponentType<any>> = {
   MonthlyBarChart,
