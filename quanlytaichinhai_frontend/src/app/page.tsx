@@ -125,16 +125,24 @@ export default function ChatAI() {
     handleSendMessage(action);
   };
 
-  const handleConfirm = async (message: ChatMessage) => {
+ const handleConfirm = async (message: ChatMessage, correctedData?: any) => {
+    console.log("CONFIRM PAYLOAD:", {
+    user_id: currentUser?.user_id || 1,
+    user_input: message.user_input || message.content,
+    ai_suggested: message.structured,
+    user_corrected: correctedData || null,
+    confirmed: true,
+  });
 
     try {
       await axiosInstance.post("/ai/confirm", {
-        user_id: currentUser?.user_id || 1,
-        user_input: message.user_input || message.content,
-        ai_suggested: message.structured,
-        user_corrected: null,
-        confirmed: true,
-      });
+      user_id: currentUser?.user_id || 1,
+      user_input: message.user_input || message.content,
+      ai_suggested: message.structured,
+      user_corrected: correctedData || null,
+      confirmed: true,
+    });
+
 
       const confirmMsg: ChatMessage = {
         id: Date.now().toString(),
@@ -231,7 +239,7 @@ export default function ChatAI() {
           <MessageItem
             key={msg.id}
             message={msg}
-            onConfirm={() => handleConfirm(msg)}
+            onConfirm={(message, correctedData) => handleConfirm(message, correctedData)} 
             isConfirmed={confirmedIds.includes(msg.id)}
             confirmedIds={confirmedIds}
           />

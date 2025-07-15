@@ -2,25 +2,30 @@
 
 import { useState } from "react"
 import { Button } from "@/components/ui/button"
-import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card"
+import { Card, CardContent, CardHeader, CardTitle, CardFooter } from "@/components/ui/card"
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
 import { Badge } from "@/components/ui/badge"
-import { CheckCircle, Calendar, DollarSign, Tag, FileText, Pencil } from "lucide-react"
-import { TransactionData } from "@/types/transaction"
+import { CheckCircle, FileText, Pencil, Calendar } from "lucide-react"
+import type { TransactionData } from "@/types/transaction"
 
 interface MultiTransactionConfirmationFormProps {
   transactions: TransactionData[]
+  groupName: string
+  transactionDate: string
   onConfirmAll?: (data: TransactionData[]) => void
   onCancel?: () => void
   onEdit?: (index: number) => void
-  isConfirmed?: boolean;
+  isConfirmed?: boolean
 }
 
 export default function MultiTransactionConfirmationForm({
   transactions,
+  groupName,
+  transactionDate,
   onConfirmAll,
   onCancel,
   onEdit,
-  isConfirmed
+  isConfirmed,
 }: MultiTransactionConfirmationFormProps) {
   const [isSubmitting, setIsSubmitting] = useState(false)
 
@@ -54,92 +59,108 @@ export default function MultiTransactionConfirmationForm({
   }, 0)
 
   return (
-    <Card className="w-full max-w-4xl mx-auto">
+    <Card className="w-full max-w-6xl mx-auto">
       <CardHeader className="text-center">
         <CardTitle className="flex items-center justify-center gap-2">
           <CheckCircle className="h-5 w-5 text-green-600" />
-          Xác nhận nhiều giao dịch
+          Xác nhận giao dịch nhóm
         </CardTitle>
-        <CardDescription>
-          Kiểm tra lại tất cả thông tin trước khi xác nhận ({transactions.length} giao dịch)
-        </CardDescription>
-        <div className="mt-4 p-3 bg-muted rounded-lg">
-          <p className="text-sm font-medium">Tổng thay đổi số dư:</p>
-          <p className={`text-lg font-bold ${totalAmount >= 0 ? "text-green-600" : "text-red-600"}`}>
+
+        {/* Enhanced transaction info section */}
+        <div className="mt-6 space-y-4">
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            {/* Transaction Content Card */}
+            <Card className="border-2 border-blue-200 bg-blue-50/50">
+              <CardContent>
+                <div className="flex items-center gap-2 mb-2">
+                  <FileText className="h-5 w-5 text-blue-600" />
+                  <span className="text-sm font-medium text-blue-700">Nội dung giao dịch</span>
+                </div>
+                <p className="text-lg font-bold text-blue-900 break-words">{groupName}</p>
+              </CardContent>
+            </Card>
+
+            {/* Transaction Date Card */}
+            <Card className="border-2 border-purple-200 bg-purple-50/50">
+              <CardContent>
+                <div className="flex items-center gap-2 mb-2">
+                  <Calendar className="h-5 w-5 text-purple-600" />
+                  <span className="text-sm font-medium text-purple-700">Ngày giao dịch</span>
+                </div>
+                <p className="text-lg font-bold text-purple-900">{formatDate(transactionDate)}</p>
+              </CardContent>
+            </Card>
+          </div>
+        </div>
+
+        {/* Total amount section */}
+        <div className="mt-4 p-4 bg-gradient-to-r from-slate-50 to-slate-100 rounded-lg border">
+          <p className="text-sm font-medium text-slate-600 mb-1">Tổng thay đổi số dư:</p>
+          <p className={`text-xl font-bold ${totalAmount >= 0 ? "text-green-600" : "text-red-600"}`}>
             {formatCurrency(totalAmount)}
           </p>
         </div>
       </CardHeader>
-      <CardContent className="space-y-4 max-h-[500px] overflow-y-auto">
-        {transactions.map((txn, index) => (
-          <div key={index} className="p-4 border rounded-lg space-y-3 relative group hover:shadow-md transition-shadow">
-            <div className="absolute top-2 right-2 opacity-0 group-hover:opacity-100 transition-opacity">
-              <Button variant="ghost" size="sm" onClick={() => onEdit?.(index)}>
-                <Pencil className="w-4 h-4 mr-1" />
-                Sửa
-              </Button>
-            </div>
 
-            <div className="flex items-center justify-between">
-              <span className="text-sm font-medium text-muted-foreground">Giao dịch #{index + 1}</span>
-              <Badge className={txn.type === "expense" ? "bg-red-500 text-white" : "bg-green-500 text-white"}>
-                {txn.type === "expense" ? "Chi tiêu" : "Thu nhập"}
-              </Badge>
-            </div>
-
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              <div className="flex items-center gap-3">
-                <DollarSign className="h-4 w-4 text-muted-foreground" />
-                <div className="flex-1">
-                  <p className="text-sm font-medium">Số tiền</p>
-                  <p className={`text-lg font-bold ${txn.type === "expense" ? "text-red-600" : "text-green-600"}`}>
-                    {txn.type === "expense" ? "-" : "+"}
-                    {formatCurrency(txn.amount)}
-                  </p>
-                </div>
-              </div>
-
-              <div className="flex items-center gap-3">
-                <Tag className="h-4 w-4 text-muted-foreground" />
-                <div className="flex-1">
-                  <p className="text-sm font-medium">Danh mục</p>
-                  <p className="text-sm text-muted-foreground">{txn.category}</p>
-                </div>
-              </div>
-
-              <div className="flex items-center gap-3">
-                <Calendar className="h-4 w-4 text-muted-foreground" />
-                <div className="flex-1">
-                  <p className="text-sm font-medium">Ngày giao dịch</p>
-                  <p className="text-sm text-muted-foreground">{formatDate(txn.transaction_date)}</p>
-                </div>
-              </div>
-
-              <div className="flex items-start gap-3">
-                <FileText className="h-4 w-4 text-muted-foreground mt-0.5" />
-                <div className="flex-1">
-                  <p className="text-sm font-medium">Mô tả</p>
-                  <p className="text-sm text-muted-foreground">{txn.description}</p>
-                </div>
-              </div>
-            </div>
-          </div>
-        ))}
-      </CardContent>
-      <CardFooter className="flex justify-between items-center">
-        <div className="text-sm text-muted-foreground">Tổng cộng: {transactions.length} giao dịch</div>
-        <div className="flex gap-3 mr-5">
-            <Button variant="outline" onClick={onCancel}>
-                Hủy
-            </Button>
-            <Button
-                onClick={() => onConfirmAll?.(transactions)}
-                disabled={isConfirmed || isSubmitting}
-                className="bg-green-600 text-white"
+      <CardContent>
+        <Table>
+          <TableHeader>
+            <TableRow>
+              <TableHead>STT</TableHead>
+              <TableHead>Chi tiết</TableHead>
+              <TableHead className="text-right">Số tiền</TableHead>
+              <TableHead>Danh mục</TableHead>
+              <TableHead>Loại</TableHead>
+              <TableHead className="text-right">Thao tác</TableHead>
+            </TableRow>
+          </TableHeader>
+          <TableBody>
+            {transactions.map((txn, index) => (
+              <TableRow key={index}>
+                <TableCell className="font-medium">{index + 1}</TableCell>
+                <TableCell className="max-w-[200px] truncate" title={txn.description}>
+                  {txn.description}
+                </TableCell>
+                 <TableCell
+                  className={`text-right font-bold ${txn.type === "expense" ? "text-red-600" : "text-green-600"}`}
                 >
-                {isConfirmed ? "Đã xác nhận" : isSubmitting ? "Đang xử lý..." : "Xác nhận"}
-            </Button>
+                  {txn.type === "expense" ? "-" : "+"}
+                  {formatCurrency(txn.amount)}
+                </TableCell>
+                <TableCell>{txn.category}</TableCell>
 
+                <TableCell>
+                  <Badge className={txn.type === "expense" ? "bg-red-500 text-white" : "bg-green-500 text-white"}>
+                    {txn.type === "expense" ? "Chi tiêu" : "Thu nhập"}
+                  </Badge>
+                </TableCell>
+               
+               
+                <TableCell className="text-right">
+                  <Button variant="ghost" size="sm" onClick={() => onEdit?.(index)} className="h-8">
+                    <Pencil className="w-4 h-4 mr-1" />
+                    Sửa
+                  </Button>
+                </TableCell>
+              </TableRow>
+            ))}
+          </TableBody>
+        </Table>
+      </CardContent>
+
+      <CardFooter className="flex justify-between items-center">
+        <div className="text-sm text-muted-foreground">Gồm {transactions.length} mục trong nhóm</div>
+        <div className="flex gap-3">
+          <Button variant="outline" onClick={onCancel}>
+            Hủy
+          </Button>
+          <Button
+            onClick={handleConfirmAll}
+            disabled={isConfirmed || isSubmitting}
+            className="bg-green-600 text-white hover:bg-green-700"
+          >
+            {isConfirmed ? "Đã xác nhận" : isSubmitting ? "Đang xử lý..." : "Xác nhận"}
+          </Button>
         </div>
       </CardFooter>
     </Card>

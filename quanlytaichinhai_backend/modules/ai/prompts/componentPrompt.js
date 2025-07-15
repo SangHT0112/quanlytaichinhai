@@ -1,14 +1,16 @@
 import fs from "fs"
 import path from "path"
+import { fileURLToPath } from 'url'
 
-export const generateComponentPrompt = ({ user_input, historyText }) => {
+const __filename = fileURLToPath(import.meta.url)
+const __dirname = path.dirname(__filename)
+
+export const generateComponentPrompt = ({ user_input }) => {
   const hintPath = path.join(__dirname, "../documents/component_hint.txt")
   const componentGuide = fs.readFileSync(hintPath, 'utf-8')
 
   return `
     Đây là tài liệu bạn có thể học ${componentGuide}
-    Bạn là trợ lý tài chính. Dựa trên lịch sử hội thoại sau:
-    ${historyText}
 
     Nhiệm vụ: Nếu người dùng yêu cầu xem biểu đồ thu chi gần đây hoặc một số tháng cụ thể,
     hãy trả về JSON dạng sau:

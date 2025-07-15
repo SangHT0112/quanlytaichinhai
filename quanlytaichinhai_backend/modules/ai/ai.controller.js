@@ -1,20 +1,19 @@
-import { toolHandlers } from "./ai.toolHandlers.js" // Sửa "tool Solutions" thành "toolHandlers"
-import { saveFeedback } from './ai.model.js'
-import { addTransaction } from "../transaction/transaction.model.js"
-import { getCategory, getCategoryIdByKeyword } from "../category/category.model.js"
+
 import { generateTransactionPrompt } from "./prompts/transactionPrompt.js"
 import { generateComponentPrompt } from "./prompts/componentPrompt.js"
 import { generateNaturalPrompt } from "./prompts/naturalPrompt.js"
 import { generateFollowupPrompt } from "./prompts/generateFollowupPrompt.js"
 import { getChatHistory } from "../chat_history/chat_history.model.js"
-import { format } from "date-fns"
+import { getCategoryIdByKeyword } from "../category/category.model.js"
+import { addTransaction, createTransactionGroup } from "../transaction/transaction.model.js"
 import fetch from 'node-fetch'
 import fs from 'fs'
-import { fileURLToPath } from 'url'
 import path from 'path'
+import { fileURLToPath } from 'url';
 
-const __filename = fileURLToPath(import.meta.url)
-const __dirname = path.dirname(__filename)
+// Định nghĩa __dirname
+const __dirname = path.dirname(fileURLToPath(import.meta.url));
+
 
 export const handleChat = async (req, res) => {
   const user_id = req.body.user_id
@@ -30,9 +29,10 @@ export const handleChat = async (req, res) => {
       // Tiếp tục với history rỗng nếu có lỗi
     }
   }
-  console.log("🧑 user_id:", user_id)
-  console.log("💬 user_input:", user_input)
-  console.log("📚 history:", history)
+  // console.log("🧑 user_id:", user_id)
+  // console.log("💬 user_input:", user_input)
+  // console.log("📚 history:", history)
+  // Sử dụng như bình thường
 
 
   const historyText = history
@@ -49,10 +49,11 @@ export const handleChat = async (req, res) => {
 
   try {
     // === Phân loại intent nội bộ ===
-    const classifyPromptPath = path.join(__dirname, 'documents', 'ai_prompt_classify.txt')
-    const classifyBasePrompt = fs.readFileSync(classifyPromptPath, 'utf-8')
+   const classifyPromptPath = path.resolve(__dirname, './documents/ai_prompt_classify.txt')
+   const classifyBasePrompt = fs.readFileSync(classifyPromptPath, 'utf-8')
     const classifyPrompt = classifyBasePrompt.replace("${user_input}", user_input)
 
+    
     const classifyRes = await fetch("http://localhost:11434/api/generate", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
@@ -78,7 +79,7 @@ export const handleChat = async (req, res) => {
     if (intent === "transaction") {
       prompt = await generateTransactionPrompt({ user_input, now, user_id })
     } else if (intent === "component") {
-      prompt = generateComponentPrompt({ user_input, historyText })
+      prompt = generateComponentPrompt({ user_input })
     } else if(intent === "followup") {
       prompt = generateFollowupPrompt({ user_input, historyText })
       formatType = undefined
@@ -184,54 +185,74 @@ else if (intent === "component") {
 }
 
 
+
 export const confirmTransaction = async (req, res) => {
   try {
-    const { user_id, user_input, ai_suggested, user_corrected, confirmed } = req.body;
+    const { user_input, ai_suggested, user_corrected, confirmed, user_id } = req.body;
 
-    if (!user_input || !ai_suggested || ai_suggested.length === 0) {
+    if (!user_input || !ai_suggested) {
       return res.status(400).json({ error: "Thiếu dữ liệu bắt buộc" });
     }
 
-    const transactions = Array.isArray(ai_suggested) ? ai_suggested : [ai_suggested];
+    const transactions = Array.isArray(user_corrected)
+      ? user_corrected
+      : [user_corrected || ai_suggested.transactions?.[0]];
 
-    await saveFeedback({
-      user_input,
-      ai_suggested,
-      user_corrected,
-      confirmed,
-    });
+    if (!transactions.length) {
+      return res.status(400).json({ error: "Không có giao dịch nào để lưu" });
+    }
 
+    // 👉 Tính tổng tiền
+    const total_amount = transactions.reduce((sum, tx) => sum + Number(tx.amount || 0), 0);
+
+    // 👉 Lấy thông tin group
+    const groupData = {
+      user_id,
+      group_name: ai_suggested.group_name || user_input,
+      total_amount,
+      transaction_date: ai_suggested.transaction_date || new Date().toISOString().split("T")[0],
+    };
+
+    let group_id = null;
     if (confirmed) {
-      for (const tx of transactions) {
-        const category_id = await getCategoryIdByKeyword(tx.category);
-        if (!category_id) {
-          return res.status(400).json({
-            error: `Không tìm thấy danh mục "${tx.category}"`,
-          });
-        }
+      // 👉 Lưu group trước
+      group_id = await createTransactionGroup(groupData);
+    }
 
-        const dbData = {
-          user_id,
-          amount: tx.amount,
-          category_id,
-          purpose_id: null,
-          type: tx.type,
-          description: user_input,
-          transaction_date: tx.date || new Date().toISOString().split("T")[0],
-        };
+    for (const tx of transactions) {
+      if (!tx) continue;
 
+      const category_id = await getCategoryIdByKeyword(tx.category);
+      if (!category_id) {
+        return res.status(400).json({
+          error: `Không tìm thấy danh mục "${tx.category}"`,
+        });
+      }
+
+      const dbData = {
+        user_id,
+        group_id,
+        amount: tx.amount,
+        category_id,
+        purpose_id: null,
+        type: tx.type,
+        description: tx.description || user_input,
+        transaction_date: ai_suggested.transaction_date || new Date().toISOString().split("T")[0],
+      };
+
+      if (confirmed) {
         await addTransaction(dbData);
       }
     }
 
-    res.json({
+    res.status(200).json({
       success: true,
       message: confirmed
-        ? "✅ Đã lưu các giao dịch vào hệ thống"
-        : "⚠️ Giao dịch không được xác nhận",
+        ? "✅ Đã lưu nhóm giao dịch và các giao dịch thành công."
+        : "⚠️ Giao dịch không được xác nhận.",
     });
-  } catch (error) {
-    console.error("❌ Lỗi xác nhận:", error.message);
-    res.status(500).json({ error: `Lỗi server khi xử lý giao dịch: ${error.message}` });
+  } catch (err) {
+    console.error("❌ Lỗi khi lưu giao dịch:", err);
+    res.status(500).json({ error: "Lỗi server" });
   }
 };

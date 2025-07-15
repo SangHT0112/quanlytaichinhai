@@ -36,7 +36,9 @@ export const MessageItem = ({
   const [isLoading, setIsLoading] = useState(false);
 
   // Lấy transactions từ structured (hỗ trợ cả mảng trực tiếp)
-  const transactions = Array.isArray(message.structured) ? message.structured : [];
+ const transactions = Array.isArray(message.structured?.transactions) 
+  ? message.structured.transactions 
+  : [];
   
   // Transaction mặc định để edit
   const defaultTransaction = transactions[editingIndex] || {
@@ -99,16 +101,17 @@ export const MessageItem = ({
     setIsEditing(true);
   };
 
-  const handleConfirmAll = async (allTransactions: TransactionData[]) => {
+  const handleConfirmAll = async () => {
     setIsLoading(true);
     try {
       if (onConfirm) {
-        await onConfirm(message);
+        await onConfirm(message, transactions); // ✅ Gửi toàn bộ giao dịch nhóm
       }
     } finally {
       setIsLoading(false);
     }
   };
+
 
 
   return (
@@ -165,15 +168,18 @@ export const MessageItem = ({
 
                 {isMultiTransaction && (
                   <MultiTransactionConfirmationForm
-                    transactions={transactions.map(tx => ({
+                    groupName={message.structured?.group_name || ""}
+                    transactionDate={message.structured?.transaction_date || new Date().toISOString()}
+                    transactions={transactions.map((tx:TransactionData) => ({
                       ...tx,
                       description: tx.description || message.user_input,
-                      transaction_date: tx.date || new Date().toISOString()
+                      transaction_date: tx.date || message.structured?.transaction_date || new Date().toISOString()
                     }))}
                     isConfirmed={confirmedIds.includes(message.id)} 
                     onConfirmAll={handleConfirmAll}
                     onEdit={handleStartEdit}
                   />
+
                 )}
               </>
             )}
