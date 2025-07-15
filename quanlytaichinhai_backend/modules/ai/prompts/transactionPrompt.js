@@ -35,7 +35,7 @@ Bạn là một trợ lý tài chính cá nhân, nhiệm vụ là trích xuất 
 - Trả về đúng định dạng JSON. **Không thêm lời giải thích.**
 - "amount" phải là số (có thể viết kiểu 75k, 100.000, 1tr v.v).
 - "category" chỉ được chọn từ danh sách: [${categoryList}]
-- "transaction_date" = "${now}" nếu không đề cập.
+- "transaction_date" = "${now}" nếu không đề cập. nếu có đề cập tới ví dụ hôm qua, 3 ngày trước thì lấy ${now} trừ đi tương ứng
 - "description" là mô tả ngắn ý nghĩa giao dịch.
 
 Chỉ in JSON, không thêm giải thích hay lời nói nào.

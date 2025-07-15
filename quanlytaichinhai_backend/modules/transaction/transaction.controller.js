@@ -45,21 +45,25 @@ export const createTransactionGroupWithItems = async (req, res) => {
     res.status(500).json({ message: "Lỗi server khi tạo nhóm giao dịch" });
   }
 }
-
+// lấy danh sách giao dịch với thời gian yêu cầu
 export const getGroupTransactionHistory = async (req, res) => {
   try {
     const userId = req.query.user_id;
     const limit = req.query.limit ? parseInt(req.query.limit) : null;
-    
-    if (!userId) return res.status(400).json({ message: "Thiếu user_id" });
+    const dateFilter = req.query.date || null; // ⬅️ nhận thêm ngày lọc từ query
 
-    const groups = await getTransactionGroupsByUserId(userId, limit);
+    if (!userId) {
+      return res.status(400).json({ message: "Thiếu user_id" });
+    }
+
+    const groups = await getTransactionGroupsByUserId(userId, limit, dateFilter);
     res.json(groups);
   } catch (err) {
     console.error("Lỗi getGroupTransactionHistory:", err);
     res.status(500).json({ message: "Lỗi server khi lấy danh sách nhóm giao dịch" });
   }
-}
+};
+
 
 export const getGroupTransactionDetail = async (req, res) => {
   try {

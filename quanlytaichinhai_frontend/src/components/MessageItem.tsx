@@ -59,6 +59,7 @@ export const MessageItem = ({
   const isTransaction = transactions.length > 0;
   const isSingleTransaction = transactions.length === 1;
   const isMultiTransaction = transactions.length > 1;
+
   const hasCustomContent = Array.isArray(message.custom_content) &&
     message.custom_content.some(part => part.type === 'component' || part.type === 'function_call');
 
@@ -130,7 +131,7 @@ export const MessageItem = ({
         ${hasCustomContent ? '!min-w-[300px]' : ''}
       `}>
         {/* Hiển thị nội dung thông thường nếu không phải transaction */}
-        {!isTransaction && message.content && (
+       {!isTransaction && !hasCustomContent && message.content && (
           <div className="mt-2">
             <MessageRenderer content={message.content} />
           </div>

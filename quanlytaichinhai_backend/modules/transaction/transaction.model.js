@@ -96,7 +96,8 @@ export const createTransactionGroup = async (groupData) => {
   return result.insertId;
 }
 
-export const getTransactionGroupsByUserId = async (userId, limit = null) => {
+// lấy các giao dịch trong 1 thời gian yêu cầu
+export const getTransactionGroupsByUserId = async (userId, limit = null, dateFilter = null) => {
   let query = `
     SELECT 
       tg.group_id,
@@ -107,12 +108,25 @@ export const getTransactionGroupsByUserId = async (userId, limit = null) => {
     FROM transaction_groups tg
     LEFT JOIN transactions t ON tg.group_id = t.group_id
     WHERE tg.user_id = ?
+  `;
+
+  const params = [userId];
+
+  // Xử lý lọc theo ngày
+  if (dateFilter === "today") {
+    query += ` AND DATE(tg.transaction_date) = CURDATE()`;
+  } else if (dateFilter === "yesterday") {
+    query += ` AND DATE(tg.transaction_date) = CURDATE() - INTERVAL 1 DAY`;
+  } else if (/\d{4}-\d{2}-\d{2}/.test(dateFilter)) {
+    query += ` AND DATE(tg.transaction_date) = ?`;
+    params.push(dateFilter);
+  }
+
+  query += `
     GROUP BY tg.group_id
     ORDER BY tg.transaction_date DESC
   `;
-  
-  const params = [userId];
-  
+
   if (limit && Number.isInteger(limit)) {
     query += ' LIMIT ?';
     params.push(limit);
@@ -120,8 +134,9 @@ export const getTransactionGroupsByUserId = async (userId, limit = null) => {
 
   const [rows] = await db.execute(query, params);
   return rows;
-}
+};
 
+//lấy các chi tiết giao dịch trong 1 nhóm yêu cầu
 export const getTransactionsByGroupId = async (groupId) => {
   const query = `
     SELECT 
