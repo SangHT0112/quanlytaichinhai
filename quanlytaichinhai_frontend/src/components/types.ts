@@ -54,6 +54,7 @@ export type ChatMessage = {
     name: string;
     arguments: string;
   };
+  imageUrl?: string; // URL của hình ảnh (nếu có)
   timestamp: Date;
   status?: 'sending' | 'sent' | 'failed';
   intent?: string

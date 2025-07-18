@@ -12,13 +12,13 @@ Bạn là một trợ lý tài chính cá nhân, nhiệm vụ là trích xuất 
 
 📌 YÊU CẦU:
 - Trích xuất chính xác **các giao dịch**, có thể là một hoặc nhiều.
-- Nếu câu văn chứa cụm như: "đi chợ", "mua sắm", "ăn sáng", "đi cafe", "đi ăn", thì dùng cụm đó làm "group_name".
+- Nếu câu văn chứa cụm như: "đi chợ", "mua sắm", "ăn sáng", "đi siêu thị", "đi cafe", "đi ăn", thì dùng cụm đó làm "group_name".
 - Nếu không tìm thấy cụm nào đặc biệt → lấy toàn bộ câu gốc "${user_input}" làm "group_name".
 - Nếu không thấy ngày → dùng ngày mặc định "${now}".
 
 📌 ĐỊNH DẠNG PHẢI TRẢ VỀ (JSON CHUẨN):
 {
-  "group_name": "Tên nhóm, ví dụ: Đi chợ, hoặc toàn bộ câu gốc nếu không có gì nổi bật",
+  "group_name": "Tên nhóm, ví dụ: Đi chợ, đi siêu thị, mua sắm, ăn sáng, đi cafe, đi ăn",
   "transaction_date": "${now}",
   "user_id": ${user_id},
   "transactions": [
@@ -27,6 +27,9 @@ Bạn là một trợ lý tài chính cá nhân, nhiệm vụ là trích xuất 
       "amount": số tiền (VD: 75000),
       "category": "chỉ chọn từ danh sách: [${categoryList}]",
       "description": "mô tả ngắn gọn"
+    }
+    {
+      ... nếu có nhiều giao dịch thì thêm vào đây
     }
   ]
 }

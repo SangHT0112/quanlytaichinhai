@@ -1,5 +1,4 @@
-"use client";
-
+'use client';
 import { useState, useRef, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import { LoadingIndicator } from "@/components/LoadingIndicator";
@@ -17,14 +16,14 @@ function convertStructuredToCustomContent(structured: any): ChatMessage["custom_
       {
         type: "text",
         text: "📊 Dưới đây là thông tin bạn yêu cầu:",
-        style: "default"
+        style: "default",
       },
       {
         type: "component",
         name: structured.name as AllowedComponents,
         layout: structured.layout || "block",
-        props: structured.props || {}
-      }
+        props: structured.props || {},
+      },
     ];
   }
   return undefined;
@@ -33,7 +32,7 @@ function convertStructuredToCustomContent(structured: any): ChatMessage["custom_
 export default function ChatAI() {
   const router = useRouter();
   const messagesEndRef = useRef<HTMLDivElement>(null);
-  const isApiProcessing = useRef(false); // Sử dụng ref để kiểm soát gọi API
+  const isApiProcessing = useRef(false);
 
   const [messages, setMessages] = useState<ChatMessage[]>([]);
   const [inputValue, setInputValue] = useState("");
@@ -51,11 +50,39 @@ export default function ChatAI() {
     timestamp: new Date(),
   });
 
-  const sendToApi = async (message: string, updatedMessages: ChatMessage[]) => {
-    if (isApiProcessing.current) return; // Ngăn chặn gọi API lặp lại
-    isApiProcessing.current = true;
+ const sendToApi = async (message: string, updatedMessages: ChatMessage[], imageData?: FormData) => {
+  if (isApiProcessing.current) return;
+  isApiProcessing.current = true;
 
-    try {
+  try {
+    let aiMessage: ChatMessage;
+    if (imageData) {
+      // Gửi yêu cầu đến endpoint xử lý tài liệu
+      console.log("Gửi yêu cầu xử lý tài liệu đến API:");
+      for (const [key, value] of imageData.entries()) {
+        console.log(`${key}:`, value instanceof File ? value.name : value);
+      }
+      const res = await axiosInstance.post("/ai/process-document", imageData, {
+        headers: { "Content-Type": "multipart/form-data" },
+      });
+
+      console.log("Phản hồi từ API xử lý tài liệu:", res.data);
+      const { raw, imageUrl, structured, intent } = res.data;
+
+      aiMessage = {
+        id: (Date.now() + 1).toString(),
+        content: raw || "Đã xử lý tài liệu.",
+        structured, // Kết quả từ LayoutLMv3
+        imageUrl, // URL hình ảnh từ server
+        custom_content: intent === "component" ? convertStructuredToCustomContent(structured) : undefined,
+        user_input: message,
+        role: MessageRole.ASSISTANT,
+        timestamp: new Date(),
+        intent: intent || "document", // Intent mặc định cho tài liệu
+      };
+    } else {
+      // Xử lý văn bản như trước
+      console.log("Gửi yêu cầu văn bản đến API:", { message });
       const conversationHistory = updatedMessages.slice(-5).map((msg) => ({
         role: msg.role,
         content: msg.content,
@@ -68,9 +95,10 @@ export default function ChatAI() {
         user_id: currentUser?.user_id,
       });
 
+      // console.log("Phản hồi từ API văn bản:", res.data);
       const { intent, structured, raw } = res.data;
 
-      const aiMessage: ChatMessage = {
+      aiMessage = {
         id: (Date.now() + 1).toString(),
         content: raw || "⚠️ Không nhận được phản hồi từ AI.",
         structured,
@@ -80,42 +108,50 @@ export default function ChatAI() {
         timestamp: new Date(),
         intent,
       };
-      console.log("AI PHAN HOI:", aiMessage)
-
-      setMessages((prev) => [...prev, aiMessage]);
-    } catch (err: any) {
-      console.error("❌ API error:", err.message);
-      setMessages((prev) => [
-        ...prev,
-        {
-          id: (Date.now() + 2).toString(),
-          content: `⚠️ Lỗi: ${err.message || "Không thể xử lý yêu cầu."}`,
-          role: MessageRole.ASSISTANT,
-          timestamp: new Date(),
-        },
-      ]);
-    } finally {
-      setIsLoading(false);
-      isApiProcessing.current = false; // Đặt lại cờ sau khi hoàn thành
     }
-  };
 
-  const handleSendMessage = async (message: string) => {
-    if (!message.trim() || isLoading) return;
+    setMessages((prev) => [...prev, aiMessage]);
+  } catch (err: any) {
+    console.error("❌ API error:", err.message);
+    setMessages((prev) => [
+      ...prev,
+      {
+        id: (Date.now() + 2).toString(),
+        content: `⚠️ Lỗi: ${err.message || "Không thể xử lý yêu cầu."}`,
+        role: MessageRole.ASSISTANT,
+        timestamp: new Date(),
+      },
+    ]);
+  } finally {
+    setIsLoading(false);
+    isApiProcessing.current = false;
+  }
+};
 
+  const handleSendMessage = async (message: string, imageData?: FormData) => {
+    if (!message.trim() && !imageData) return;
+  //   if (imageData) {
+  //   console.log("Nhận từ ChatInput:", { message });
+  //   console.log("Nội dung FormData:");
+  //   for (const [key, value] of imageData.entries()) {
+  //     console.log(`${key}:`, value instanceof File ? value.name : value);
+  //   }
+  // } else {
+  //   console.log("Nhận từ ChatInput:", { message, imageData });
+  // }
     const userMessage: ChatMessage = {
       id: Date.now().toString(),
-      content: message,
+      content: message || (imageData ? "Đã gửi hình ảnh" : ""),
       role: MessageRole.USER,
       timestamp: new Date(),
+      imageUrl: imageData ? URL.createObjectURL((imageData.get("image") as File)) : undefined, // Xem trước ảnh phía client
     };
 
     setMessages((prev) => {
       const newMessages = [...prev, userMessage];
-      sendToApi(message, newMessages);
+      sendToApi(message, newMessages, imageData);
       return newMessages;
     });
-
 
     setInputValue("");
     setIsLoading(true);
@@ -125,17 +161,8 @@ export default function ChatAI() {
     handleSendMessage(action);
   };
 
- const handleConfirm = async (message: ChatMessage, correctedData?: any) => {
+  const handleConfirm = async (message: ChatMessage, correctedData?: any) => {
     console.log("CONFIRM PAYLOAD:", {
-    user_id: currentUser?.user_id || 1,
-    user_input: message.user_input || message.content,
-    ai_suggested: message.structured,
-    user_corrected: correctedData || null,
-    confirmed: true,
-  });
-
-    try {
-      await axiosInstance.post("/ai/confirm", {
       user_id: currentUser?.user_id || 1,
       user_input: message.user_input || message.content,
       ai_suggested: message.structured,
@@ -143,6 +170,14 @@ export default function ChatAI() {
       confirmed: true,
     });
 
+    try {
+      await axiosInstance.post("/ai/confirm", {
+        user_id: currentUser?.user_id || 1,
+        user_input: message.user_input || message.content,
+        ai_suggested: message.structured,
+        user_corrected: correctedData || null,
+        confirmed: true,
+      });
 
       const confirmMsg: ChatMessage = {
         id: Date.now().toString(),
@@ -239,7 +274,7 @@ export default function ChatAI() {
           <MessageItem
             key={msg.id}
             message={msg}
-            onConfirm={(message, correctedData) => handleConfirm(message, correctedData)} 
+            onConfirm={(message, correctedData) => handleConfirm(message, correctedData)}
             isConfirmed={confirmedIds.includes(msg.id)}
             confirmedIds={confirmedIds}
           />

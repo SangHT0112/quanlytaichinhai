@@ -31,6 +31,7 @@ export const MessageItem = ({
   confirmedIds?: string[];
   onSaveEdit?: (messageId: string, editedData: TransactionData) => void;
 }) => {
+  
   const [isEditing, setIsEditing] = useState(false);
   const [editingIndex, setEditingIndex] = useState(0);
   const [isLoading, setIsLoading] = useState(false);
@@ -135,6 +136,8 @@ export const MessageItem = ({
           <div className="mt-2">
             <MessageRenderer content={message.content} />
           </div>
+
+          
         )}
 
         {/* Phần xử lý transaction */}
@@ -154,13 +157,13 @@ export const MessageItem = ({
                   <SingleTransactionConfirmationForm
                     transactionData={{
                       ...transactions[0],
-                      description: message.user_input || message.content || "",
-                      transaction_date: transactions[0].date || new Date().toISOString()
+                      description: transactions[0].description || message.user_input || message.content || "",
+                      transaction_date: message.structured?.transaction_date || new Date().toISOString()
                     }}
                     isConfirmed={confirmedIds.includes(message.id)}
                     onConfirm={() => onConfirm?.(message, {
                       ...transactions[0],
-                      description: message.user_input || message.content || "",
+                    description: transactions[0].description || message.user_input || message.content || "",
                       transaction_date: transactions[0].date || new Date().toISOString()
                     })}
                     onEdit={() => handleStartEdit(0)}

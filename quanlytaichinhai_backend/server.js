@@ -3,7 +3,7 @@ import cors from 'cors';
 import dotenv from 'dotenv';
 import swaggerUi from 'swagger-ui-express';
 import swaggerJsdoc from 'swagger-jsdoc';
-
+import path from 'path';
 // Import routes
 import authRoutes from "./modules/auth/auth.routes.js"
 import overviewRoutes from "./modules/overview/overview.routes.js"
@@ -11,7 +11,6 @@ import transactionRoutes from "./modules/transaction/transaction.routes.js"
 import statisticalRoutes from "./modules/statistical/statistical.routes.js"
 import chatHistoryRoutes from "./modules/chat_history/chat_history.routes.js"
 import aiRoutes from './modules/ai/ai.routes.js';
-import ocrRoutes from './modules/ocr/ocr.routes.js'; // ✅ Thêm dòng này
 
 dotenv.config();
 const app = express();
@@ -55,8 +54,7 @@ app.use("/api/chat-history", chatHistoryRoutes)
 //Route Docs
 // app.use('/api-docs', swaggerUi.serve, swaggerUi.setup(swaggerSpec));
 app.use('/api/ai', aiRoutes); 
-app.use('/api/ocr', ocrRoutes); // ✅ Mount route
-
+app.use("/public", express.static(path.join(process.cwd(), "public")));
 const PORT = process.env.PORT || 4000;
 app.listen(PORT, () => {
     console.log(`Server đang chạy tại http://localhost:${PORT}`);
