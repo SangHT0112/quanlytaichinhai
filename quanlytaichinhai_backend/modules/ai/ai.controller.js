@@ -11,8 +11,7 @@ import fetch from 'node-fetch'
 import fs from 'fs'
 import path from 'path'
 import { fileURLToPath } from 'url';
-import formidable from "formidable";
- import { sendToPython } from './sendPyThon.js'; // Import hàm gửi ảnh đến Python
+import { sendToBamlGemini } from "./sendToBamlGemini.js"
 
 // Định nghĩa __dirname
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
@@ -262,7 +261,6 @@ export const confirmTransaction = async (req, res) => {
 
 
 
-
 export const processDocument = async (req, res) => {
   try {
     const file = req.file
@@ -270,76 +268,22 @@ export const processDocument = async (req, res) => {
     const now = new Date().toISOString().split("T")[0]
 
     if (!file) {
-      return res.status(400).json({ error: 'Không có file được gửi lên.' })
+      return res.status(400).json({ error: "Không có file được gửi lên." })
     }
 
-    console.log('📂 File đã upload:', file.path)
+    const structured = await sendToBamlGemini(file.path)
+    structured.user_id = user_id
+    structured.transaction_date ||= now
 
-    // Gửi ảnh sang service Python OCR
-    const result = await sendToPython(file.path)
-    const ocrText = result.rec_texts || ''
-
-    // === Tạo prompt để trích xuất dữ liệu từ OCR ===
-    const prompt = await generateBillPrompt({ ocrText, now, user_id })
-
-    // Gửi prompt đến Ollama (llama3)
-    const aiRes = await fetch("http://localhost:11434/api/generate", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        model: "llama3",
-        prompt,
-        stream: false,
-        format: "json"
-      })
-    })
-
-    if (!aiRes.ok) {
-      throw new Error("Ollama không phản hồi")
-    }
-
-    const data = await aiRes.json()
-    let aiText = data.response?.trim() || ""
-    let structured = null
-
-    // === Cắt JSON từ chuỗi phản hồi (tránh lỗi nếu AI in thừa text) ===
-    const jsonStart = aiText.indexOf('{')
-    const jsonEnd = aiText.lastIndexOf('}') + 1
-    aiText = aiText.slice(jsonStart, jsonEnd)
-
-    try {
-      const parsed = JSON.parse(aiText)
-      structured = {
-        group_name: parsed.group_name || null,
-        transaction_date: parsed.transaction_date || now,
-        user_id: parsed.user_id || user_id,
-        transactions: parsed.transactions.map(tx => ({
-          ...tx,
-          amount: Number(tx.amount) || 0
-        })),
-        total_amount: parsed.total_amount || null
-      }
-    } catch (e) {
-      console.warn("⚠️ Không parse được JSON:", aiText)
-      structured = {
-        group_name: null,
-        transaction_date: now,
-        user_id,
-        transactions: []
-      }
-    }
-    console.log("✅ structured gửi về frontend:", structured);
-    // === Trả kết quả theo chuẩn như handleChat ===
     return res.status(200).json({
       intent: "transaction",
-      raw: aiText,
+      raw: JSON.stringify(structured),
       structured,
       imageUrl: `/uploads/${file.filename}`,
       originalFilename: file.originalname
     })
-
   } catch (error) {
-    console.error('❌ Lỗi xử lý AI:', error)
-    return res.status(500).json({ error: 'Lỗi xử lý file' })
+    console.error("❌ Lỗi xử lý BAML Gemini:", error)
+    return res.status(500).json({ error: "Lỗi xử lý AI" })
   }
 }

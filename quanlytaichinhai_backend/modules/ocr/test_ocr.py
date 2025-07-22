@@ -6,7 +6,6 @@ ocr = PaddleOCR(use_textline_orientation=True, lang="vi")
 image_path = "public/uploads/1752723576594-916669584.png"
 
 # Hiển thị ảnh
-Image.open(image_path).show()
 
 # Thử nhận diện
 result = ocr.ocr(image_path)

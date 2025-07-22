@@ -1,39 +1,73 @@
 export const generateBillPrompt = async ({ ocrText, now, user_id }) => {
   return `
-Bạn là một trợ lý tài chính cá nhân, nhiệm vụ là trích xuất thông tin từ dữ liệu OCR của một hóa đơn.
+Bạn là một trợ lý tài chính cá nhân thông minh. Nhiệm vụ của bạn là:
+1. **Sửa chính tả các dòng tiếng Việt bị lỗi do OCR (như thiếu dấu, sai dấu, lỗi ký tự)**
+2. **Trích xuất thông tin giao dịch từ dữ liệu hóa đơn sau khi đã sửa chính tả**
 
-📌 DỮ LIỆU OCR:
+=== DỮ LIỆU OCR GỐC ===
 ${ocrText}
 
-📌 YÊU CẦU:
-- **group_name**: Lấy từ dòng đầu tiên của dữ liệu OCR (thường là tên hóa đơn hoặc tên quán ăn). Nếu không có dòng rõ ràng, dùng "Hóa đơn".
-- **total_amount**: Lấy từ dòng chứa "Tổng cộng", "Tổng tiền", "Thành tiền", "Tổng cộng", hoặc tương tự. Chuyển giá trị thành số nguyên (ví dụ: "537.000" thành 537000, "75k" thành 75000).
-- **transaction_date**: Nếu có ngày rõ ràng trong dữ liệu OCR, dùng ngày đó. Nếu không, dùng ngày hiện tại "${now}".
-- description: Nếu chỉ có một giao dịch duy nhất, dùng "group_name" làm mô tả. Nếu có nhiều giao dịch, mô tả sẽ được lấy từ các dòng khác nhau trong dữ liệu OCR.
-- amount sẽ lấy từ giá trị "total_amount" nếu chỉ có một giao dịch duy nhất. Nếu có nhiều giao dịch, sẽ lấy giá trị tương ứng từ các dòng khác nhau trong dữ liệu OCR.
- ví dụ Dữ liệu OCR có chuỗi:  "Mi Xào Hài Sán","130,000", vậy description sẽ là "Mi Xào Hài Sán" và amount sẽ là 130000.
-📌 KẾT QUẢ PHẢI TRẢ VỀ (CHỈ JSON):
+=== HƯỚNG DẪN SỬA CHÍNH TẢ ===
+- Sửa lỗi chính tả, lỗi dấu tiếng Việt do hệ thống OCR gây ra.
+- Ví dụ: "Glá bán" → "Giá bán", "T6ng tièn" → "Tổng tiền", "NUÓC MÁM" → "NƯỚC MẮM"
+- Không thêm hoặc bớt nội dung, chỉ sửa lỗi.
+
+=== HƯỚNG DẪN TRÍCH XUẤT ===
+Trả về một chuỗi JSON với định dạng như sau:
+
 {
-  "group_name": "Tên hóa đơn hoặc 'Hóa đơn' nếu không rõ",
-  "transaction_date": <ngày giao dịch>,
-  "total_amount": <số tiền tổng, ví dụ: 537000>
+  "group_name": "Tên quán ăn / cửa hàng (thường là dòng đầu tiên, nếu không có thì ghi 'Hóa đơn')",
+  "transaction_date": "Ngày giao dịch (định dạng YYYY-MM-DD, nếu không có thì dùng ngày hiện tại: ${now})",
+  "total_amount": "Tổng số tiền (dạng số nguyên, ví dụ: 213500)",
   "transactions": [
     {
-      "type": "expense"
-      "amount": total_amount,      nếu chỉ có một giao dịch duy nhất
-      "category": "Hóa đơn",
-      "description": "group_name"  nếu chỉ có một giao dịch duy nhất
-    }
-    {
-     // Nếu có nhiều giao dịch, thêm vào đây
-    }
+      "type": "expense",
+      "amount": <giá trị>,
+      "category": "Ăn uống",
+      "description": <tên món hàng hoặc chi tiết>
+    },
+    ...
   ]
 }
 
-📌 QUY TẮC:
-- Trả về đúng định dạng JSON.
-- Không thêm lời giải thích hoặc bất kỳ văn bản nào khác.
-- "total_amount" phải là số nguyên.
-- transactions là mảng chứa 1 item duy nhất
-  `;
+=== NGUYÊN TẮC BẮT BUỘC ===
+
+1. Nếu hóa đơn chỉ có 1 giao dịch (không liệt kê từng món riêng lẻ):
+- Mảng transactions chỉ có 1 phần tử duy nhất.
+- amount = total_amount
+- description = group_name
+- category = "Hóa đơn"
+
+2. Nếu hóa đơn có nhiều món:
+- Mỗi dòng có số tiền (như '55.000', '90,000', '100.000', '42, 000') phải tạo thành một item trong transactions.
+- Tìm dòng phía trước số tiền phù hợp là tên món ăn → dùng làm description.
+- Luôn dùng "Ăn uống" cho category, "expense" cho type.
+- Bỏ qua các dòng không liên quan như 'Cảm ơn quý khách', 'Giảm giá', v.v.
+
+3. Luôn đảm bảo:
+- Lấy tất cả các món có số tiền tương ứng
+- Không bỏ sót món nào
+- Không viết thêm lời giải thích hoặc văn bản khác ngoài JSON
+
+=== MẪU OUTPUT ===
+{
+  "group_name": "LIKE CAFE",
+  "transaction_date": "2014-01-19",
+  "total_amount": 540000,
+  "transactions": [
+    {
+      "type": "expense",
+      "amount": 42000,
+      "category": "Ăn uống",
+      "description": "1 BÚN SING"
+    },
+    {
+      "type": "expense",
+      "amount": 37000,
+      "category": "Ăn uống",
+      "description": "1 MÌ GIÒN XÀO CHAY"
+    }
+  ]
+}
+`;
 };

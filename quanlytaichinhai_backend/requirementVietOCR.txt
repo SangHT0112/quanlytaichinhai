@@ -1,0 +1,5 @@
+pip install torch torchvision
+pip install opencv-python
+pip install gdown
+pip install python-Levenshtein
+pip install matplotlib

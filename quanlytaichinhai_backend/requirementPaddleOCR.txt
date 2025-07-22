@@ -1,0 +1,9 @@
+fastapi
+uvicorn
+python-multipart
+paddleocr
+paddlepaddle
+transformers
+torch
+opencv-python
+pytesseract

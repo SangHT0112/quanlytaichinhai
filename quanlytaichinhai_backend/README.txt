@@ -32,6 +32,10 @@ test_ocr.py
     python modules/ocr/test_ocr.py
 
 
+uvicorn vietocr_app.main:app --reload
+
+pip install -r requirements.txt
+
 
 
 
@@ -39,3 +43,5 @@ test_ocr.py
 
 
 PADDLE + YOLO + Lable Studio
+
+C:\Users\HTS SinhVienIT\AppData\Local\Programs\Python\Python313\Scripts

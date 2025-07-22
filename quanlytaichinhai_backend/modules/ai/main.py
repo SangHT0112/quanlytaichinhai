@@ -1,12 +1,17 @@
 from fastapi import FastAPI, UploadFile, File, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
-from paddleocr import PaddleOCR
 from PIL import Image, UnidentifiedImageError
 import shutil
-import os
 import uuid
-from transformers import pipeline
-import pytesseract
+import sys
+import os
+from dotenv import load_dotenv
+load_dotenv()  # Load các biến từ file .env
+# Thêm đường dẫn đến thư mục `baml` để import được engine.py
+sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), '..', '..', 'baml')))
+
+from engine import process_baml
+
 
 app = FastAPI()
 
@@ -17,8 +22,6 @@ app.add_middleware(
     allow_methods=["*"],
     allow_headers=["*"],
 )
-
-ocr = PaddleOCR(use_angle_cls=True, lang='vi')
 
 @app.post("/processDocument")
 async def process_document(file: UploadFile = File(...)):
@@ -40,26 +43,15 @@ async def process_document(file: UploadFile = File(...)):
 
         with open(file_path, "wb") as buffer:
             shutil.copyfileobj(file.file, buffer)
-        
-        # Gọi OCR
-        result = ocr.ocr(file_path)
-        # In kết quả thô để kiểm tra
-        print("Kết quả thô từ OCR:")
-        print(result)
-                # Gọi OCR
 
-        # Lấy dữ liệu từ dict
-        rec_texts = result[0].get("rec_texts", [])
-        rec_scores = result[0].get("rec_scores", [])
+        # Gọi xử lý bằng BAML
+        result = process_baml(file_path)
+        print("✅ Kết quả từ BAML:", result)
 
         return {
             "filename": saved_filename,
-            "rec_texts": rec_texts,
-            "rec_scores": rec_scores
+            "result": result,
         }
 
     except Exception as e:
-        return {"error": f"Lỗi OCR: {str(e)}"}
-
-
-
+        return {"error": f"Lỗi xử lý: {str(e)}"}

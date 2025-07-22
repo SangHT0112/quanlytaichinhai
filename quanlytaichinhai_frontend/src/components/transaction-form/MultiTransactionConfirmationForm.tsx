@@ -12,6 +12,7 @@ interface MultiTransactionConfirmationFormProps {
   transactions: TransactionData[]
   groupName: string
   transactionDate: string
+  totalAmount: number
   onConfirmAll?: (data: TransactionData[]) => void
   onCancel?: () => void
   onEdit?: (index: number) => void
@@ -22,6 +23,7 @@ export default function MultiTransactionConfirmationForm({
   transactions,
   groupName,
   transactionDate,
+  totalAmount,
   onConfirmAll,
   onCancel,
   onEdit,
@@ -54,7 +56,7 @@ export default function MultiTransactionConfirmationForm({
     }
   }
 
-  const totalAmount = transactions.reduce((sum, txn) => {
+  const totalAmountCalculated = transactions.reduce((sum, txn) => {
     return txn.type === "income" ? sum + txn.amount : sum - txn.amount
   }, 0)
 

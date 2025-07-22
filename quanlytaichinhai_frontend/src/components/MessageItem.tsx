@@ -179,7 +179,8 @@ export const MessageItem = ({
                       description: tx.description || message.user_input,
                       transaction_date: tx.date || message.structured?.transaction_date || new Date().toISOString()
                     }))}
-                    isConfirmed={confirmedIds.includes(message.id)} 
+                    totalAmount={message.structured?.total_amount || 0}
+                    isConfirmed={confirmedIds.includes(message.id)}
                     onConfirmAll={handleConfirmAll}
                     onEdit={handleStartEdit}
                   />
