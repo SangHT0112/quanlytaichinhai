@@ -95,7 +95,7 @@ export default function ChatAI() {
         user_id: currentUser?.user_id,
       });
 
-      // console.log("Phản hồi từ API văn bản:", res.data);
+      console.log("Phản hồi từ API văn bản:", res.data);
       const { intent, structured, raw } = res.data;
 
       aiMessage = {
@@ -131,7 +131,7 @@ export default function ChatAI() {
   const handleSendMessage = async (message: string, imageData?: FormData) => {
     if (!message.trim() && !imageData) return;
   //   if (imageData) {
-  //   console.log("Nhận từ ChatInput:", { message });
+    console.log("Nhận từ ChatInput:", { message });
   //   console.log("Nội dung FormData:");
   //   for (const [key, value] of imageData.entries()) {
   //     console.log(`${key}:`, value instanceof File ? value.name : value);

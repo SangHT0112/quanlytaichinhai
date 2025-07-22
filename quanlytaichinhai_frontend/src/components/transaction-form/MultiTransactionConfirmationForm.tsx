@@ -98,8 +98,8 @@ export default function MultiTransactionConfirmationForm({
         {/* Total amount section */}
         <div className="mt-4 p-4 bg-gradient-to-r from-slate-50 to-slate-100 rounded-lg border">
           <p className="text-sm font-medium text-slate-600 mb-1">Tổng thay đổi số dư:</p>
-          <p className={`text-xl font-bold ${totalAmount >= 0 ? "text-green-600" : "text-red-600"}`}>
-            {formatCurrency(totalAmount)}
+          <p className={`text-xl font-bold ${totalAmountCalculated >= 0 ? "text-green-600" : "text-red-600"}`}>
+            {formatCurrency(totalAmountCalculated)}
           </p>
         </div>
       </CardHeader>

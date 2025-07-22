@@ -5,9 +5,24 @@ from baml_client.sync_client import b
 from baml_py import Image
 import json
 import os
+
 import traceback, sys
 from baml_py import Collector
 import uuid
+from dotenv import load_dotenv
+load_dotenv()
+
+API_KEYS = [
+    os.getenv("GOOGLE_API_KEY_1"),
+    os.getenv("GOOGLE_API_KEY_2"),
+    os.getenv("GOOGLE_API_KEY_3"),
+]
+def create_custom_registry(api_key: str, LLM_CR="Gemini_2_0_pro"):
+    cr = ClientRegistry()
+    cr.set_primary(LLM_CR)
+    # ép key vào client_registry
+    cr.get_client(LLM_CR).api_key = api_key
+    return cr
 
 
 def init_cr(LLM_CR="Gemini_1_5_pro"):
@@ -80,14 +95,32 @@ def llm_predict(uuid, files_name, cr, images=None):
     return results
 
 def process_baml(image_path: str):
-    cr = init_cr(LLM_CR="Gemini_2_0_pro")
     uid = uuid.uuid4()
     image = cv2.imread(image_path)
     if image is None:
         raise ValueError(f"Không đọc được ảnh từ {image_path}")
-    
-    results = llm_predict(uuid=str(uid), files_name=image_path, images=[image], cr=cr)
-    return results
+
+    last_error = None
+    for api_key in API_KEYS:
+        try:
+            print(f"[🧪] Đang dùng API Key: {api_key[:10]}...")
+            cr = create_custom_registry(api_key=api_key)
+            results = llm_predict(uuid=str(uid), files_name=image_path, images=[image], cr=cr)
+
+            # Nếu kết quả hợp lệ thì trả về
+            if results and results[0]["extract_data"] is not None:
+                print(f"[✅] Thành công với key: {api_key[:10]}")
+                return results
+
+            # Nếu không có dữ liệu thì raise để thử key khác
+            raise Exception("Không có extract_data.")
+        except Exception as e:
+            print(f"[❌] Lỗi với key {api_key[:10]}: {str(e)}")
+            last_error = e
+
+    # Nếu tất cả key đều lỗi
+    raise Exception(f"Tất cả API key đều lỗi. Lỗi cuối cùng: {str(last_error)}")
+
 
 if __name__ == "__main__":
     cr = init_cr(LLM_CR="Gemini_2_0_pro")
@@ -95,6 +128,6 @@ if __name__ == "__main__":
     file_name = "images/1.jpg"
     image = cv2.imread(file_name)
     
-    results = llm_predict(uuid=str(uid), files_name=file_name, images=[image], cr=cr)
+    results = process_baml(file_name)
     print("results >>> ", results)
     pass
