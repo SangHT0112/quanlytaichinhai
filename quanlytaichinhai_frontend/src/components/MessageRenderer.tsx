@@ -7,6 +7,11 @@ import TransactionList from '@/app/tongquan/components/TransactionList';
 import MonthlyBarChart from '@/app/thongke/MonthlyBarChart';
 import WeeklyBarChart from '@/app/tongquan/components/WeeklyBarChart';
 import TransactionConfirmationForm from './transaction-form/SingleTransactionConfirmationForm';
+
+//Thong ke
+import CategoryDetailList from '@/app/thongke/CategoryDetailList';
+import DailySpendingAreaChart from '@/app/thongke/DailySpendingAreaChart';
+import ExpensePieChart from '@/app/thongke/ExpensePieChart';
 // 1. Tạo bản đồ component với TypeScript type safety
 const COMPONENT_MAP: Record<AllowedComponents, React.ComponentType<any>> = {
   BalanceCardPage: BalanceCardPage,
@@ -14,6 +19,9 @@ const COMPONENT_MAP: Record<AllowedComponents, React.ComponentType<any>> = {
   TransactionList: TransactionList,
   MonthlyBarChart: MonthlyBarChart,
   WeeklyBarChart: WeeklyBarChart,
+  CategoryDetailList: CategoryDetailList,
+  DailySpendingAreaChart: DailySpendingAreaChart,
+  ExpensePieChart: ExpensePieChart,
   TransactionConfirmationForm: TransactionConfirmationForm,
 };
 

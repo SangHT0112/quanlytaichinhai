@@ -45,3 +45,9 @@ pip install -r requirements.txt
 PADDLE + YOLO + Lable Studio
 
 C:\Users\HTS SinhVienIT\AppData\Local\Programs\Python\Python313\Scripts
+
+
+component : 2500 token
+natural: 1580 token
+transaction 1900
+image: 1760

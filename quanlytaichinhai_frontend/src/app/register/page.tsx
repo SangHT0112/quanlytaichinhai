@@ -18,16 +18,22 @@ export default function RegisterPage() {
         setFormData({...formData, [e.target.id]: e.target.value})
     }
     const handleSubmit = async (e: React.FormEvent) => {
+        e.preventDefault(); // Ngăn chặn hành vi mặc định của form
+        
         if(formData.password !== formData.confirmPassword) {
             alert("Mật khẩu không khớp!")
             return
         }
-        try{
+        
+        try {
             const data = await register(formData.fullName, formData.email, formData.password)
+            alert("Đăng ký thành công!") // Hiển thị thông báo khi thành công
+            // Có thể thêm chuyển hướng về trang login sau khi đăng ký thành công
+            // window.location.href = '/login'
         } catch (err: any) {
-        alert(err.response?.data?.message || "Đăng ký thất bại")
+            alert(err.response?.data?.message || "Đăng ký thất bại")
         }
-  }
+    }
   return (
     <div className="min-h-screen w-full bg-gradient-to-br from-slate-900 via-purple-900 to-slate-900 flex items-center justify-center p-4">
       {/* Background pattern */}

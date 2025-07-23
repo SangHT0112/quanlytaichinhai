@@ -11,10 +11,19 @@ Bạn là một trợ lý tài chính cá nhân, nhiệm vụ là trích xuất 
 "${user_input}"
 
 📌 YÊU CẦU:
-- Trích xuất chính xác **các giao dịch**, có thể là một hoặc nhiều.
-- Nếu câu văn chứa cụm như: "đi chợ", "mua sắm", "ăn sáng", "đi siêu thị", "đi cafe", "đi ăn", thì dùng cụm đó làm "group_name".
+- Trích xuất chính xác **các giao dịch**, có thể là một hoặc nhiều. 
+
+- group_name là tên nhóm giao dịch, ví dụ: "Đi chợ", "Mua sắm", "Ăn sáng", "Đi cafe". nếu không tìm thấy cụm từ nào phù hợp thì tóm tắt ngắn gọn ý nghĩa của các giao dịch.
 - Nếu không tìm thấy cụm nào đặc biệt → lấy toàn bộ câu gốc "${user_input}" làm "group_name".
 - Nếu không thấy ngày → dùng ngày mặc định "${now}".
+  Nếu hóa đơn là hóa đơn điện, nước, internet hoặc những dịch vụ định kỳ (như tiền thuê nhà) xem group_name, thì chỉ trả về một "transaction" duy nhất với tổng tiền, và mô tả là loại dịch vụ tương ứng.
+  Chỉ chia nhỏ nhiều "transactions[]" nếu hóa đơn là hóa đơn ăn uống/mua sắm có nhiều món.
+
+Tránh chia nhỏ hóa đơn điện/nước thành nhiều mục nhỏ không cần thiết.
+📌 ĐẶC BIỆT:
+- Nếu chỉ có **1 giao dịch** thì:
+  - "description" = "group_name"
+  - "amount" = "total_amount"
 
 📌 ĐỊNH DẠNG PHẢI TRẢ VỀ (JSON CHUẨN):
 {

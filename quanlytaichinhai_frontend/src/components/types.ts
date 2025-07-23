@@ -13,8 +13,10 @@ const ALLOWED_COMPONENTS = [
   'TopExpenseCategories',
   'TransactionList',
   'WeeklyBarChart',
-  
+  'CategoryDetailList',
+  'DailySpendingAreaChart',
   'MonthlyBarChart',
+  'ExpensePieChart',
   'TransactionConfirmationForm'
 
 ] as const;

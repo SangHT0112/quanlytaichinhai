@@ -15,7 +15,7 @@ function convertStructuredToCustomContent(structured: any): ChatMessage["custom_
     return [
       {
         type: "text",
-        text: "📊 Dưới đây là thông tin bạn yêu cầu:",
+        text: structured.introText || "Thông tin từ AI",
         style: "default",
       },
       {
@@ -131,7 +131,7 @@ export default function ChatAI() {
   const handleSendMessage = async (message: string, imageData?: FormData) => {
     if (!message.trim() && !imageData) return;
   //   if (imageData) {
-    console.log("Nhận từ ChatInput:", { message });
+    // console.log("Nhận từ ChatInput:", { message });
   //   console.log("Nội dung FormData:");
   //   for (const [key, value] of imageData.entries()) {
   //     console.log(`${key}:`, value instanceof File ? value.name : value);

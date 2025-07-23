@@ -3,7 +3,6 @@ import { generateTransactionPrompt } from "./prompts/transactionPrompt.js"
 import { generateComponentPrompt } from "./prompts/componentPrompt.js"
 import { generateNaturalPrompt } from "./prompts/naturalPrompt.js"
 import { generateFollowupPrompt } from "./prompts/generateFollowupPrompt.js"
-import { generateBillPrompt } from "./prompts/generateBillPrompt.js"
 import { getChatHistory } from "../chat_history/chat_history.model.js"
 import { getCategoryIdByKeyword } from "../category/category.model.js"
 import { addTransaction, createTransactionGroup } from "../transaction/transaction.model.js"
@@ -20,9 +19,11 @@ const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const GEMINI_API_KEYS = [
   process.env.GOOGLE_API_KEY_1,
   process.env.GOOGLE_API_KEY_2,
-  process.env.GOOGLE_API_KEY_3
+  process.env.GOOGLE_API_KEY_3,
+  process.env.GOOGLE_API_KEY_4,
+  process.env.GOOGLE_API_KEY_5,
 ].filter(key => key && key !== 'xxx'); // Lọc bỏ key không hợp lệ
-const GEMINI_API_URL = 'https://generativelanguage.googleapis.com/v1/models/gemini-1.5-flash:generateContent';
+const GEMINI_API_URL = 'https://generativelanguage.googleapis.com/v1/models/gemini-2.5-flash:generateContent';
 
 // Helper function để gửi yêu cầu API với cơ chế failover
 const fetchWithFailover = async (body) => {
@@ -196,7 +197,7 @@ export const handleChat = async (req, res) => {
     } else {
       structured = { response: aiText };
     }
-
+    console.log("Structured data:", structured);
     res.json({
       intent,
       raw: aiText,
