@@ -12,6 +12,7 @@ export const ChatInput = ({
   const [chatInput, setChatInput] = useState("");
   const [isNavigating, setIsNavigating] = useState(false);
   const [selectedImage, setSelectedImage] = useState<File | null>(null); // Lưu file ảnh thay vì URL
+  const [isRecording,  setIsRecording] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const router = useRouter();
 
@@ -32,6 +33,36 @@ export const ChatInput = ({
       fileInputRef.current.value = ""; // Reset input file
     }
   };
+
+  //Voice chat
+  const handleVoiceInput = () => {
+    const SpeechRecognition = (window as any).SpeechRecognition || (window as any).webkitSpeechRecognition;
+    if(!SpeechRecognition) {
+      alert("Trình duyệt của bạn không hỗ trợ tính năng nhận diện giọng nói.");
+      return;
+    }
+
+    const recognition = new SpeechRecognition();
+    recognition.lang = 'vi-VN'; // Thiết lập ngôn ngữ tiếng Việt
+    recognition.interimResults = false; // Không hiển thị kết quả tạm thời
+    recognition.maxAlternatives = 1; // Chỉ lấy kết quả tốt nhất
+
+    recognition.onStart = () => setIsRecording(true);
+    recognition.onEnd = () => setIsRecording(false);
+
+    recognition.onresult = (event: any) => {
+    const transcript = event.results[0][0].transcript;
+      setChatInput(prev => prev + (prev ? " " : "") + transcript);
+    };
+
+    recognition.onerror = (event: any) => {
+      console.error("Lỗi ghi âm:", event.error);
+      alert("Không thể ghi âm: " + event.error);
+      setIsRecording(false);
+    };
+
+    recognition.start();
+  }
 
   // Xử lý gửi tin nhắn hoặc hình ảnh
   const handleSend = () => {
@@ -136,6 +167,26 @@ export const ChatInput = ({
                   strokeLinecap="round"
                   strokeLinejoin="round"
                   d="M2.25 15.75l5.159-5.159a2.25 2.25 0 013.182 0l5.159 5.159m-1.5-1.5l1.409-1.409a2.25 2.25 0 013.182 0l2.909 2.909m-18 3.75h16.5a1.5 1.5 0 001.5-1.5V6a1.5 1.5 0 00-1.5-1.5H3.75A1.5 1.5 0 002.25 6v12a1.5 1.5 0 001.5 1.5zm10.5-11.25h.008v.008h-.008V8.25zm.375 0a.375.375 0 11-.75 0 .375.375 0 01.75 0z"
+                />
+              </svg>
+            </button>
+            <button
+              onClick={handleVoiceInput}
+              className={`text-purple-400 hover:text-purple-300 ${isRecording ? "animate-pulse text-red-500" : ""}`}
+              title="Ghi âm giọng nói"
+            >
+              <svg
+                xmlns="http://www.w3.org/2000/svg"
+                fill="none"
+                viewBox="0 0 24 24"
+                strokeWidth={1.5}
+                stroke="currentColor"
+                className="w-6 h-6"
+              >
+                <path
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  d="M12 18.75v1.5m0-1.5A4.5 4.5 0 007.5 14.25V12m9 0v2.25A4.5 4.5 0 0112 18.75m0-13.5a3 3 0 013 3v3a3 3 0 11-6 0v-3a3 3 0 013-3z"
                 />
               </svg>
             </button>

@@ -6,12 +6,16 @@ import { generateFollowupPrompt } from "./prompts/generateFollowupPrompt.js"
 import { getChatHistory } from "../chat_history/chat_history.model.js"
 import { getCategoryIdByKeyword } from "../category/category.model.js"
 import { addTransaction, createTransactionGroup } from "../transaction/transaction.model.js"
+
+import { generateExplainPrompt } from "./prompts/sqlPrompts/generateExplainPrompt.js"
+import { generateSQLPrompt } from "./prompts/sqlPrompts/generateSQLPrompt.js"
 import fetch from 'node-fetch'
 import fs from 'fs'
 import path from 'path'
 import { fileURLToPath } from 'url';
 import { sendToBamlGemini } from "./sendToBamlGemini.js"
 
+import db from "../../config/db.js"
 // Định nghĩa __dirname
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 
@@ -102,7 +106,7 @@ export const handleChat = async (req, res) => {
 
     const rawIntent = classifyData.candidates?.[0]?.content?.parts?.[0]?.text?.trim().toLowerCase();
     console.log("Raw intent từ Gemini:", rawIntent);
-    const validIntents = ["transaction", "component", "followup"];
+    const validIntents = ["transaction", "component", "followup", "sql_query"];
     const intent = validIntents.includes(rawIntent) ? rawIntent : "natural";
     console.log("Intent cuối cùng:", intent);
 
@@ -115,9 +119,11 @@ export const handleChat = async (req, res) => {
     } else if (intent === "component") {
       prompt = generateComponentPrompt({ user_input });
       isJsonResponse = true;
-    } else if (intent === "followup") {
+    }else if(intent === "sql_query"){
+      prompt = generateSQLPrompt({ user_id, user_input, historyText });
+    }else if (intent === "followup") {
       prompt = generateFollowupPrompt({ user_input, historyText });
-    } else {
+    }else {
       prompt = generateNaturalPrompt({ user_input, historyText });
     }
 
@@ -194,6 +200,53 @@ export const handleChat = async (req, res) => {
           ? { group_name: null, transaction_date: now, user_id, transactions: [] }
           : { error: "Không hiểu" };
       }
+    } 
+    if (intent === "sql_query") {
+      try {
+        let sql = aiText.trim();
+        sql = sql.replace(/^```sql\s*/i, "").replace(/```$/i, "").trim();
+        
+        // Validate SQL
+        if (sql === "INVALID_SQL" || !sql.toLowerCase().startsWith("select")) {
+          structured = { error: "Không thể tạo truy vấn hợp lệ hoặc chỉ truy vấn SELECT được hỗ trợ." };
+        } else {
+          const rows = await db.query(sql);  // Make sure db is properly imported
+
+          // Generate explanation
+          const explainPrompt = generateExplainPrompt({
+            user_input,
+            query_result: rows
+          });
+
+          const explainData = await fetchWithFailover({
+            contents: [{ parts: [{ text: explainPrompt }] }]
+          });
+
+          aiText = explainData.candidates?.[0]?.content?.parts?.[0]?.text?.trim() || 
+                  "Đây là kết quả truy vấn nhưng không thể tạo giải thích.";
+
+          structured = {
+            query: sql,
+            result: rows,
+            answer: aiText
+          };
+        }
+      } catch (err) {
+        console.error("SQL Execution Error:", err);
+        aiText = "Lỗi khi thực hiện truy vấn dữ liệu.";
+        structured = { 
+          error: "Lỗi SQL", 
+          details: err.message 
+        };
+      }
+      
+      // Keep response structure consistent with other intents
+      res.json({
+        intent,
+        raw: aiText,
+        structured
+      });
+      return;
     } else {
       structured = { response: aiText };
     }

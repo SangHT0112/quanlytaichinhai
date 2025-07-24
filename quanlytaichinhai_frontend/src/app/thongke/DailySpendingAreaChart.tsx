@@ -1,20 +1,33 @@
 "use client"
 
 import { useEffect, useState } from "react"
-import { ResponsiveContainer, AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip } from "recharts"
+import {
+  ResponsiveContainer,
+  AreaChart,
+  Area,
+  XAxis,
+  YAxis,
+  CartesianGrid,
+  Tooltip,
+  TooltipProps
+} from "recharts"
 import { fetchDailySpendingTrend } from "@/api/statisticalApi"
 import { formatCurrency } from "@/lib/format"
-import { TooltipProps } from "recharts"
 import { useUser } from "@/contexts/UserProvider"
+
 interface SpendingPoint {
   day: string
   amount: number
 }
 
-export default function DailySpendingAreaChart() {
+interface DailySpendingAreaChartProps {
+  initialDays?: number
+}
+
+export default function DailySpendingAreaChart({ initialDays = 5 }: DailySpendingAreaChartProps) {
   const user = useUser()
   const [data, setData] = useState<SpendingPoint[]>([])
-  const [days, setDays] = useState(5)
+  const [days, setDays] = useState(initialDays) // <-- nhận từ props
 
   useEffect(() => {
     if (!user?.user_id) return;
@@ -23,7 +36,6 @@ export default function DailySpendingAreaChart() {
       .then(setData)
       .catch(console.error)
   }, [user, days])
-
 
   const maxValue = Math.max(...data.map((item) => item.amount), 0)
 
@@ -73,7 +85,7 @@ export default function DailySpendingAreaChart() {
             <CartesianGrid strokeDasharray="3 3" />
             <XAxis dataKey="day" tick={{ fontSize: 12 }} />
             <YAxis
-              tickFormatter={(value) => formatCurrency(value)}
+              tickFormatter={formatCurrency}
               domain={[0, maxValue * 1.1]}
               tickCount={6}
             />

@@ -26,7 +26,7 @@ Các component có thể hiển thị gồm:
 
 7. **DailySpendingAreaChart** – Xem biểu đồ chi tiêu hàng ngày.  
    - Từ khóa: "chi tiêu hàng ngày", "biểu đồ ngày", "chi tiêu theo ngày"
-   - Props: `days` (số ngày, mặc định 7 nếu không rõ)
+   - Props: `initialDays` (số ngày, mặc định 7 nếu không rõ)
 
 8. **ExpensePieChart** – Xem biểu đồ tròn chi tiêu theo danh mục.  
    - Từ khóa: "biểu đồ tròn", "chi tiêu theo danh mục", "phân bổ chi tiêu"
