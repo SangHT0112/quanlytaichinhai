@@ -1,94 +1,38 @@
 Database schema:
-1. CREATE TABLE `ai_feedback_logs` (
-  `id` int(11) NOT NULL,
-  `user_input` text NOT NULL,
-  `ai_suggested` longtext CHARACTER SET utf8mb4 COLLATE utf8mb4_bin NOT NULL CHECK (json_valid(`ai_suggested`)),
-  `user_corrected` longtext CHARACTER SET utf8mb4 COLLATE utf8mb4_bin DEFAULT NULL CHECK (json_valid(`user_corrected`)),
-  `confirmed` tinyint(1) DEFAULT 0,
-  `created_at` timestamp NOT NULL DEFAULT current_timestamp()
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
+TABLE transactions (
+  transaction_id INT,
+  user_id INT,
+  amount DECIMAL,
+  category_id INT,
+  type ENUM('income', 'expense'),
+  description TEXT,
+  transaction_date DATETIME,
+  group_id INT
+)
 
-2. CREATE TABLE `categories` (
-  `category_id` int(11) NOT NULL,
-  `user_id` int(11) NOT NULL,
-  `name` varchar(50) NOT NULL,
-  `type` enum('income','expense') NOT NULL,
-  `parent_id` int(11) DEFAULT NULL,
-  `color` varchar(20) DEFAULT NULL,
-  `icon` varchar(30) DEFAULT NULL,
-  `created_at` timestamp NOT NULL DEFAULT current_timestamp(),
-  `updated_at` timestamp NOT NULL DEFAULT current_timestamp() ON UPDATE current_timestamp()
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
+TABLE categories (
+  category_id INT,
+  user_id INT,
+  name VARCHAR,
+  type ENUM('income', 'expense'),
+  parent_id INT
+)
 
-3. CREATE TABLE `chat_histories` (
-  `id` bigint(20) NOT NULL,
-  `user_id` bigint(20) NOT NULL,
-  `message_id` varchar(255) NOT NULL,
-  `content` text DEFAULT NULL,
-  `role` enum('user','assistant') NOT NULL,
-  `timestamp` datetime NOT NULL,
-  `structured_data` longtext CHARACTER SET utf8mb4 COLLATE utf8mb4_bin DEFAULT NULL CHECK (json_valid(`structured_data`)),
-  `custom_content` longtext CHARACTER SET utf8mb4 COLLATE utf8mb4_bin DEFAULT NULL CHECK (json_valid(`custom_content`)),
-  `intent` varchar(50) DEFAULT NULL,
-  `created_at` datetime NOT NULL DEFAULT current_timestamp()
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+TABLE transaction_groups (
+  group_id INT,
+  user_id INT,
+  group_name VARCHAR,
+  total_amount DECIMAL,
+  transaction_date DATE
+)
 
-4. CREATE TABLE `transactions` (
-  `transaction_id` int(11) NOT NULL,
-  `user_id` int(11) NOT NULL,
-  `amount` decimal(15,0) NOT NULL,
-  `category_id` int(11) DEFAULT NULL,
-  `purpose_id` int(11) DEFAULT NULL,
-  `type` enum('income','expense') NOT NULL,
-  `description` varchar(255) DEFAULT NULL,
-  `transaction_date` datetime NOT NULL,
-  `created_at` timestamp NOT NULL DEFAULT current_timestamp(),
-  `updated_at` timestamp NOT NULL DEFAULT current_timestamp() ON UPDATE current_timestamp(),
-  `group_id` int(11) DEFAULT NULL
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
+-- categories:
+(1, 1, 'Lương', 'income')
+(2, 1, 'Ăn uống', 'expense')
 
-5. CREATE TABLE `transaction_groups` (
-  `group_id` int(11) NOT NULL,
-  `user_id` int(11) NOT NULL,
-  `group_name` varchar(255) NOT NULL,
-  `total_amount` decimal(15,0) DEFAULT 0,
-  `transaction_date` date NOT NULL,
-  `created_at` timestamp NOT NULL DEFAULT current_timestamp(),
-  `updated_at` timestamp NOT NULL DEFAULT current_timestamp() ON UPDATE current_timestamp()
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
+-- transactions:
+(405, 1, 30000, 2, 'expense', 'Ăn sáng phở', '2025-07-02')
+(421, 1, 50000, 3, 'expense', 'Đổ xăng xe máy', '2025-07-15')
 
--- Indexes for table `categories`
---
-ALTER TABLE `categories`
-  ADD PRIMARY KEY (`category_id`),
-  ADD KEY `user_id` (`user_id`),
-  ADD KEY `parent_id` (`parent_id`);
-  
-ALTER TABLE `transactions`
-  ADD PRIMARY KEY (`transaction_id`),
-  ADD KEY `idx_transactions_user_date` (`user_id`,`transaction_date`),
-  ADD KEY `idx_transactions_category` (`category_id`),
-  ADD KEY `purpose_id` (`purpose_id`);
-
---
--- Indexes for table `transaction_groups`
---
-ALTER TABLE `transaction_groups`
-  ADD PRIMARY KEY (`group_id`);
-
-
-Các mẫu row từng bảng
-INSERT INTO `categories` (`category_id`, `user_id`, `name`, `type`, `parent_id`, `color`, `icon`, `created_at`, `updated_at`) VALUES
-(1, 1, 'Lương', 'income', NULL, '#22c55e', '💰', '2025-06-27 08:10:03', '2025-06-27 08:12:46'),
-(2, 1, 'Ăn uống', 'expense', NULL, '#ef4444', '🍔', '2025-06-27 08:10:03', '2025-06-27 08:12:51'),
-
-INSERT INTO `transactions` (`transaction_id`, `user_id`, `amount`, `category_id`, `purpose_id`, `type`, `description`, `transaction_date`, `created_at`, `updated_at`, `group_id`) VALUES
-(404, 1, 10000000, 1, NULL, 'income', 'Lương tháng 7', '2025-07-01 00:00:00', '2025-07-01 02:00:00', '2025-07-01 02:00:00', 39),
-(405, 1, 30000, 2, NULL, 'expense', 'Ăn sáng phở', '2025-07-02 00:00:00', '2025-07-02 01:00:00', '2025-07-02 01:00:00', 40),
-(421, 1, 50000, 3, NULL, 'expense', 'Đổ xăng xe máy', '2025-07-15 00:00:00', '2025-07-15 10:00:00', '2025-07-15 10:00:00', NULL),
-(796, 1, 180000, 9, NULL, 'expense', 'Tiền WiFi tháng 4 (cố định 180k)', '2025-04-30 00:00:00', '2025-04-30 02:55:00', '2025-04-30 02:55:00', 213),
-
-INSERT INTO `transaction_groups` (`group_id`, `user_id`, `group_name`, `total_amount`, `transaction_date`, `created_at`, `updated_at`) VALUES
-(46, 1, 'Nhận lương tháng 1', 10000000, '2025-01-01', '2025-01-01 02:00:00', '2025-01-01 02:00:00'),
-(47, 1, 'Tiền ăn ngày 02/01', 85000, '2025-01-02', '2025-01-02 01:30:00', '2025-01-02 01:30:00'),
-(97, 1, 'Đi lại ngày 11/02', 20000, '2025-02-11', '2025-02-11 01:00:00', '2025-02-11 01:00:00'),
+-- transaction_groups:
+(47, 1, 'Tiền ăn ngày 02/01', 85000, '2025-01-02')

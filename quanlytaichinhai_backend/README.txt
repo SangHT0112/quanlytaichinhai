@@ -51,3 +51,11 @@ component : 2500 token
 natural: 1580 token
 transaction 1900
 image: 1760
+query db: 5880 4130
+
+
+
+1. 252.83k   - 254.85k   : 2020
+2. 257.38 : 2530
+
+

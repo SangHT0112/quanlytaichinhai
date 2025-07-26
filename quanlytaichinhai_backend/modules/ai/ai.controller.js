@@ -6,9 +6,10 @@ import { generateFollowupPrompt } from "./prompts/generateFollowupPrompt.js"
 import { getChatHistory } from "../chat_history/chat_history.model.js"
 import { getCategoryIdByKeyword } from "../category/category.model.js"
 import { addTransaction, createTransactionGroup } from "../transaction/transaction.model.js"
-
+import { generateAmountPrompt } from "./prompts/generateAmountPrompt.js"
 import { generateExplainPrompt } from "./prompts/sqlPrompts/generateExplainPrompt.js"
 import { generateSQLPrompt } from "./prompts/sqlPrompts/generateSQLPrompt.js"
+import { generateForecastSQLPrompt } from "./prompts/sqlPrompts/generateForecastSQLPrompt.js"
 import fetch from 'node-fetch'
 import fs from 'fs'
 import path from 'path'
@@ -67,26 +68,20 @@ export const handleChat = async (req, res) => {
     return res.status(500).json({ error: "Không có khóa API Gemini hợp lệ nào được cấu hình" });
   }
 
-  // Lấy lịch sử chat từ DB
-  let history = [];
-  if (user_id) {
-    try {
-      history = await getChatHistory(user_id, 5);
-    } catch (error) {
-      console.error("Lỗi khi lấy lịch sử chat từ DB:", error);
-    }
-  }
+  // Sử dụng lịch sử từ frontend
+  const history = req.body.history || [];
+  console.log('Lịch sử từ frontend:', history); // Debug lịch sử
 
   const historyText = history
     .map((msg) => {
-      if (msg.role === "user") {
+      if (msg.role === 'user') {
         return `Người dùng: ${msg.content}`;
       } else {
-        const structuredText = msg.structured ? `\n(JSON: ${JSON.stringify(msg.structured)})` : "";
+        const structuredText = msg.structured ? `\n(JSON: ${JSON.stringify(msg.structured)})` : '';
         return `AI: ${msg.content}${structuredText}`;
       }
     })
-    .join("\n");
+    .join('\n');
 
   try {
     // Phân loại intent
@@ -106,7 +101,7 @@ export const handleChat = async (req, res) => {
 
     const rawIntent = classifyData.candidates?.[0]?.content?.parts?.[0]?.text?.trim().toLowerCase();
     console.log("Raw intent từ Gemini:", rawIntent);
-    const validIntents = ["transaction", "component", "followup", "sql_query"];
+    const validIntents = ["transaction", "amount", "component", "followup", "sql_query", "forecast"];
     const intent = validIntents.includes(rawIntent) ? rawIntent : "natural";
     console.log("Intent cuối cùng:", intent);
 
@@ -116,11 +111,17 @@ export const handleChat = async (req, res) => {
     if (intent === "transaction") {
       prompt = await generateTransactionPrompt({ user_input, now, user_id });
       isJsonResponse = true;
-    } else if (intent === "component") {
+    } else if(intent === "amount") {
+      prompt = await generateAmountPrompt({ user_input, historyText, now, user_id });
+      isJsonResponse = true;
+    }else if (intent === "component") {
       prompt = generateComponentPrompt({ user_input });
       isJsonResponse = true;
     }else if(intent === "sql_query"){
       prompt = generateSQLPrompt({ user_id, user_input, historyText });
+    }else if (intent === "forecast") {
+      prompt = generateForecastSQLPrompt({ user_input, user_id, now });
+      isJsonResponse = true;
     }else if (intent === "followup") {
       prompt = generateFollowupPrompt({ user_input, historyText });
     }else {
@@ -147,7 +148,7 @@ export const handleChat = async (req, res) => {
 
     let structured = null;
 
-    if (intent === "transaction" || intent === "component") {
+    if (intent === "transaction" || intent === "amount" || intent === "component") {
       try {
         // Loại bỏ markdown nếu có
         const jsonStart = aiText.indexOf('{');
@@ -156,8 +157,16 @@ export const handleChat = async (req, res) => {
           aiText = aiText.slice(jsonStart, jsonEnd);
         }
         const parsed = JSON.parse(aiText);
-
-        if (intent === "transaction") {
+        // Kiểm tra nếu phản hồi là câu hỏi tự nhiên (thiếu số tiền)
+        if (parsed.response_type === "natural") {
+          structured = { message: parsed.message };
+          return res.json({
+            intent,
+            raw: parsed.message,
+            structured
+          });
+        }
+        if (intent === "transaction" || intent === 'amount') {
           if (parsed.transactions && Array.isArray(parsed.transactions)) {
             structured = {
               group_name: parsed.group_name || null,
@@ -247,9 +256,68 @@ export const handleChat = async (req, res) => {
         structured
       });
       return;
-    } else {
-      structured = { response: aiText };
     }
+    // Dự án tiết kiệm
+    if (intent === "forecast") {
+      try{
+          let aiRaw = aiText.trim();
+          aiRaw = aiRaw.replace(/^```json\s*/i, "").replace(/```$/i, "").trim();
+          let forecastData = null;
+          try{
+            const jsonStart = aiRaw.indexOf('{');
+            const jsonEnd = aiRaw.lastIndexOf('}') + 1;
+            aiRaw = aiRaw.slice(jsonStart, jsonEnd);
+            forecastData = JSON.parse(aiRaw);
+          }catch (e) {
+            structured = { error: "Phân tích forecast thất bại", raw: aiRaw };
+            return res.json({ intent, raw: aiRaw, structured });
+          }
+
+          // Kiểm tra dữ liệu cần thiết
+          if (!forecastData?.sql || !forecastData?.goal_amount) {
+              structured = { error: "Thiếu SQL hoặc goal_amount", raw: forecastData };
+              return res.json({ intent, raw: aiRaw, structured });
+          }
+
+          // Thực thi SQL
+          let rows = [];
+          try {
+            [rows] = await db.query(forecastData.sql);
+          } catch (err) {
+            structured = { error: "Lỗi khi chạy SQL", details: err.message };
+            return res.json({ intent, raw: aiRaw, structured });
+          }
+          // Giai thich
+          const explainPrompt = generateExplainPrompt({
+            user_input,
+            query_result: rows,
+            goal_amount: forecastData.goal_amount
+          });
+
+          const explainData = await fetchWithFailover({
+            contents: [{ parts: [{ text: explainPrompt }] }]
+          });
+           const finalAnswer = explainData.candidates?.[0]?.content?.parts?.[0]?.text?.trim()
+                      || "Không thể tạo lời giải thích.";
+
+          structured = {
+            goal_amount: forecastData.goal_amount,
+            sql: forecastData.sql,
+            result: rows,
+            answer: finalAnswer
+          };
+
+
+          return res.json({ intent, raw: finalAnswer, structured });
+
+      }catch (err) {
+        console.error("❌ Lỗi khi xử lý dự báo:", err);
+        aiText = "Lỗi khi xử lý dự báo.";
+        structured = { error: "Lỗi dự báo", details: err.message };
+      }
+    }
+
+
     console.log("Structured data:", structured);
     res.json({
       intent,

@@ -282,7 +282,7 @@ export default function ChatAI() {
         {isLoading && <LoadingIndicator />}
         <div ref={messagesEndRef} />
       </div>
-      <QuickActions onAction={handleQuickAction} />
+      <QuickActions userId={currentUser?.user_id || 1} onAction={handleQuickAction} />
     </div>
   );
 }

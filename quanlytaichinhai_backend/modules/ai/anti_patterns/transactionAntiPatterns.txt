@@ -1,0 +1,5 @@
+Input: Hôm qua vừa đóng tiền học cho thằng nhỏ 1 triệu 2, tiện thể mua luôn vài cuốn sách nâng cao toán với tiếng Anh, tổng cộng gần 2 triệu.
+--->  transaction [đóng tiền, mua sách] 
+
+Input: Định ghé đổ xăng 50k thôi, mà thấy nhớt xe khô quá nên thay luôn, tổng thiệt hại 230k.
+---> transaction[2] = {đổ xăng, thay nhớt xe}
