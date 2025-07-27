@@ -8,7 +8,8 @@ import os
 from dotenv import load_dotenv
 load_dotenv()  # Load các biến từ file .env
 # Thêm đường dẫn đến thư mục `baml` để import được engine.py
-sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), '..', '..', 'baml')))
+sys.path.append(os.path.join(os.path.dirname(__file__), 'baml'))
+
 
 from engine import process_baml
 

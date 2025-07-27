@@ -1,0 +1,24 @@
+# FastAPI + Server
+fastapi==0.111.1
+uvicorn[standard]==0.29.0
+python-multipart==0.0.9
+
+# OpenCV
+opencv-contrib-python==4.6.0.66
+# hoặc nếu không cần GUI: opencv-python-headless==4.10.0.84
+
+pillow==10.3.0  # hoặc để trống version nếu bạn không cố định
+
+# NumPy
+numpy==1.26.4
+
+# BAML LLM
+baml==0.19.1
+baml-py==0.202.1
+baml_core_ffi==0.1.7
+
+# OCR (nếu dùng Tesseract)
+# pytesseract==0.3.10
+
+# Nếu cần dotenv
+python-dotenv
