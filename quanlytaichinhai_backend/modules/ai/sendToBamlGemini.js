@@ -1,12 +1,15 @@
 import axios from "axios"
 import FormData from "form-data"
 import fs from "fs"
+import dotenv from "dotenv"
+
+dotenv.config() // Load biến môi trường từ .env
 
 export async function sendToBamlGemini(imagePath) {
   const form = new FormData()
-  form.append("file", fs.createReadStream(imagePath)) // dùng 'file' như FastAPI yêu cầu
+  form.append("file", fs.createReadStream(imagePath))
 
-  const response = await axios.post("http://localhost:8000/processDocument", form, {
+  const response = await axios.post(process.env.PYTHON_API_URL, form, {
     headers: form.getHeaders(),
   })
   console.log("Response from BAML Gemini:", response.data)
