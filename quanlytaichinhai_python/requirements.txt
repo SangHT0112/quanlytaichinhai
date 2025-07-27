@@ -7,7 +7,7 @@ python-multipart==0.0.9
 opencv-contrib-python==4.6.0.66
 # hoặc nếu không cần GUI: opencv-python-headless==4.10.0.84
 
-pillow==10.3.0  # hoặc để trống version nếu bạn không cố định
+pillow==10.2.0
 
 # NumPy
 numpy==1.26.4
