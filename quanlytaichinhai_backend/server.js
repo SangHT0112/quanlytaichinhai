@@ -20,7 +20,7 @@ const app = express();
 
 // CORS configuration
 app.use(cors({
-    origin: "http://localhost:3000",
+    origin: "https://quanlytaichinhai.vercel.app",
     credentials: true
 }));
 
