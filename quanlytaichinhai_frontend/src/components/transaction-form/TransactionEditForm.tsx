@@ -1,8 +1,6 @@
 "use client"
-import { useState } from "react"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
-import { Badge } from "@/components/ui/badge"
 import { Separator } from "@/components/ui/separator"
 import { X, Check, DollarSign, Calendar, Tag, FileText } from "lucide-react"
 
@@ -16,19 +14,13 @@ export interface TransactionData {
 
 interface Props {
   initialData: TransactionData
-  onChange: (field: keyof TransactionData, value: any) => void
+  onChange: (field: keyof TransactionData, value: string | number) => void
   onSave: () => void
   onCancel: () => void
   isLoading?: boolean
 }
 
 export default function TransactionEditForm({ initialData, onChange, onSave, onCancel, isLoading = false }: Props) {
-  const formatCurrency = (amount: number) => {
-    return new Intl.NumberFormat("vi-VN", {
-      style: "currency",
-      currency: "VND",
-    }).format(amount)
-  }
 
   return (
     <Card className="w-full max-w-md mx-auto">

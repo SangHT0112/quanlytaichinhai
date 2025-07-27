@@ -1,18 +1,49 @@
 'use client';
 import { useState, useRef, ChangeEvent } from "react";
-import { useRouter, usePathname } from "next/navigation";
+import { useRouter } from "next/navigation";
+import Image from "next/image";
 
-export const ChatInput = ({
-  isSidebarOpen,
-  pathname,
-}: {
+interface ChatInputProps {
   isSidebarOpen: boolean;
-  pathname: string;
-}) => {
+  pathname: string; // Add pathname prop
+}
+
+// Định nghĩa interface cho SpeechRecognition
+interface SpeechRecognition extends EventTarget {
+  lang: string;
+  interimResults: boolean;
+  maxAlternatives: number;
+  onstart: (() => void) | null;
+  onend: (() => void) | null;
+  onresult: ((event: SpeechRecognitionEvent) => void) | null;
+  onerror: ((event: SpeechRecognitionErrorEvent) => void) | null;
+  start: () => void;
+}
+
+// Định nghĩa interface cho SpeechRecognitionEvent
+interface SpeechRecognitionEvent extends Event {
+  results: SpeechRecognitionResultList;
+}
+
+// Định nghĩa interface cho SpeechRecognitionErrorEvent
+interface SpeechRecognitionErrorEvent extends Event {
+  error: string;
+}
+
+// Định nghĩa interface cho window với sendChatMessage và SpeechRecognition
+interface CustomWindow extends Window {
+  sendChatMessage?: (message: string, formData?: FormData) => void;
+  SpeechRecognition?: new () => SpeechRecognition;
+  webkitSpeechRecognition?: new () => SpeechRecognition;
+}
+
+declare let window: CustomWindow;
+
+export const ChatInput = ({ isSidebarOpen, pathname }: ChatInputProps) => {
   const [chatInput, setChatInput] = useState("");
   const [isNavigating, setIsNavigating] = useState(false);
-  const [selectedImage, setSelectedImage] = useState<File | null>(null); // Lưu file ảnh thay vì URL
-  const [isRecording,  setIsRecording] = useState(false);
+  const [selectedImage, setSelectedImage] = useState<File | null>(null);
+  const [isRecording, setIsRecording] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const router = useRouter();
 
@@ -30,43 +61,43 @@ export const ChatInput = ({
   const removeImage = () => {
     setSelectedImage(null);
     if (fileInputRef.current) {
-      fileInputRef.current.value = ""; // Reset input file
+      fileInputRef.current.value = "";
     }
   };
 
-  //Voice chat
+  // Voice chat
   const handleVoiceInput = () => {
-    const SpeechRecognition = (window as any).SpeechRecognition || (window as any).webkitSpeechRecognition;
-    if(!SpeechRecognition) {
+    const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
+    if (!SpeechRecognition) {
       alert("Trình duyệt của bạn không hỗ trợ tính năng nhận diện giọng nói.");
       return;
     }
 
     const recognition = new SpeechRecognition();
-    recognition.lang = 'vi-VN'; // Thiết lập ngôn ngữ tiếng Việt
-    recognition.interimResults = false; // Không hiển thị kết quả tạm thời
-    recognition.maxAlternatives = 1; // Chỉ lấy kết quả tốt nhất
+    recognition.lang = 'vi-VN';
+    recognition.interimResults = false;
+    recognition.maxAlternatives = 1;
 
-    recognition.onStart = () => setIsRecording(true);
-    recognition.onEnd = () => setIsRecording(false);
+    recognition.onstart = () => setIsRecording(true);
+    recognition.onend = () => setIsRecording(false);
 
-    recognition.onresult = (event: any) => {
-    const transcript = event.results[0][0].transcript;
+    recognition.onresult = (event: SpeechRecognitionEvent) => {
+      const transcript = event.results[0][0].transcript;
       setChatInput(prev => prev + (prev ? " " : "") + transcript);
     };
 
-    recognition.onerror = (event: any) => {
+    recognition.onerror = (event: SpeechRecognitionErrorEvent) => {
       console.error("Lỗi ghi âm:", event.error);
       alert("Không thể ghi âm: " + event.error);
       setIsRecording(false);
     };
 
     recognition.start();
-  }
+  };
 
   // Xử lý gửi tin nhắn hoặc hình ảnh
   const handleSend = () => {
-    if (!chatInput.trim() && !selectedImage) return; // Không gửi nếu không có nội dung hoặc hình ảnh
+    if (!chatInput.trim() && !selectedImage) return;
 
     setIsNavigating(true);
 
@@ -77,10 +108,10 @@ export const ChatInput = ({
       if (chatInput.trim()) {
         formData.append("message", chatInput);
       }
-      (window as any).sendChatMessage?.(chatInput, formData); // Gửi cả văn bản và hình ảnh
+      window.sendChatMessage?.(chatInput, formData);
     } else {
       localStorage.setItem("pendingChatMessage", chatInput);
-      (window as any).sendChatMessage?.(chatInput); // Gửi văn bản
+      window.sendChatMessage?.(chatInput);
     }
 
     // Reset trạng thái
@@ -110,10 +141,12 @@ export const ChatInput = ({
           {/* Hiển thị ảnh xem trước (nếu có) */}
           {selectedImage && (
             <div className="relative">
-              <img
+              <Image
                 src={URL.createObjectURL(selectedImage)}
                 alt="Ảnh đã chọn"
-                className="max-h-40 rounded-lg mb-2"
+                width={160}
+                height={160}
+                className="max-h-40 rounded-lg mb-2 object-cover"
               />
               <button
                 onClick={removeImage}
@@ -140,7 +173,6 @@ export const ChatInput = ({
           <div className="flex items-center gap-2">
             <button className="text-purple-400 text-xl">🤖</button>
 
-            {/* Input file ẩn (chỉ nhận ảnh) */}
             <input
               type="file"
               ref={fileInputRef}
@@ -149,7 +181,6 @@ export const ChatInput = ({
               accept="image/*"
             />
 
-            {/* Nút để mở dialog chọn ảnh */}
             <button
               onClick={() => fileInputRef.current?.click()}
               className="text-purple-400 hover:text-purple-300"

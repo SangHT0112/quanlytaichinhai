@@ -2,16 +2,9 @@
 
 import { formatCurrency} from "@/lib/format"
 import { getCategoryColor, formatDate } from "@/lib/transactionUtils"
-
+import { Transaction } from "../types"
 interface TransactionItemProps {
-  transaction: {
-    id: string
-    type: "income" | "expense"
-    description: string
-    category: string
-    date: string
-    amount: number
-  }
+  transaction: Transaction
 }
 
 export default function TransactionItem({ transaction }: TransactionItemProps) {

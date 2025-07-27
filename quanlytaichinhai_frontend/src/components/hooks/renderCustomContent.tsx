@@ -3,7 +3,7 @@ import React from 'react'
 import { MessageContentPart } from "../types"
 import { componentMap } from './componentMap'
 
-export const renderCustomContent = (part: MessageContentPart, index: number) => {
+export const renderCustomContent = (part: MessageContentPart) => {
   if (part.type === "text") {
     return (
       <div className={`text-sm ${part.style === "important" ? "font-bold text-yellow-400" : ""}`}>

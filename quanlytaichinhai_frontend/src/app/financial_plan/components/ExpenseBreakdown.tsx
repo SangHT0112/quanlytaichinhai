@@ -2,8 +2,19 @@
 
 import { Progress } from "@/components/ui/progress"
 import { TrendingUp, TrendingDown, AlertTriangle } from "lucide-react"
+interface Category {
+  name: string
+  amount: number
+  limit?: number
+  trend?: "up" | "down" | null
+  percentage: number
+}
 
-export default function ExpenseBreakdown({ categories }: { categories: any[] }) {
+
+
+
+
+export default function ExpenseBreakdown({ categories }: { categories: Category[] }) {
   const format = (n: number) =>
     new Intl.NumberFormat("vi-VN", {
       style: "currency",
@@ -11,11 +22,11 @@ export default function ExpenseBreakdown({ categories }: { categories: any[] }) 
       minimumFractionDigits: 0,
     }).format(n)
 
-  const getTrend = (t: string) => {
-    if (t === "up") return <TrendingUp className="w-4 h-4 text-red-400" />
-    if (t === "down") return <TrendingDown className="w-4 h-4 text-green-400" />
-    return null
-  }
+    const getTrend = (t: "up" | "down" | null | undefined) => {
+      if (t === "up") return <TrendingUp className="w-4 h-4 text-red-400" />
+      if (t === "down") return <TrendingDown className="w-4 h-4 text-green-400" />
+      return null
+    }
 
   return (
     <div className="space-y-4">
@@ -36,7 +47,8 @@ export default function ExpenseBreakdown({ categories }: { categories: any[] }) 
             <div className="flex items-center justify-between">
               <div className="flex items-center gap-2">
                 <span className="text-white font-medium">{name}</span>
-                {getTrend(trend)}
+               {getTrend(trend as "up" | "down" | null)}
+
               </div>
               {isOverLimit && (
                 <div className="flex items-center gap-1 text-sm text-red-400">

@@ -176,7 +176,7 @@ export default function RootLayout({ children }: { children: ReactNode }) {
             <main className="flex-1 p-6 pb-24 w-full max-w-screen-2xl mx-auto">
               {children}
             </main>
-            <ChatInput 
+            <ChatInput
               isSidebarOpen={isSidebarOpen}
               pathname={pathname}
             />

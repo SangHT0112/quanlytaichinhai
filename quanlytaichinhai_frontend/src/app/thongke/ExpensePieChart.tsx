@@ -9,21 +9,28 @@ interface PieDataItem {
   value: number
   color: string
 }
+
+interface RawPieData {
+  category_name: string;
+  total: number | string; // Tuỳ theo backend trả về số hay chuỗi số
+}
+
 export default function ExpensePieChart() {
   const [data, setData] = useState<PieDataItem[]>([])
   const user = useUser();
   const userId = user?.user_id
   useEffect(() => {
     if(!userId) return
-    fetchExpensePieChart(userId).then((res) => {
-      const COLORS = ["#8884d8", "#82ca9d", "#ffc658", "#ff7300", "#00ff88", "#ff0088", "#ffbb28"]
-      const formatted = res.map((item: any, index: number) => ({
-        name: item.category_name,
-        value: Number(item.total),
-        color: COLORS[index % COLORS.length],
-      }))
-      setData(formatted)
-    })
+    fetchExpensePieChart(userId).then((res: RawPieData[]) => {
+    const COLORS = ["#8884d8", "#82ca9d", "#ffc658", "#ff7300", "#00ff88", "#ff0088", "#ffbb28"]
+    const formatted = res.map((item, index) => ({
+      name: item.category_name,
+      value: Number(item.total),
+      color: COLORS[index % COLORS.length],
+    }))
+    setData(formatted)
+  })
+
   }, [userId])
 
   return (

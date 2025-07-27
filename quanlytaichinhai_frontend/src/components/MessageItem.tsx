@@ -1,13 +1,14 @@
 'use client'
 
 import React, { useState } from 'react'
-import { Bot, User, X } from "lucide-react"
+import { Bot, User } from "lucide-react"
 import { ChatMessage } from "./types"
 import { MessageRenderer } from './MessageRenderer'
 import SingleTransactionConfirmationForm from './transaction-form/SingleTransactionConfirmationForm'
 import MultiTransactionConfirmationForm from './transaction-form/MultiTransactionConfirmationForm'
 import TransactionEditForm from './transaction-form/TransactionEditForm'
 import { renderCustomContent } from './hooks/renderCustomContent'
+
 export interface TransactionData {
   type: 'expense' | 'income';
   amount: number;
@@ -21,39 +22,44 @@ export interface TransactionData {
 export const MessageItem = ({
   message,
   onConfirm,
-  isConfirmed = false,
   confirmedIds = [],
   onSaveEdit,
 }: {
   message: ChatMessage;
-  onConfirm?: (message: ChatMessage, correctedData?: TransactionData) => Promise<void>;
-  isConfirmed?: boolean;
+  onConfirm?: (message: ChatMessage, correctedData?: TransactionData | TransactionData[]) => Promise<void>;
   confirmedIds?: string[];
   onSaveEdit?: (messageId: string, editedData: TransactionData) => void;
 }) => {
-  
   const [isEditing, setIsEditing] = useState(false);
   const [editingIndex, setEditingIndex] = useState(0);
   const [isLoading, setIsLoading] = useState(false);
 
-  // Lấy transactions từ structured (hỗ trợ cả mảng trực tiếp)
- const transactions = Array.isArray(message.structured?.transactions) 
-  ? message.structured.transactions 
-  : [];
-  
+  // Lấy transactions từ structured và đảm bảo khớp với TransactionData
+  const transactions: TransactionData[] = Array.isArray(message.structured?.transactions)
+    ? message.structured.transactions.map(tx => ({
+        type: tx.type || 'expense',
+        amount: tx.amount || 0,
+        category: tx.category || '',
+        date: tx.date,
+        user_id: tx.user_id ?? 1,
+        description: tx.description || message.user_input || message.content || 'Không có mô tả',
+        transaction_date: tx.transaction_date || new Date().toISOString(),
+      }))
+    : [];
+
   // Transaction mặc định để edit
-  const defaultTransaction = transactions[editingIndex] || {
+  const defaultTransaction: TransactionData = transactions[editingIndex] || {
     type: 'expense',
     amount: 0,
     category: '',
     user_id: 1,
-    date: new Date().toISOString()
+    date: new Date().toISOString(),
+    description: message.user_input || message.content || 'Không có mô tả',
+    transaction_date: new Date().toISOString(),
   };
 
   const [editedData, setEditedData] = useState<TransactionData>({
     ...defaultTransaction,
-    description: message.user_input || message.content || "Không có mô tả",
-    transaction_date: defaultTransaction.date || new Date().toISOString()
   });
 
   // Kiểm tra các trạng thái
@@ -64,13 +70,13 @@ export const MessageItem = ({
   const hasCustomContent = Array.isArray(message.custom_content) &&
     message.custom_content.some(part => part.type === 'component' || part.type === 'function_call');
 
-  const handleEditChange = (field: keyof TransactionData, value: any) => {
+  const handleEditChange = (field: keyof TransactionData, value: string | number) => {
     setEditedData(prev => ({
       ...prev,
       [field]: value,
       user_id: prev.user_id ?? 1,
-      description: field === 'description' ? value : prev.description,
-      transaction_date: field === 'date' ? value : prev.transaction_date,
+      description: field === 'description' ? value as string : prev.description,
+      transaction_date: field === 'date' ? value as string : prev.transaction_date,
     }));
   };
 
@@ -86,9 +92,7 @@ export const MessageItem = ({
 
   const handleCancelEdit = () => {
     setEditedData({
-      ...transactions[editingIndex],
-      description: message.user_input || message.content || "Không có mô tả",
-      transaction_date: transactions[editingIndex]?.date || new Date().toISOString()
+      ...transactions[editingIndex] || defaultTransaction,
     });
     setIsEditing(false);
   };
@@ -97,8 +101,6 @@ export const MessageItem = ({
     setEditingIndex(index);
     setEditedData({
       ...transactions[index],
-      description: message.user_input || message.content || "Không có mô tả",
-      transaction_date: transactions[index].date || new Date().toISOString()
     });
     setIsEditing(true);
   };
@@ -107,14 +109,12 @@ export const MessageItem = ({
     setIsLoading(true);
     try {
       if (onConfirm) {
-        await onConfirm(message, transactions); // ✅ Gửi toàn bộ giao dịch nhóm
+        await onConfirm(message, transactions);
       }
     } finally {
       setIsLoading(false);
     }
   };
-
-
 
   return (
     <div className={`flex gap-3 w-full ${message.role === "user" ? "justify-end" : "justify-start"}`}>
@@ -132,12 +132,10 @@ export const MessageItem = ({
         ${hasCustomContent ? '!min-w-[300px]' : ''}
       `}>
         {/* Hiển thị nội dung thông thường nếu không phải transaction */}
-       {!isTransaction && !hasCustomContent && message.content && (
+        {!isTransaction && !hasCustomContent && message.content && (
           <div className="mt-2">
             <MessageRenderer content={message.content} />
           </div>
-
-          
         )}
 
         {/* Phần xử lý transaction */}
@@ -155,17 +153,9 @@ export const MessageItem = ({
               <>
                 {isSingleTransaction && (
                   <SingleTransactionConfirmationForm
-                    transactionData={{
-                      ...transactions[0],
-                      description: transactions[0].description || message.user_input || message.content || "",
-                      transaction_date: message.structured?.transaction_date || new Date().toISOString()
-                    }}
+                    transactionData={transactions[0]}
                     isConfirmed={confirmedIds.includes(message.id)}
-                    onConfirm={() => onConfirm?.(message, {
-                      ...transactions[0],
-                    description: transactions[0].description || message.user_input || message.content || "",
-                      transaction_date: transactions[0].date || new Date().toISOString()
-                    })}
+                    onConfirm={() => onConfirm?.(message, transactions[0])}
                     onEdit={() => handleStartEdit(0)}
                   />
                 )}
@@ -174,17 +164,12 @@ export const MessageItem = ({
                   <MultiTransactionConfirmationForm
                     groupName={message.structured?.group_name || ""}
                     transactionDate={message.structured?.transaction_date || new Date().toISOString()}
-                    transactions={transactions.map((tx:TransactionData) => ({
-                      ...tx,
-                      description: tx.description || message.user_input,
-                      transaction_date: tx.date || message.structured?.transaction_date || new Date().toISOString()
-                    }))}
+                    transactions={transactions}
                     totalAmount={message.structured?.total_amount || 0}
                     isConfirmed={confirmedIds.includes(message.id)}
                     onConfirmAll={handleConfirmAll}
                     onEdit={handleStartEdit}
                   />
-
                 )}
               </>
             )}
@@ -194,7 +179,7 @@ export const MessageItem = ({
         {/* Hiển thị custom content nếu có */}
         {message.custom_content?.map((part, index) => (
           <div key={index} className="mt-2">
-            {renderCustomContent(part, index)}
+            {renderCustomContent(part)}
           </div>
         ))}
 

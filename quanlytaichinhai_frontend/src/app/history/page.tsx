@@ -9,6 +9,9 @@ import TransactionItem from "./components/TransactionItem"
 import { fetchHistoryTransactions } from "@/api/historyApi"
 import { useFilteredTransactions } from "./components/useFilter"
 import { applyFilterFromAi } from "./components/aiFilterHelper"
+import { Transaction } from "./types"
+import { useMemo } from "react"
+
 export default function TransactionHistory() {
   const [searchTerm, setSearchTerm] = useState("")
   const [filterType, setFilterType] = useState("all")
@@ -16,10 +19,12 @@ export default function TransactionHistory() {
   const [sortBy, setSortBy] = useState("date")
   const [isLoggedIn, setIsLoggedIn] = useState(false)
   const [isLoading, setIsLoading] = useState(true)
-  const [transactions, setTransactions] = useState<any[]>([])
+  const [transactions, setTransactions] = useState<Transaction[]>([])
   const [visibleCount, setVisibleCount] = useState(10)
   const [filterMonth, setFilterMonth] = useState("all")
-  const categories = [...new Set(transactions.map((t) => t.category))]
+  const categories = useMemo(() => {
+    return [...new Set(transactions.map((t) => t.category))];
+  }, [transactions]);
   console.log("Unique categories:", [...new Set(transactions.map(t => t.category))]);
   const filteredTransactions = useFilteredTransactions(transactions, {
     searchTerm,
@@ -28,6 +33,7 @@ export default function TransactionHistory() {
     filterMonth,
     sortBy
   })
+
   // console.log("Current filters:", {
   //   filterType,
   //   filterCategory, // Kiểm tra xem giá trị này có đúng là "Ăn uống" không

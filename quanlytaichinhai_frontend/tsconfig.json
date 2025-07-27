@@ -5,6 +5,7 @@
     "allowJs": true,
     "skipLibCheck": true,
     "strict": true,
+    "noImplicitAny": false, // Tạm thời cho phép any
     "noEmit": true,
     "esModuleInterop": true,
     "module": "esnext",

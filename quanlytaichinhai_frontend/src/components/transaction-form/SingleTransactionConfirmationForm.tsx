@@ -5,13 +5,12 @@ import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
 import { Separator } from "@/components/ui/separator"
-import { CheckCircle, XCircle, Calendar, DollarSign, Tag, User, FileText } from "lucide-react"
+import { CheckCircle, Calendar, DollarSign, Tag, FileText } from "lucide-react"
 import { TransactionData } from "@/types/transaction"
 
 interface TransactionConfirmationFormProps {
   transactionData: TransactionData
   onConfirm?: (data: TransactionData) => void
-  onCancel?: () => void
   isConfirmed?: boolean 
    onEdit?: () => void 
 }
@@ -26,7 +25,6 @@ export default function SingleTransactionConfirmationForm({
     transaction_date: "2025-07-04",
   },
   onConfirm,
-  onCancel,
   isConfirmed = false,
   onEdit
 }: TransactionConfirmationFormProps) {
@@ -61,9 +59,6 @@ export default function SingleTransactionConfirmationForm({
     }
   }
 
-  const handleCancel = () => {
-    onCancel?.()
-  }
 
   return (
     <Card className="w-full max-w-md mx-auto">

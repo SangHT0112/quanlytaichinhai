@@ -27,3 +27,4 @@ router.post('/confirm', confirmTransaction)
 router.post('/process-document', upload.single('image'), processDocument)
 
 export default router
+

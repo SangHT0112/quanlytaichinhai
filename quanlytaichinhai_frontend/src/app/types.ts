@@ -45,11 +45,10 @@ export type StructuredData =
   | {
       transactions?: Array<{
         type: 'expense' | 'income';
-        amount: number;
-        category: string;
-        date?: string;
+        category?: string;
+        amount?: number;
         user_id?: number;
-        description?: string;
+        date?: string;
         transaction_date?: string;
       }>;
       group_name?: string;
@@ -69,21 +68,21 @@ export interface TransactionData {
   type: 'expense' | 'income';
   amount: number;
   category: string;
-  date?: string;
-  user_id: number;
   description: string;
+  date?: string;
   transaction_date: string;
+  user_id: number;
 }
 
-// 6. Kiểu message hoàn chỉnh (kết hợp cả OpenAI và custom)
+// 6. Kiểu message hoàn chỉnh
 export interface ChatMessage {
   id: string;
   role: MessageRole;
   content: string;
   custom_content?: MessageContentPart[];
   structured?: StructuredData;
-  user_id?: number;
   name?: string;
+  user_id?: number;
   user_input?: string;
   function_call?: {
     name: string;
@@ -120,40 +119,12 @@ export type QuickAction = {
   shortcut?: string;
 };
 
+// 9. Định nghĩa props cho ChatInput
+export interface ChatInputProps {
+  isSidebarOpen: boolean;
+  pathname: string;
+}
+
 // Export const
 export const AllowedComponentsList = ALLOWED_COMPONENTS;
 export type MessageContent = string | MessageContentPart | MessageContentPart[];
-
-
-// // ========= Ví dụ các trường hợp ============== //
-// // Tin nhắn text thông thường
-// const simpleMessage: ChatMessage = {
-//   id: "1",
-//   role: MessageRole.ASSISTANT,
-//   content: "Xin chào!",
-//   timestamp: new Date()
-// };
-
-// // Tin nhắn kết hợp text + component
-// const complexMessage: ChatMessage = {
-//   id: "2",
-//   role: MessageRole.ASSISTANT,
-//   content: "Đây là biểu đồ:",
-//   custom_content: [
-//     { type: "text", text: "Chi tiết:", style: "important" },
-//     { type: "component", name: "MonthlyBarChart", props: { months: 6 } }
-//   ],
-//   timestamp: new Date()
-// };
-
-// // Function call từ AI
-// const functionCallMessage: ChatMessage = {
-//   id: "3",
-//   role: MessageRole.ASSISTANT,
-//   content: null,
-//   function_call: {
-//     name: "get_current_weather",
-//     arguments: '{"location": "Hà Nội"}'
-//   },
-//   timestamp: new Date()
-// };

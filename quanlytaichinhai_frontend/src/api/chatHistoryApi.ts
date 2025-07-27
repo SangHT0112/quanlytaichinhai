@@ -1,6 +1,6 @@
 import axiosInstance from "@/config/axios";
-
-export async function saveChatHistory(userId: number, messages: any[]) {
+import { ChatMessage } from "@/components/types";
+export async function saveChatHistory(userId: number, messages: ChatMessage[]) {
   const res = await axiosInstance.post("/chat-history", {
     user_id: userId,
     messages: messages

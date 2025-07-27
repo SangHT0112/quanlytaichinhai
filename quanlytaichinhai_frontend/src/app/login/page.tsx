@@ -1,6 +1,6 @@
 "use client"
 
-import { useState, useEffect, use } from "react"
+import { useState} from "react"
 import { useRouter } from "next/navigation"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
@@ -38,11 +38,15 @@ export default function LoginPage() {
       localStorage.removeItem("redirectAfterLogin")
       router.push(redirectPath)
       window.location.href = redirectPath
-    } catch (err: any) {
-      setErrorMessage(err.message || "Đăng nhập thất bại")
+    } catch (err: unknown) {
+      if (err instanceof Error) {
+        setErrorMessage(err.message)
+      } else {
+        setErrorMessage("Đăng nhập thất bại")
+      }
     } finally {
-      setLoading(false)
-    }
+          setLoading(false)
+        }
   }
 
   return (

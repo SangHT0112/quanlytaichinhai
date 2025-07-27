@@ -3,7 +3,6 @@
 import { useState } from "react"
 import { Lightbulb, Target, PiggyBank, ChevronDown, ChevronUp } from "lucide-react"
 import { Progress } from "@/components/ui/progress"
-import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 
 // Sample financial data for AI-driven monthly plan
@@ -47,7 +46,6 @@ export default function MonthlySpendingPlan() {
     return Math.min((actual / planned) * 100, 100)
   }
 
-  const totalPlanned = financialData.monthlyPlan.categories.reduce((sum, cat) => sum + cat.planned, 0)
   const totalActual = financialData.monthlyPlan.categories.reduce((sum, cat) => sum + cat.actual, 0)
   const savings = financialData.monthlyPlan.income - totalActual
 

@@ -3,14 +3,9 @@
 import { useState } from "react"
 import {
   Lightbulb,
-  AlertTriangle,
   CheckCircle,
-  DollarSign,
-  TrendingUp,
-  TrendingDown,
   PiggyBank,
   Calendar,
-  Circle,
   ChevronUp,
   ChevronDown,
   Target,
@@ -115,7 +110,7 @@ const financialData = {
 }
 
 export default function FinancialPlanPage() {
-  const [currentStep, setCurrentStep] = useState(3)
+  const currentStep = 3
   const [showDetails, setShowDetails] = useState<number | null>(3)
 
   const format = (n: number) =>

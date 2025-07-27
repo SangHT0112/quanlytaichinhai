@@ -2,54 +2,27 @@
 
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
-import {
-  BarChart,
-  Bar,
-  XAxis,
-  YAxis,
-  CartesianGrid,
-  Tooltip,
-  ResponsiveContainer,
-  PieChart,
-  Pie,
-  Cell,
-  Area,
-  AreaChart,
-} from "recharts"
-import { TrendingUp, TrendingDown, Calendar, Target } from "lucide-react"
 import { useEffect, useState } from "react"
-import { fetchExpensePieChart } from "@/api/overviewApi"
-import { fetchOverview } from "@/api/overviewApi"
 import MonthlyBarChart from "./MonthlyBarChart"
 import ExpensePieChart from "./ExpensePieChart"
 import DailySpendingAreaChart from "./DailySpendingAreaChart"
 import CategoryDetailList from "./CategoryDetailList"
-import { FinancialSummary } from "@/types/financial"
-const monthlyData = [
-  { month: "T10", income: 15000000, expense: 8500000 },
-  { month: "T11", income: 15000000, expense: 7200000 },
-  { month: "T12", income: 18000000, expense: 9800000 },
-  { month: "T1", income: 15000000, expense: 6500000 },
-]
+// const monthlyData = [
+//   { month: "T10", income: 15000000, expense: 8500000 },
+//   { month: "T11", income: 15000000, expense: 7200000 },
+//   { month: "T12", income: 18000000, expense: 9800000 },
+//   { month: "T1", income: 15000000, expense: 6500000 },
+// ]
 
-
-
-const formatCurrency = (amount: number) => {
-  return new Intl.NumberFormat("vi-VN", {
-    style: "currency",
-    currency: "VND",
-  }).format(amount)
-}
 
 export default function ThongKe() {
   const [timeRange, setTimeRange] = useState("month")
-  const [expensePieChart, setExpensePieChart] =useState<any[]>([])
-  const [summaryData, setSummaryData] = useState<FinancialSummary | null>(null)
-  const currentMonth = monthlyData[monthlyData.length - 1]
-  const previousMonth = monthlyData[monthlyData.length - 2]
+  // const [summaryData, setSummaryData] = useState<FinancialSummary | null>(null)
+  // const currentMonth = monthlyData[monthlyData.length - 1]
+  // const previousMonth = monthlyData[monthlyData.length - 2]
 
-  const incomeChange = ((currentMonth.income - previousMonth.income) / previousMonth.income) * 100
-  const expenseChange = ((currentMonth.expense - previousMonth.expense) / previousMonth.expense) * 100
+  // const incomeChange = ((currentMonth.income - previousMonth.income) / previousMonth.income) * 100
+  // const expenseChange = ((currentMonth.expense - previousMonth.expense) / previousMonth.expense) * 100
   const [userId, setUserId] = useState<number | null>(null)
 
   useEffect(() => {
@@ -60,12 +33,12 @@ export default function ThongKe() {
     }
   }, [])
 
-  useEffect(() => {
-    if (userId === null) return
-    fetchOverview(userId)
-      .then((res) => setSummaryData(res))
-      .catch(console.error)
-  }, [userId])
+  // useEffect(() => {
+  //   if (userId === null) return
+  //   fetchOverview(userId)
+  //     .then((res) => setSummaryData(res))
+  //     .catch(console.error)
+  // }, [userId])
 
 
   return (

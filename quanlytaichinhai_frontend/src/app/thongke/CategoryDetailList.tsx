@@ -1,8 +1,15 @@
 "use client"
+
 import { useEffect, useState } from "react"
 import { fetchTopCategories } from "@/api/overviewApi"
 import { formatCurrency } from "@/lib/format"
 import { useUser } from "@/contexts/UserProvider"
+
+interface RawCategoryItem {
+  category_name: string
+  total: number
+}
+
 interface CategoryItem {
   name: string
   value: number
@@ -11,19 +18,21 @@ interface CategoryItem {
 
 export default function CategoryDetailList() {
   const [data, setData] = useState<CategoryItem[]>([])
-  const user = useUser();
+  const user = useUser()
   const userId = user?.user_id
-  useEffect(() => {
 
+  useEffect(() => {
     if (!userId) return
 
-    fetchTopCategories(userId).then((res) => {
+    fetchTopCategories(userId).then((res: RawCategoryItem[]) => {
       const COLORS = ["#8884d8", "#82ca9d", "#ffc658", "#ff7300", "#00ff88", "#ff0088", "#ffbb28"]
-      const formatted = res.map((item: any, index: number) => ({
+
+      const formatted: CategoryItem[] = res.map((item, index) => ({
         name: item.category_name,
         value: Number(item.total),
         color: COLORS[index % COLORS.length],
       }))
+
       setData(formatted)
     })
   }, [userId])
@@ -33,7 +42,8 @@ export default function CategoryDetailList() {
   return (
     <div className="space-y-4">
       {data.map((category, index) => {
-        const percentage = (category.value / total) * 100
+        const percentage = total > 0 ? (category.value / total) * 100 : 0
+
         return (
           <div key={index} className="flex items-center justify-between p-3 border rounded-lg">
             <div className="flex items-center space-x-3">

@@ -4,8 +4,15 @@ import { useEffect, useState } from "react"
 import { formatCurrency } from "@/lib/format"
 import { fetchTopCategories } from "@/api/overviewApi"
 import { useUser } from "@/contexts/UserProvider"
+
+interface TopCategory {
+  category_name: string
+  total: number
+  icon: string
+}
+
 export default function TopExpenseCategories() {
-  const [topCategories, setTopCategories] = useState<any[]>([])
+  const [topCategories, setTopCategories] = useState<TopCategory[]>([])
   const [timeframe, setTimeframe] = useState("current_month")
   const user = useUser();
   const userId = user?.user_id

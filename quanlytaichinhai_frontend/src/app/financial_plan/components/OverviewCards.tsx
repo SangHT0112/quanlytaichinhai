@@ -1,10 +1,15 @@
 // components/OverviewCards.tsx
 "use client"
-import { financialData } from "@/data/financialData"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { DollarSign, TrendingUp, TrendingDown, PiggyBank } from "lucide-react"
-
-export default function OverviewCards({ data }: { data: any }) {
+interface FinancialData {
+  currentBalance: number;
+  monthlyIncome: number;
+  monthlyExpenses: number;
+  monthlySavings: number;
+  // Có thể thêm các trường khác nếu cần
+}
+export default function OverviewCards({ data }: { data: FinancialData }) {
   const format = (n: number) => new Intl.NumberFormat("vi-VN", {
     style: "currency",
     currency: "VND",

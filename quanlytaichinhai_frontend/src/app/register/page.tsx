@@ -5,9 +5,17 @@ import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import  {useState} from "react"
-import axios from "axios"
-import { register } from "@/api/auth/registerApi"
+interface ErrorResponse {
+  response?: {
+    data?: {
+      message?: string
+    }
+  }
+}
+
+
 export default function RegisterPage() {
+    const [error, setError] = useState<string | null>(null)
     const [formData, setFormData] = useState({
         fullName: "",
         email: "",
@@ -17,23 +25,29 @@ export default function RegisterPage() {
     const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
         setFormData({...formData, [e.target.id]: e.target.value})
     }
-    const handleSubmit = async (e: React.FormEvent) => {
-        e.preventDefault(); // Ngăn chặn hành vi mặc định của form
-        
-        if(formData.password !== formData.confirmPassword) {
-            alert("Mật khẩu không khớp!")
-            return
-        }
-        
-        try {
-            const data = await register(formData.fullName, formData.email, formData.password)
-            alert("Đăng ký thành công!") // Hiển thị thông báo khi thành công
-            // Có thể thêm chuyển hướng về trang login sau khi đăng ký thành công
-            // window.location.href = '/login'
-        } catch (err: any) {
-            alert(err.response?.data?.message || "Đăng ký thất bại")
-        }
+   const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+
+    if (formData.password !== formData.confirmPassword) {
+      alert("Mật khẩu không khớp!");
+      return;
     }
+
+    try {
+      // const data = await register(formData.fullName, formData.email, formData.password);
+      alert("Đăng ký thành công!",);
+      // window.location.href = "/login";
+    } catch (err: unknown) {
+      const error = err as ErrorResponse;
+
+      const errorMessage =
+        error.response?.data?.message ?? "Đăng ký thất bại";
+      setError(errorMessage);
+    }
+
+
+  };
+
   return (
     <div className="min-h-screen w-full bg-gradient-to-br from-slate-900 via-purple-900 to-slate-900 flex items-center justify-center p-4">
       {/* Background pattern */}
@@ -70,6 +84,12 @@ export default function RegisterPage() {
           <CardDescription className="text-gray-300">Tạo tài khoản mới để bắt đầu sử dụng</CardDescription>
         </CardHeader>
         <CardContent className="space-y-6">
+          {error && (
+            <p className="text-sm text-red-400 text-center">
+              {error}
+            </p>
+          )}
+
           <div className="space-y-4">
             <div className="space-y-2">
               <Label htmlFor="fullName" className="text-gray-200 font-medium">
