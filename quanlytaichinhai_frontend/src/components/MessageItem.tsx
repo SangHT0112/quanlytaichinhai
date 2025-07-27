@@ -2,7 +2,7 @@
 
 import React, { useState } from 'react'
 import { Bot, User } from "lucide-react"
-import { ChatMessage, StructuredData, TransactionData, AllowedComponents } from "./types"
+import { ChatMessage, StructuredData, TransactionData} from "./types"
 import { MessageRenderer } from './MessageRenderer'
 import SingleTransactionConfirmationForm from './transaction-form/SingleTransactionConfirmationForm'
 import MultiTransactionConfirmationForm from './transaction-form/MultiTransactionConfirmationForm'
