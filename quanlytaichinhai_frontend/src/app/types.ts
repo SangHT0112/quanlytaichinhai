@@ -50,6 +50,7 @@ export type StructuredData =
         user_id?: number;
         date?: string;
         transaction_date?: string;
+        description?: string;
       }>;
       group_name?: string;
       total_amount?: number;
@@ -62,6 +63,7 @@ export type StructuredData =
       props?: Record<string, unknown>;
       layout?: 'inline' | 'block';
     };
+
 
 // 5. Kiểu cho TransactionData (từ MessageItem.tsx)
 export interface TransactionData {

@@ -2,22 +2,30 @@
 
 import React, { useState } from 'react'
 import { Bot, User } from "lucide-react"
-import { ChatMessage } from "./types"
+import { ChatMessage, StructuredData, TransactionData, AllowedComponents } from "./types"
 import { MessageRenderer } from './MessageRenderer'
 import SingleTransactionConfirmationForm from './transaction-form/SingleTransactionConfirmationForm'
 import MultiTransactionConfirmationForm from './transaction-form/MultiTransactionConfirmationForm'
 import TransactionEditForm from './transaction-form/TransactionEditForm'
 import { renderCustomContent } from './hooks/renderCustomContent'
 
-export interface TransactionData {
-  type: 'expense' | 'income';
-  amount: number;
-  category: string;
-  date?: string;
-  user_id: number;
-  description: string;
-  transaction_date: string;
-}
+// Type guard để kiểm tra StructuredData dạng transactions
+const isTransactionStructuredData = (data: StructuredData): data is {
+  transactions?: Array<{
+    type: 'expense' | 'income';
+    category: string;
+    amount: number;
+    user_id?: number;
+    date?: string;
+    transaction_date?: string;
+    description?: string;
+  }>;
+  group_name?: string;
+  total_amount?: number;
+  transaction_date?: string;
+} => {
+  return !('type' in data) || data.type !== 'component';
+};
 
 export const MessageItem = ({
   message,
@@ -35,11 +43,11 @@ export const MessageItem = ({
   const [isLoading, setIsLoading] = useState(false);
 
   // Lấy transactions từ structured và đảm bảo khớp với TransactionData
-  const transactions: TransactionData[] = Array.isArray(message.structured?.transactions)
+  const transactions: TransactionData[] = message.structured && isTransactionStructuredData(message.structured) && Array.isArray(message.structured.transactions)
     ? message.structured.transactions.map(tx => ({
         type: tx.type || 'expense',
-        amount: tx.amount || 0,
-        category: tx.category || '',
+        amount: tx.amount, // amount là bắt buộc
+        category: tx.category, // category là bắt buộc
         date: tx.date,
         user_id: tx.user_id ?? 1,
         description: tx.description || message.user_input || message.content || 'Không có mô tả',
@@ -160,12 +168,12 @@ export const MessageItem = ({
                   />
                 )}
 
-                {isMultiTransaction && (
+                {isMultiTransaction && message.structured && isTransactionStructuredData(message.structured) && (
                   <MultiTransactionConfirmationForm
-                    groupName={message.structured?.group_name || ""}
-                    transactionDate={message.structured?.transaction_date || new Date().toISOString()}
+                    groupName={message.structured.group_name || ""}
+                    transactionDate={message.structured.transaction_date || new Date().toISOString()}
                     transactions={transactions}
-                    totalAmount={message.structured?.total_amount || 0}
+                    totalAmount={message.structured.total_amount || 0}
                     isConfirmed={confirmedIds.includes(message.id)}
                     onConfirmAll={handleConfirmAll}
                     onEdit={handleStartEdit}
