@@ -35,8 +35,8 @@ export default function RegisterPage() {
     }
 
     try {
-      const data = await register(formData.fullName, formData.email, formData.password);
-      alert("Đăng ký thành công!",);
+      await register(formData.fullName, formData.email, formData.password);
+      alert("Đăng ký thành công!");
       window.location.href = "/login";
     } catch (err: unknown) {
       const error = err as ErrorResponse;
