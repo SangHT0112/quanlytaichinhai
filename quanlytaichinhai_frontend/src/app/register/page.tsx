@@ -5,6 +5,7 @@ import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import  {useState} from "react"
+import { register } from "@/api/auth/registerApi"
 interface ErrorResponse {
   response?: {
     data?: {
@@ -34,9 +35,9 @@ export default function RegisterPage() {
     }
 
     try {
-      // const data = await register(formData.fullName, formData.email, formData.password);
+      const data = await register(formData.fullName, formData.email, formData.password);
       alert("Đăng ký thành công!",);
-      // window.location.href = "/login";
+      window.location.href = "/login";
     } catch (err: unknown) {
       const error = err as ErrorResponse;
 

@@ -18,7 +18,7 @@ const app = express();
 
 // CORS configuration
 app.use(cors({
-    origin: "https://quanlytaichinhai.vercel.app",
+    origin: process.env.FRONTEND_API_URL,
     credentials: true
 }));
 
