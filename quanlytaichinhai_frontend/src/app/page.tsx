@@ -286,8 +286,11 @@ export default function ChatAI() {
   }, [handleSendMessage, setInputValue, inputValue]);
 
   return (
-    <div className="flex flex-col h-full">
-      <div className="flex-1 overflow-y-auto space-y-4 pb-4">
+   <div
+      className="flex flex-col h-full bg-cover bg-center"
+      style={{ backgroundImage: "url('/background.png')" }}
+    >
+      <div className="flex-1 overflow-y-auto space-y-4 pb-4 mt-3">
         {messages.map((msg) => (
           <MessageItem
             key={msg.id}

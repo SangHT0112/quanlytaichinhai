@@ -155,7 +155,7 @@ export default function RootLayout({ children }: { children: ReactNode }) {
 
   return (
     <html lang="vi">
-     <body className="flex bg-black text-white font-sans min-h-screen w-full overflow-x-hidden">
+      <body className="flex bg-gradient-to-br from-teal-50 to-cyan-50 text-slate-800 font-sans min-h-screen w-full overflow-x-hidden">
         {/* Sidebar - Luôn hiển thị nhưng có thể bị ẩn bằng transform */}
         <div 
           className={`fixed inset-y-0 left-0 z-50 w-64 bg-gray-900 transition-all duration-300 ease-in-out ${
@@ -173,7 +173,7 @@ export default function RootLayout({ children }: { children: ReactNode }) {
               setIsSidebarOpen={setIsSidebarOpen}
               user={user}
             />
-            <main className="flex-1 p-6 pb-24 w-full max-w-screen-2xl mx-auto">
+            <main className="flex-1 w-full max-w-screen-2xl mx-auto">
               {children}
             </main>
             <ChatInput

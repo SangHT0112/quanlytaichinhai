@@ -1,7 +1,7 @@
 'use client';
 import axiosInstance from '@/config/axios';
 import { useEffect, useState } from 'react';
-
+import { MessageSquare } from "lucide-react"
 interface QuickActionsProps {
   userId: number;
   onAction: (action: string) => void;
@@ -29,21 +29,26 @@ export const QuickActions = ({ userId, onAction }: QuickActionsProps) => {
     fetchActions();
   }, [userId]);
 
-  return (
-    <div className="border-t border-zinc-800 pt-4">
-      <div className="flex flex-wrap gap-2">
-        {actions.map((action, index) => (
-          <button
-            key={index}
-            onClick={() => onAction(action.text)}
-            className="px-3 py-2 rounded-full bg-zinc-800 hover:bg-zinc-700 text-sm text-white flex items-center gap-2 transition-colors"
-          >
-            💬 {action.text.length > 30 ? action.text.slice(0, 30) + '...' : action.text}
-          </button>
-        ))}
+ return (
+    <div className="fixed bottom-24 left-0 right-0 z-20">
+      {" "}
+      {/* Đặt vị trí cố định, nằm trên ChatInput */}
+      <div className="w-full max-w-5xl mx-auto px-4">
+        <div className="flex flex-wrap gap-2 justify-center">
+          {actions.map((action, index) => (
+            <button
+              key={index}
+              onClick={() => onAction(action.text)}
+              className="px-3 py-2 rounded-full bg-teal-50 hover:bg-teal-100 text-sm text-teal-700 flex items-center gap-2 transition-colors shadow-sm"
+            >
+              <MessageSquare className="w-4 h-4 text-teal-600" /> {/* Thay emoji bằng Lucide icon */}
+              {action.text.length > 30 ? action.text.slice(0, 30) + "..." : action.text}
+            </button>
+          ))}
+        </div>
       </div>
     </div>
-  );
+  )
 };
 
 export default QuickActions;
