@@ -287,7 +287,7 @@ export default function ChatAI() {
 
   return (
    <div
-      className="flex flex-col h-full bg-cover bg-center"
+      className="flex flex-col h-full bg-cover bg-center pb-20"
       style={{ backgroundImage: "url('/background.png')" }}
     >
       <div className="flex-1 overflow-y-auto space-y-4 pb-4 mt-3">

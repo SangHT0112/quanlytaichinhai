@@ -30,7 +30,7 @@ export const QuickActions = ({ userId, onAction }: QuickActionsProps) => {
   }, [userId]);
 
  return (
-    <div className="fixed bottom-24 left-0 right-0 z-20">
+    <div className="">
       {" "}
       {/* Đặt vị trí cố định, nằm trên ChatInput */}
       <div className="w-full max-w-5xl mx-auto px-4">

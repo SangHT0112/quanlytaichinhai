@@ -8,8 +8,8 @@ import MonthlyBarChart from '@/app/thongke/MonthlyBarChart';
 import WeeklyBarChart from '@/app/tongquan/components/WeeklyBarChart';
 import TransactionConfirmationForm from './transaction-form/SingleTransactionConfirmationForm';
 import CategoryDetailList from '@/app/thongke/CategoryDetailList';
-import DailySpendingAreaChart from '@/app/thongke/DailySpendingAreaChart';
 import ExpensePieChart from '@/app/thongke/ExpensePieChart';
+import DailySpendingAreaChart from '@/app/thongke/DailySpendingAreaChart';
 
 // Định nghĩa interface cho props của từng component
 interface BalanceCardPageProps {
