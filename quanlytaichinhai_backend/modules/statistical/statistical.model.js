@@ -53,20 +53,26 @@ export async function getDailySpendingTrend(userId, days = 5) {
 export async function getMonthlyIncomeVsExpense(userId, months = 4) {
   const sql = `
     SELECT 
-      DATE_FORMAT(t.transaction_date, "%m/%Y") AS month,
-      SUM(CASE WHEN t.type = 'income' THEN t.amount ELSE 0 END) AS income,
-      SUM(CASE WHEN t.type = 'expense' THEN t.amount ELSE 0 END) AS expense
-    FROM transactions t
-    WHERE t.user_id = ?
-    GROUP BY YEAR(t.transaction_date), MONTH(t.transaction_date)
-    ORDER BY YEAR(t.transaction_date) DESC, MONTH(t.transaction_date) DESC
-    LIMIT ?
+      month,
+      SUM(income) AS income,
+      SUM(expense) AS expense
+    FROM (
+      SELECT 
+        DATE_FORMAT(t.transaction_date, "%m/%Y") AS month,
+        CASE WHEN t.type = 'income' THEN t.amount ELSE 0 END AS income,
+        CASE WHEN t.type = 'expense' THEN t.amount ELSE 0 END AS expense
+      FROM transactions t
+      WHERE t.user_id = ?
+    ) AS sub
+    GROUP BY month
+    ORDER BY STR_TO_DATE(month, "%m/%Y") DESC
+    LIMIT ${parseInt(months)}
   `
-  const [rows] = await db.execute(sql, [userId, months])
 
-  // Đảo ngược để đưa về tháng tăng dần: 4, 5, 6, 7
+  const [rows] = await db.execute(sql, [userId])
   return rows.reverse()
 }
+
 
 
 export async function getTopCategories(userId) {
