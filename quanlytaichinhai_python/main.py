@@ -56,3 +56,8 @@ async def process_document(file: UploadFile = File(...)):
 
     except Exception as e:
         return {"error": f"Lỗi xử lý: {str(e)}"}
+    
+    
+@app.get("/ping")
+async def ping():
+    return {"status": "awake"}

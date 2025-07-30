@@ -86,6 +86,16 @@ export default function ChatAI() {
       let aiMessage: ChatMessage;
       if (imageData) {
         console.log('Gửi yêu cầu xử lý tài liệu đến API:');
+
+        //Danh thuc ten mien 
+        try {
+          await fetch('https://quanlytaichinhai-python.onrender.com/ping');
+          await new Promise((resolve) => setTimeout(resolve, 3000)); // đợi 3s cho chắc
+        } catch (err) {
+          console.warn("Không thể ping backend Python:", err);
+        }
+
+
         for (const [key, value] of imageData.entries()) {
           console.log(`${key}:`, value instanceof File ? value.name : value);
         }
