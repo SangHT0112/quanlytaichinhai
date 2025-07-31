@@ -131,8 +131,8 @@ export const ChatInput = ({ isSidebarOpen, pathname }: ChatInputProps) => {
   };
 
   return (
-    <div className={`fixed bottom-1 z-50 transition-all duration-300 ${isSidebarOpen ? "left-64" : "left-0"} right-0`}>
-      <div className="w-full max-w-5xl mx-auto px-4">
+    <div className={`fixed bottom-1 z-50 transition-all duration-300 left-0 right-0`}>
+      <div className="w-full max-w-xl mx-auto px-4 lg:max-w-4xl xl:max-w-5xl">
         <div className="bg-white/90 backdrop-blur-md border border-slate-200/50 rounded-xl px-4 py-3 space-y-2 shadow-xl">
           {/* Hiển thị ảnh xem trước (nếu có) */}
           {selectedImage && (
@@ -153,16 +153,27 @@ export const ChatInput = ({ isSidebarOpen, pathname }: ChatInputProps) => {
             </div>
           )}
           <div className="flex items-center gap-2">
-            <button className="text-teal-600 text-xl p-1 rounded-full hover:bg-teal-50 transition-colors">
-              <Bot className="w-6 h-6" />
-            </button>
             <input type="file" ref={fileInputRef} onChange={handleImageChange} className="hidden" accept="image/*" />
             <button
               onClick={() => fileInputRef.current?.click()}
               className="text-teal-600 hover:text-teal-700 p-1 rounded-full hover:bg-teal-50 transition-colors"
               title="Tải lên ảnh"
             >
-              <Paperclip className="w-6 h-6" />
+              {/* Thay thế icon Paperclip bằng SVG path của bạn */}
+              <svg
+                xmlns="http://www.w3.org/2000/svg"
+                fill="none"
+                viewBox="0 0 24 24"
+                strokeWidth={1.5}
+                stroke="currentColor"
+                className="w-6 h-6"
+              >
+                <path
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  d="M2.25 15.75l5.159-5.159a2.25 2.25 0 013.182 0l5.159 5.159m-1.5-1.5l1.409-1.409a2.25 2.25 0 013.182 0l2.909 2.909m-18 3.75h16.5a1.5 1.5 0 001.5-1.5V6a1.5 1.5 0 00-1.5-1.5H3.75A1.5 1.5 0 002.25 6v12a1.5 1.5 0 001.5 1.5zm10.5-11.25h.008v.008h-.008V8.25zm.375 0a.375.375 0 11-.75 0 .375.375 0 01.75 0z"
+                />
+              </svg>
             </button>
             <button
               onClick={handleVoiceInput}

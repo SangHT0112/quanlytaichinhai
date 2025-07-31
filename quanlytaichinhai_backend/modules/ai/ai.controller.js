@@ -203,6 +203,16 @@ export const handleChat = async (req, res) => {
         } else if (intent === "component") {
           structured = parsed;
         }
+
+        if (
+          intent === "transaction" &&
+          structured &&
+          structured.transactions &&
+          structured.transactions.length === 1 &&
+          structured.transactions[0].description
+        ) {
+          structured.group_name = structured.transactions[0].description;
+        }
       } catch (e) {
         console.warn(`⚠️ Parse JSON failed for ${intent}:`, aiText, e.message);
         structured = intent === "transaction"

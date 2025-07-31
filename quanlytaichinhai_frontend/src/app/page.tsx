@@ -9,6 +9,8 @@ import axiosInstance from '@/config/axios';
 import { saveChatHistory } from '@/api/chatHistoryApi';
 import { useCallback } from 'react';
 import { AllowedComponents } from '@/components/types';
+
+import { useTransaction } from "@/contexts/TransactionContext";
 // Helper: Type guard để kiểm tra StructuredData dạng component
 const isComponentStructuredData = (data: StructuredData): data is { type: 'component'; name: AllowedComponents; introText?: string; props?: Record<string, unknown>; layout?: 'inline' | 'block' } => {
   return 'type' in data && data.type === 'component';
@@ -71,6 +73,7 @@ export default function ChatAI() {
     ? JSON.parse(localStorage.getItem('user') || 'null')
     : null;
 
+  const { refreshTransactions } = useTransaction();
   const getWelcomeMessage = (): ChatMessage => ({
     id: '1',
     content: 'Xin chào! Tôi là AI hỗ trợ tài chính. Hãy hỏi tôi về: số dư, chi tiêu, tiết kiệm...',
@@ -213,7 +216,7 @@ export default function ChatAI() {
         role: MessageRole.ASSISTANT,
         timestamp: new Date(),
       };
-
+      await refreshTransactions();
       setMessages((prev) => [...prev, confirmMsg]);
       setConfirmedIds((prev) => [...prev, message.id]);
     } catch (err: unknown) {
