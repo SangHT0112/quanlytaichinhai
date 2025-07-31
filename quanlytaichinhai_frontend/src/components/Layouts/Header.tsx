@@ -15,7 +15,7 @@ export const Header = ({
   user: { username: string } | null
 }) => {
   return (
-    <header className="sticky top-0 z-40 h-12 bg-white/40 backdrop-blur-sm border-b border-teal-200/50 px-6 flex items-center justify-between shadow-sm">
+    <header className="sticky top-0 z-40 h-15 bg-white border-b border-teal-200/50 px-6 flex items-center justify-between shadow-sm">
       <div className="flex items-center gap-4">
         <button
           onClick={() => setIsSidebarOpen(!isSidebarOpen)}

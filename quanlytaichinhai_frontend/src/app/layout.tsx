@@ -155,7 +155,12 @@ export default function RootLayout({ children }: { children: ReactNode }) {
 
   return (
     <html lang="vi">
-      <body className="flex bg-gradient-to-br from-teal-50 to-cyan-50 text-slate-800 font-sans min-h-screen w-full overflow-x-hidden">
+      <body
+        className={`flex text-slate-800 font-sans min-h-screen w-full overflow-x-hidden bg-cover bg-center bg-no-repeat`}
+        style={{
+          backgroundImage: "url('/background.png')"
+        }}
+      >
         {/* Sidebar - Luôn hiển thị nhưng có thể bị ẩn bằng transform */}
         <div 
           className={`fixed inset-y-0 left-0 z-50 w-64 bg-gray-900 transition-all duration-300 ease-in-out ${
@@ -167,7 +172,7 @@ export default function RootLayout({ children }: { children: ReactNode }) {
 
         {/* Main content */}
         <UserProvider>
-          <div className={`flex flex-col flex-1 min-h-screen transition-all duration-300 ${isSidebarOpen ? 'ml-64' : 'ml-0'}`}>
+          <div className={`flex flex-col flex-1 transition-all duration-300 ${isSidebarOpen ? 'ml-64' : 'ml-0'}`}>
             <Header 
               isSidebarOpen={isSidebarOpen} 
               setIsSidebarOpen={setIsSidebarOpen}

@@ -36,7 +36,7 @@ export const getQuickActions = async (req, res) => {
         Dựa trên lịch sử chat này và kiến thức về các ứng dụng quản lý tài chính, hãy suy luận 3-5 "quick actions" (hành động nhanh) mà người dùng có thể sẽ muốn thực hiện tiếp theo hoặc thường xuyên thực hiện. Các hành động này nên hữu ích, ngắn gọn, và có tính khả thi trong một ứng dụng tài chính.
 
         **Ví dụ về các loại quick actions hữu ích:**
-        - **Ghi lại giao dịch:** "Thêm chi tiêu ăn uống", "Nhập khoản thu nhập", "Ghi lại tiền xăng", "Thêm giao dịch mua sắm"
+        - **Ghi lại giao dịch:** "Thêm chi tiêu ăn sáng 25k", "Vừa đổ xăng 50k"
         - **Xem báo cáo/thống kê:** "Xem chi tiêu tháng này", "Biểu đồ thu chi", "Kiểm tra số dư hiện tại", "Báo cáo nợ"
         - **Lập kế hoạch/dự đoán:** "Dự đoán số dư cuối tháng", "Xem ngân sách còn lại", "Lập kế hoạch tiết kiệm"
         - **Quản lý mục tiêu/tài sản:** "Xem mục tiêu tiết kiệm", "Cập nhật tài sản"

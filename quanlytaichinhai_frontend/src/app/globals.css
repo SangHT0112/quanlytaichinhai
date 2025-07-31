@@ -130,6 +130,13 @@
   transition-duration: 300ms;
 }
 
+body {
+  background-image: url('/background.png'); /* Đường dẫn ảnh từ thư mục public */
+  background-size: cover;
+  background-repeat: no-repeat;
+  background-position: center;
+  background-attachment: fixed; /* nếu muốn cố định ảnh */
+}
 
 /* Thêm vào file global CSS */
 /* Thêm vào file global CSS */
@@ -149,6 +156,7 @@ body.waiting-navigation::after {
   z-index: 9999;
   animation: loadingAnimation 5s linear forwards;
 }
+
 
 @keyframes loadingAnimation {
   0% { width: 0% }
