@@ -6,7 +6,6 @@ import { ChatInput } from "@/components/Layouts/ChatInput";
 import { ReactNode, useState, useEffect } from "react";
 import { UserProvider } from "@/contexts/UserProvider"
 import RightSidebar from "@/components/Layouts/SidebarRight";
-import axiosInstance from "@/config/axios";
 import { TransactionProvider } from "@/contexts/TransactionContext";
 export default function RootLayout({ children }: { children: ReactNode }) {
 
@@ -16,7 +15,6 @@ export default function RootLayout({ children }: { children: ReactNode }) {
   }
   const [isSidebarOpen, setIsSidebarOpen] = useState(true);
   const [isSidebarRightOpen, setSidebarRightOpen] = useState(true);
-  const [transactions, setTransactions] = useState<any[]>([]);
   const pathname = usePathname();
   const [user, setUser] = useState<UserType | null>(null);
 

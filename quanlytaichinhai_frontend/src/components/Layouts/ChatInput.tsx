@@ -2,7 +2,7 @@
 import { useState, useRef, ChangeEvent } from "react";
 import { useRouter } from "next/navigation";
 import Image from "next/image";
-import { X, Send, Mic, Paperclip, Bot } from "lucide-react";
+import { X, Send, Mic } from "lucide-react";
 interface ChatInputProps {
   isSidebarOpen: boolean;
   pathname: string; // Add pathname prop
@@ -39,7 +39,7 @@ interface CustomWindow extends Window {
 
 declare let window: CustomWindow;
 
-export const ChatInput = ({ isSidebarOpen, pathname }: ChatInputProps) => {
+export const ChatInput = ({ pathname }: ChatInputProps) => {
   const [chatInput, setChatInput] = useState("");
   const [isNavigating, setIsNavigating] = useState(false);
   const [selectedImage, setSelectedImage] = useState<File | null>(null);

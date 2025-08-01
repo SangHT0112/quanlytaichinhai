@@ -11,6 +11,12 @@ interface Transaction {
   type: "income" | "expense";
   time: string;
 }
+interface TransactionGroup {
+  group_id: number;
+  group_name: string;
+  total_amount: number;
+  transaction_date: string;
+}
 
 // Kiểu dữ liệu cho context
 interface TransactionContextType {
@@ -44,7 +50,7 @@ export const TransactionProvider = ({ children, user }: Props) => {
         },
       });
 
-      const mapped: Transaction[] = res.data.map((group: any) => ({
+      const mapped: Transaction[] = res.data.map((group: TransactionGroup) => ({
         id: group.group_id,
         description: group.group_name,
         amount: group.total_amount,
