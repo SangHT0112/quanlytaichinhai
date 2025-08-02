@@ -53,7 +53,7 @@ export default function RootLayout({ children }: { children: ReactNode }) {
             <RightSidebar
               isSidebarOpen={isSidebarRightOpen}
               setIsSidebarOpen={setSidebarRightOpen}
-              title="Lịch sử giao dịch hôm nay"
+              title="Lịch sử giao dịch"
             />
           </TransactionProvider>
         </UserProvider>

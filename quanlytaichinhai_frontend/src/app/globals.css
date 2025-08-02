@@ -112,7 +112,6 @@
   --sidebar-ring: oklch(0.556 0 0);
 }
 
-
 @layer base {
   * {
     @apply border-border outline-ring/50;
@@ -121,7 +120,6 @@
     @apply bg-background text-foreground;
   }
 }
-
 
 /* Thêm vào file CSS global */
 .transition-all {
@@ -156,7 +154,6 @@ body.waiting-navigation::after {
   z-index: 9999;
   animation: loadingAnimation 5s linear forwards;
 }
-
 
 @keyframes loadingAnimation {
   0% { width: 0% }

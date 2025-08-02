@@ -1,22 +1,13 @@
 
-import { generateTransactionPrompt } from "./prompts/transactionPrompt.js"
-import { generateComponentPrompt } from "./prompts/componentPrompt.js"
-import { generateNaturalPrompt } from "./prompts/naturalPrompt.js"
-import { generateFollowupPrompt } from "./prompts/generateFollowupPrompt.js"
-import { getChatHistory } from "../chat_history/chat_history.model.js"
 import { getCategoryIdByKeyword } from "../category/category.model.js"
 import { addTransaction, createTransactionGroup } from "../transaction/transaction.model.js"
-import { generateAmountPrompt } from "./prompts/generateAmountPrompt.js"
-import { generateExplainPrompt } from "./prompts/sqlPrompts/generateExplainPrompt.js"
-import { generateSQLPrompt } from "./prompts/sqlPrompts/generateSQLPrompt.js"
-import { generateForecastSQLPrompt } from "./prompts/sqlPrompts/generateForecastSQLPrompt.js"
+ 
 import fetch from 'node-fetch'
 import fs from 'fs'
 import path from 'path'
 import { fileURLToPath } from 'url';
 import { sendToBamlGemini } from "./sendToBamlGemini.js"
-
-import db from "../../config/db.js"
+import {intentMap} from "./intentMap.js"
 // Định nghĩa __dirname
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 
@@ -58,77 +49,43 @@ const fetchWithFailover = async (body) => {
 };
 
 export const handleChat = async (req, res) => {
-  const user_id = req.body.user_id;
-  const user_input = req.body.message || "";
-  const now = new Date().toISOString().split("T")[0];
+  const { user_id, message: user_input = "", history = [] } = req.body;
+  const now = new Date(Date.now() + 7 * 60 * 60 * 1000).toISOString().slice(0, 19).replace("T", " ");
 
-  // Kiểm tra khóa API
+
+
   if (GEMINI_API_KEYS.length === 0) {
-    console.error("❌ Không có khóa API Gemini hợp lệ nào được định nghĩa trong .env");
-    return res.status(500).json({ error: "Không có khóa API Gemini hợp lệ nào được cấu hình" });
+    console.error("❌ Không có khóa API Gemini hợp lệ.");
+    return res.status(500).json({ error: "Không có khóa API Gemini hợp lệ." });
   }
 
-  // Sử dụng lịch sử từ frontend
-  const history = req.body.history || [];
-  console.log('Lịch sử từ frontend:', history); // Debug lịch sử
-
   const historyText = history
-    .map((msg) => {
-      if (msg.role === 'user') {
-        return `Người dùng: ${msg.content}`;
-      } else {
-        const structuredText = msg.structured ? `\n(JSON: ${JSON.stringify(msg.structured)})` : '';
-        return `AI: ${msg.content}${structuredText}`;
-      }
-    })
-    .join('\n');
+    .map((msg) =>
+      msg.role === "user"
+        ? `Người dùng: ${msg.content}`
+        : `AI: ${msg.content}${msg.structured ? `\n(JSON: ${JSON.stringify(msg.structured)})` : ""}`
+    )
+    .join("\n");
 
   try {
-    // Phân loại intent
-    const classifyPromptPath = path.resolve(__dirname, './documents/ai_prompt_classify.txt');
-    const classifyBasePrompt = fs.readFileSync(classifyPromptPath, 'utf-8');
+    const classifyPromptPath = path.resolve(__dirname, "./documents/ai_prompt_classify.txt");
+    const classifyBasePrompt = fs.readFileSync(classifyPromptPath, "utf-8");
     const classifyPrompt = classifyBasePrompt.replace("${user_input}", user_input);
 
     const classifyData = await fetchWithFailover({
-      contents: [
-        {
-          parts: [
-            { text: classifyPrompt }
-          ]
-        }
-      ]
+      contents: [{ parts: [{ text: classifyPrompt }] }],
     });
 
     const rawIntent = classifyData.candidates?.[0]?.content?.parts?.[0]?.text?.trim().toLowerCase();
-    console.log("Raw intent từ Gemini:", rawIntent);
-    const validIntents = ["transaction", "amount", "component", "followup", "sql_query", "forecast"];
-    const intent = validIntents.includes(rawIntent) ? rawIntent : "natural";
-    console.log("Intent cuối cùng:", intent);
+    const intent = Object.keys(intentMap).includes(rawIntent) ? rawIntent : "natural";
+    console.log("Input:", user_input);
+    console.log("Raw intent from Gemini:", rawIntent);
+    console.log("Final intent:", intent);
 
-    // Tạo prompt chính
-    let prompt = "";
-    let isJsonResponse = false;
-    if (intent === "transaction") {
-      prompt = await generateTransactionPrompt({ user_input, now, user_id });
-      isJsonResponse = true;
-    } else if(intent === "amount") {
-      prompt = await generateAmountPrompt({ user_input, historyText, now, user_id });
-      isJsonResponse = true;
-    }else if (intent === "component") {
-      prompt = generateComponentPrompt({ user_input });
-      isJsonResponse = true;
-    }else if(intent === "sql_query"){
-      prompt = generateSQLPrompt({ user_id, user_input, historyText });
-    }else if (intent === "forecast") {
-      prompt = generateForecastSQLPrompt({ user_input, user_id, now });
-      isJsonResponse = true;
-    }else if (intent === "followup") {
-      prompt = generateFollowupPrompt({ user_input, historyText });
-    }else {
-      prompt = generateNaturalPrompt({ user_input, historyText });
-    }
+    const { generatePrompt, isJsonResponse, processResponse } = intentMap[intent];
+    const prompt = await generatePrompt({ user_input, now, user_id, historyText });
+    // console.log("Generated prompt:", prompt);
 
-    // Gửi request chính
     const geminiData = await fetchWithFailover({
       contents: [
         {
@@ -136,210 +93,30 @@ export const handleChat = async (req, res) => {
             {
               text: isJsonResponse
                 ? `${prompt}\nTrả về chỉ JSON hợp lệ, không thêm văn bản giải thích hay ký tự thừa như markdown.`
-                : prompt
-            }
-          ]
-        }
-      ]
+                : prompt,
+            },
+          ],
+        },
+      ],
     });
 
-    let aiText = geminiData.candidates?.[0]?.content?.parts?.[0]?.text?.trim() || "Không nhận được phản hồi từ AI.";
+    const aiText = geminiData.candidates?.[0]?.content?.parts?.[0]?.text?.trim() || "Không nhận được phản hồi từ AI.";
     console.log("Phản hồi từ Gemini:", aiText);
 
-    let structured = null;
-
-    if (intent === "transaction" || intent === "amount" || intent === "component") {
-      try {
-        // Loại bỏ markdown nếu có
-        const jsonStart = aiText.indexOf('{');
-        const jsonEnd = aiText.lastIndexOf('}') + 1;
-        if (jsonStart !== -1 && jsonEnd > jsonStart) {
-          aiText = aiText.slice(jsonStart, jsonEnd);
-        }
-        const parsed = JSON.parse(aiText);
-        // Kiểm tra nếu phản hồi là câu hỏi tự nhiên (thiếu số tiền)
-        if (parsed.response_type === "natural") {
-          structured = { message: parsed.message };
-          return res.json({
-            intent,
-            raw: parsed.message,
-            structured
-          });
-        }
-        if (intent === "transaction" || intent === 'amount') {
-          if (parsed.transactions && Array.isArray(parsed.transactions)) {
-            structured = {
-              group_name: parsed.group_name || null,
-              transaction_date: parsed.transaction_date || now,
-              user_id: parsed.user_id || user_id,
-              transactions: parsed.transactions.map(tx => ({
-                ...tx,
-                amount: Number(tx.amount) || 0
-              }))
-            };
-          } else if (Array.isArray(parsed)) {
-            structured = {
-              group_name: null,
-              transaction_date: now,
-              user_id,
-              transactions: parsed.map(tx => ({
-                ...tx,
-                amount: Number(tx.amount) || 0
-              }))
-            };
-          } else if (parsed && typeof parsed === "object") {
-            structured = {
-              group_name: null,
-              transaction_date: now,
-              user_id,
-              transactions: [{
-                ...parsed,
-                amount: Number(parsed.amount) || 0
-              }]
-            };
-          } else {
-            structured = { group_name: null, transaction_date: now, user_id, transactions: [] };
-          }
-        } else if (intent === "component") {
-          structured = parsed;
-        }
-
-        if (
-          intent === "transaction" &&
-          structured &&
-          structured.transactions &&
-          structured.transactions.length === 1 &&
-          structured.transactions[0].description
-        ) {
-          structured.group_name = structured.transactions[0].description;
-        }
-      } catch (e) {
-        console.warn(`⚠️ Parse JSON failed for ${intent}:`, aiText, e.message);
-        structured = intent === "transaction"
-          ? { group_name: null, transaction_date: now, user_id, transactions: [] }
-          : { error: "Không hiểu" };
-      }
-    } 
-    if (intent === "sql_query") {
-      try {
-        let sql = aiText.trim();
-        sql = sql.replace(/^```sql\s*/i, "").replace(/```$/i, "").trim();
-        
-        // Validate SQL
-        if (sql === "INVALID_SQL" || !sql.toLowerCase().startsWith("select")) {
-          structured = { error: "Không thể tạo truy vấn hợp lệ hoặc chỉ truy vấn SELECT được hỗ trợ." };
-        } else {
-          const rows = await db.query(sql);  // Make sure db is properly imported
-
-          // Generate explanation
-          const explainPrompt = generateExplainPrompt({
-            user_input,
-            query_result: rows
-          });
-
-          const explainData = await fetchWithFailover({
-            contents: [{ parts: [{ text: explainPrompt }] }]
-          });
-
-          aiText = explainData.candidates?.[0]?.content?.parts?.[0]?.text?.trim() || 
-                  "Đây là kết quả truy vấn nhưng không thể tạo giải thích.";
-
-          structured = {
-            query: sql,
-            result: rows,
-            answer: aiText
-          };
-        }
-      } catch (err) {
-        console.error("SQL Execution Error:", err);
-        aiText = "Lỗi khi thực hiện truy vấn dữ liệu.";
-        structured = { 
-          error: "Lỗi SQL", 
-          details: err.message 
-        };
-      }
-      
-      // Keep response structure consistent with other intents
-      res.json({
-        intent,
-        raw: aiText,
-        structured
-      });
-      return;
-    }
-    // Dự án tiết kiệm
-    if (intent === "forecast") {
-      try{
-          let aiRaw = aiText.trim();
-          aiRaw = aiRaw.replace(/^```json\s*/i, "").replace(/```$/i, "").trim();
-          let forecastData = null;
-          try{
-            const jsonStart = aiRaw.indexOf('{');
-            const jsonEnd = aiRaw.lastIndexOf('}') + 1;
-            aiRaw = aiRaw.slice(jsonStart, jsonEnd);
-            forecastData = JSON.parse(aiRaw);
-          }catch (e) {
-            structured = { error: "Phân tích forecast thất bại", raw: aiRaw };
-            return res.json({ intent, raw: aiRaw, structured });
-          }
-
-          // Kiểm tra dữ liệu cần thiết
-          if (!forecastData?.sql || !forecastData?.goal_amount) {
-              structured = { error: "Thiếu SQL hoặc goal_amount", raw: forecastData };
-              return res.json({ intent, raw: aiRaw, structured });
-          }
-
-          // Thực thi SQL
-          let rows = [];
-          try {
-            [rows] = await db.query(forecastData.sql);
-          } catch (err) {
-            structured = { error: "Lỗi khi chạy SQL", details: err.message };
-            return res.json({ intent, raw: aiRaw, structured });
-          }
-          // Giai thich
-          const explainPrompt = generateExplainPrompt({
-            user_input,
-            query_result: rows,
-            goal_amount: forecastData.goal_amount
-          });
-
-          const explainData = await fetchWithFailover({
-            contents: [{ parts: [{ text: explainPrompt }] }]
-          });
-           const finalAnswer = explainData.candidates?.[0]?.content?.parts?.[0]?.text?.trim()
-                      || "Không thể tạo lời giải thích.";
-
-          structured = {
-            goal_amount: forecastData.goal_amount,
-            sql: forecastData.sql,
-            result: rows,
-            answer: finalAnswer
-          };
-
-
-          return res.json({ intent, raw: finalAnswer, structured });
-
-      }catch (err) {
-        console.error("❌ Lỗi khi xử lý dự báo:", err);
-        aiText = "Lỗi khi xử lý dự báo.";
-        structured = { error: "Lỗi dự báo", details: err.message };
-      }
-    }
-
-
-    console.log("Structured data:", structured);
-    res.json({
-      intent,
-      raw: aiText,
-      structured
+    const { raw = aiText, structured = null } = await processResponse(aiText, {
+      user_input,
+      now,
+      user_id,
+      historyText,
     });
+
+    // Không ghi đè intent, giữ intent gốc
+    return res.json({ intent, raw, structured });
   } catch (error) {
     console.error("❌ handleChat error:", error.message);
-    res.status(500).json({ error: `Lỗi xử lý AI: ${error.message}` });
+    return res.status(500).json({ error: `Lỗi xử lý AI: ${error.message}` });
   }
 };
-
 
 export const confirmTransaction = async (req, res) => {
   try {

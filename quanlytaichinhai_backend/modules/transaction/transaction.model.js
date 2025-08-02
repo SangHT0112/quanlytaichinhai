@@ -102,9 +102,15 @@ export const getTransactionGroupsByUserId = async (userId, limit = null, dateFil
     SELECT 
       tg.group_id,
       tg.group_name,
-      tg.total_amount,
       tg.transaction_date,
-      COUNT(t.transaction_id) AS transaction_count
+      COUNT(t.transaction_id) AS transaction_count,
+      COALESCE(SUM(
+        CASE 
+          WHEN t.type = 'income' THEN t.amount
+          WHEN t.type = 'expense' THEN -t.amount
+          ELSE 0
+        END
+      ), 0) AS total_amount
     FROM transaction_groups tg
     LEFT JOIN transactions t ON tg.group_id = t.group_id
     WHERE tg.user_id = ?
@@ -112,7 +118,7 @@ export const getTransactionGroupsByUserId = async (userId, limit = null, dateFil
 
   const params = [userId];
 
-  // Xử lý lọc theo ngày
+  // Lọc theo ngày
   if (dateFilter === "today") {
     query += ` AND DATE(tg.transaction_date) = CURDATE()`;
   } else if (dateFilter === "yesterday") {
@@ -136,6 +142,7 @@ export const getTransactionGroupsByUserId = async (userId, limit = null, dateFil
   return rows;
 };
 
+
 //lấy các chi tiết giao dịch trong 1 nhóm yêu cầu
 export const getTransactionsByGroupId = async (groupId) => {
   const query = `
@@ -153,3 +160,22 @@ export const getTransactionsByGroupId = async (groupId) => {
   return rows;
 }
 
+
+export const getRecentTransactionsByUserId = async (userId, limit = 5, offset = 0) => {
+  const query = `
+    SELECT 
+      t.transaction_id AS id,
+      t.description,
+      t.amount,
+      t.type,
+      t.created_at
+    FROM transactions t
+    INNER JOIN transaction_groups tg ON t.group_id = tg.group_id
+    WHERE tg.user_id = ?
+    ORDER BY t.created_at DESC
+    LIMIT ? OFFSET ?
+  `;
+
+  const [rows] = await db.execute(query, [userId, limit, offset]);
+  return rows;
+};

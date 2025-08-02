@@ -2,6 +2,7 @@ import { getTransactionsByUserId, addTransaction} from "./transaction.model.js"
 import { createTransactionGroup } from "./transaction.model.js";
 import { getTransactionGroupsByUserId } from "./transaction.model.js";
 import { getTransactionsByGroupId } from "./transaction.model.js";
+import {getRecentTransactionsByUserId} from "./transaction.model.js"
 export const createTransactionGroupWithItems = async (req, res) => {
   try {
     const { user_id, group_name, transaction_date, transactions } = req.body;
@@ -133,3 +134,17 @@ export const createTransaction = async (req, res) => {
     res.status(500).json({ message: "Lỗi server khi thêm giao dịch" })
   }
 }
+
+
+//lây 10 giao dịch gần nhất
+export const getRecentTransactions = async (req, res) => {
+  const { user_id, limit = 10, offset = 0 } = req.query;
+
+  try {
+    const data = await getRecentTransactionsByUserId(user_id, Number(limit), Number(offset));
+    return res.json(data);
+  } catch (error) {
+    console.error("Lỗi getRecentTransactions:", error.message);
+    return res.status(500).json({ error: "Lỗi server khi lấy giao dịch gần đây." });
+  }
+};

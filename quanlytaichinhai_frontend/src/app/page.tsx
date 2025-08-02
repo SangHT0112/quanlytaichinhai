@@ -9,8 +9,8 @@ import axiosInstance from '@/config/axios';
 import { saveChatHistory } from '@/api/chatHistoryApi';
 import { useCallback } from 'react';
 import { AllowedComponents } from '@/components/types';
+import { useTransaction } from '@/contexts/TransactionContext';
 
-import { useTransaction } from "@/contexts/TransactionContext";
 // Helper: Type guard để kiểm tra StructuredData dạng component
 const isComponentStructuredData = (data: StructuredData): data is { type: 'component'; name: AllowedComponents; introText?: string; props?: Record<string, unknown>; layout?: 'inline' | 'block' } => {
   return 'type' in data && data.type === 'component';
@@ -74,6 +74,7 @@ export default function ChatAI() {
     : null;
 
   const { refreshTransactions } = useTransaction();
+
   const getWelcomeMessage = (): ChatMessage => ({
     id: '1',
     content: 'Xin chào! Tôi là AI hỗ trợ tài chính. Hãy hỏi tôi về: số dư, chi tiêu, tiết kiệm...',
@@ -81,7 +82,7 @@ export default function ChatAI() {
     timestamp: new Date(),
   });
 
-  const sendToApi = async (message: string, updatedMessages: ChatMessage[], imageData?: FormData) => {
+  const sendToApi = useCallback(async (message: string, updatedMessages: ChatMessage[], imageData?: FormData) => {
     if (isApiProcessing.current) return;
     isApiProcessing.current = true;
 
@@ -90,14 +91,12 @@ export default function ChatAI() {
       if (imageData) {
         console.log('Gửi yêu cầu xử lý tài liệu đến API:');
 
-        //Danh thuc ten mien 
         try {
           await fetch('https://quanlytaichinhai-python.onrender.com/ping');
           await new Promise((resolve) => setTimeout(resolve, 3000)); // đợi 3s cho chắc
         } catch (err) {
           console.warn("Không thể ping backend Python:", err);
         }
-
 
         for (const [key, value] of imageData.entries()) {
           console.log(`${key}:`, value instanceof File ? value.name : value);
@@ -165,7 +164,7 @@ export default function ChatAI() {
       setIsLoading(false);
       isApiProcessing.current = false;
     }
-  };
+  }, [setMessages, setIsLoading, currentUser?.user_id]); // Removed convertStructuredToCustomContent
 
   const handleSendMessage = useCallback(async (message: string, imageData?: FormData) => {
     if (!message.trim() && !imageData) return;
@@ -186,7 +185,7 @@ export default function ChatAI() {
 
     setInputValue('');
     setIsLoading(true);
-  }, [setMessages, setInputValue, setIsLoading]); // Dependencies for useCallback
+  }, [setMessages, setInputValue, setIsLoading, sendToApi]);
 
   const handleQuickAction = (action: string) => {
     handleSendMessage(action);
@@ -299,9 +298,7 @@ export default function ChatAI() {
   }, [handleSendMessage, setInputValue, inputValue]);
 
   return (
-   <div
-      className="flex flex-col h-full bg-cover bg-center pb-20"
-    >
+    <div className="flex flex-col h-full bg-cover bg-center pb-20">
       <div className="flex-1 overflow-y-auto space-y-4 pb-4 mt-3 mx-55">
         {messages.map((msg) => (
           <MessageItem
