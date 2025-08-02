@@ -138,10 +138,16 @@ export const createTransaction = async (req, res) => {
 
 //lây 10 giao dịch gần nhất
 export const getRecentTransactions = async (req, res) => {
-  const { user_id, limit = 10, offset = 0 } = req.query;
+  const user_id = parseInt(req.query.user_id, 10);
+  const limit = parseInt(req.query.limit || '5', 10);
+  const offset = parseInt(req.query.offset || '0', 10);
+
+  if (isNaN(user_id) || user_id <= 0) {
+    return res.status(400).json({ error: "user_id không hợp lệ" });
+  }
 
   try {
-    const data = await getRecentTransactionsByUserId(user_id, Number(limit), Number(offset));
+    const data = await getRecentTransactionsByUserId(user_id, limit, offset);
     return res.json(data);
   } catch (error) {
     console.error("Lỗi getRecentTransactions:", error.message);
