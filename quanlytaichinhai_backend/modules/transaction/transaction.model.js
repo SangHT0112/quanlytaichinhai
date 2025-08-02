@@ -173,10 +173,9 @@ export const getRecentTransactionsByUserId = async (userId, limit = 5, offset = 
     INNER JOIN transaction_groups tg ON t.group_id = tg.group_id
     WHERE tg.user_id = ?
     ORDER BY t.created_at DESC
-    LIMIT ? OFFSET ?
+    LIMIT ${Number(limit)} OFFSET ${Number(offset)}
   `;
 
-  // đảm bảo truyền đúng kiểu
-  const [rows] = await db.execute(query, [Number(userId), Number(limit), Number(offset)]);
+  const [rows] = await db.execute(query, [Number(userId)]);
   return rows;
 };
