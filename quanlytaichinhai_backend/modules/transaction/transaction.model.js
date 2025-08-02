@@ -176,6 +176,7 @@ export const getRecentTransactionsByUserId = async (userId, limit = 5, offset = 
     LIMIT ? OFFSET ?
   `;
 
-  const [rows] = await db.execute(query, [userId, limit, offset]);
+  // đảm bảo truyền đúng kiểu
+  const [rows] = await db.execute(query, [Number(userId), Number(limit), Number(offset)]);
   return rows;
 };
