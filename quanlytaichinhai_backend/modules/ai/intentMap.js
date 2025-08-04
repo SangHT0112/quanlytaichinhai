@@ -7,10 +7,17 @@ import { generateAmountPrompt } from './prompts/generateAmountPrompt.js';
 import { generateExplainPrompt } from './prompts/sqlPrompts/generateExplainPrompt.js';
 import { generateSQLPrompt } from './prompts/sqlPrompts/generateSQLPrompt.js';
 import { generateForecastSQLPrompt } from './prompts/sqlPrompts/generateForecastSQLPrompt.js';
-import { generateUISettingPrompt } from './prompts/generateUISettingPrompt.js';
+import { generateImagePrompt } from './prompts/generateImagePrompt.js';
 import db from '../../config/db.js';
+import path from 'path'
+import fs from 'fs'
+import { fileURLToPath } from 'url';
+import { translateWithGemini } from './utils/translateWithGemini.js';
 import { fetchWithFailover } from './utils/fetchWithFailover.js';
 
+import { fetchStabilityAI } from './utils/fetchStabilityAI.js';
+
+const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const processTransactionResponse = async (aiText, { user_input, now, user_id, historyText }) => {
   const parsed = parseJsonFromText(aiText, { fallback: null });
   if (!parsed) {
@@ -156,10 +163,47 @@ export const intentMap = {
     isJsonResponse: false,
     processResponse: async (aiText) => ({ raw: aiText }),
   },
-  ui_setting: {
-    generatePrompt: generateUISettingPrompt,
-    isJsonResponse: true,
-    processResponse: genericJsonProcessor,
+  generate_image: {
+    generatePrompt: generateImagePrompt,
+    isJsonResponse: false,
+    processResponse: async (aiText, { user_input }) => {
+      try {
+        // ✨ Dịch tiếng Việt sang tiếng Anh (có thể cải thiện prompt)
+        const translatedPrompt = await translateWithGemini(user_input);
+
+        if (!translatedPrompt) {
+          return {
+            raw: "Không thể dịch prompt tiếng Việt.",
+            structured: { error: "Gemini translation failed" },
+          };
+        }
+
+        // 🖼️ Gọi Stability AI với prompt tiếng Anh đã dịch
+        const imageBuffer = await fetchStabilityAI(translatedPrompt);
+
+        const dir = path.join(process.cwd(), 'public', 'generated_images');
+        if (!fs.existsSync(dir)) fs.mkdirSync(dir, { recursive: true });
+
+        const filename = `generated_image_${Date.now()}.png`;
+        const imagePath = path.join(dir, filename);
+
+        fs.writeFileSync(imagePath, imageBuffer);
+
+        return {
+          raw: "Hình ảnh đã được tạo thành công.",
+          structured: {
+            image_path: `/generated_images/${filename}`,
+            original_prompt: user_input,
+            translated_prompt: translatedPrompt,
+          },
+        };
+      } catch (error) {
+        return {
+          raw: "Lỗi khi tạo hình ảnh.",
+          structured: { error: error.message },
+        };
+      }
+    },
   },
   natural: {
     generatePrompt: generateNaturalPrompt,

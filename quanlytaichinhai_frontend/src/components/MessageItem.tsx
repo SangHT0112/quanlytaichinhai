@@ -8,7 +8,7 @@ import SingleTransactionConfirmationForm from "./transaction-form/SingleTransact
 import MultiTransactionConfirmationForm from "./transaction-form/MultiTransactionConfirmationForm" // Đảm bảo component này đã được định nghĩa
 import TransactionEditForm from "./transaction-form/TransactionEditForm" // Đảm bảo component này đã được định nghĩa
 import { renderCustomContent } from "./hooks/renderCustomContent" // Đảm bảo hook này đã được định nghĩa
-
+import BackgroundImageConfirmForm from "./transaction-form/ComfirmImage"
 // Type guard để kiểm tra StructuredData dạng transactions
 const isTransactionStructuredData = (
   data: StructuredData,
@@ -29,6 +29,24 @@ const isTransactionStructuredData = (
   return !("type" in data) || data.type !== "component"
 }
 
+function hasImagePath(data: StructuredData): data is {
+  transactions?: Array<{
+    type: 'expense' | 'income';
+    amount: number;
+    category: string;
+    date?: string;
+    user_id?: number;
+    description?: string;
+    transaction_date?: string;
+  }>;
+  group_name?: string;
+  total_amount?: number;
+  transaction_date?: string;
+  image_path?: string;
+} {
+  return 'image_path' in data;
+}
+
 export const MessageItem = ({
   message,
   onConfirm,
@@ -43,7 +61,7 @@ export const MessageItem = ({
   const [isEditing, setIsEditing] = useState(false)
   const [editingIndex, setEditingIndex] = useState(0)
   const [isLoading, setIsLoading] = useState(false)
-
+  const groupTransactionDate = (message.structured as { transaction_date?: string })?.transaction_date;
   // Lấy transactions từ structured và đảm bảo khớp với TransactionData
   const transactions: TransactionData[] =
     message.structured &&
@@ -56,7 +74,7 @@ export const MessageItem = ({
           date: tx.date,
           user_id: tx.user_id ?? 1,
           description: tx.description || message.user_input || message.content || "Không có mô tả",
-          transaction_date: tx.transaction_date || new Date().toISOString(),
+         transaction_date: tx.transaction_date || groupTransactionDate || new Date().toISOString(),
         }))
       : []
 
@@ -187,6 +205,12 @@ export const MessageItem = ({
             )}
           </div>
         )}
+        {/* Hiển thị hình ảnh nếu structured có image_path */}
+        {message.structured && hasImagePath(message.structured) && message.structured.image_path && (
+        <BackgroundImageConfirmForm imagePath={message.structured.image_path} />
+      )}
+
+
         {/* Hiển thị custom content nếu có */}
         {message.custom_content?.map((part, index) => (
           <div key={index} className="mt-2">

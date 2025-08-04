@@ -1,4 +1,5 @@
 import { getCategory } from "../../category/category.model.js";
+import { getCurrencyMappings } from "../../currency/currency.model.js";
 import fs from "fs";
 import path from "path";
 import { fileURLToPath } from "url";
@@ -13,8 +14,12 @@ export const generateTransactionPrompt = async ({ user_input, now, user_id }) =>
   const categories = await getCategory();
   const categoryList = categories.join(", ");
 
+  const currencyMappings = await getCurrencyMappings();
+  const currencyPrompt = currencyMappings
+  .map(c => `${c.term} = ${c.amount} ${c.currency_code}`)
+  .join(", ");
   // Kiểm tra xem user_input có chứa số tiền hay không
-  const moneyPattern = /\b(\d+\.?\d*)\s*(k|tr|nghìn|triệu|đồng|ngàn)\b/i;
+  const moneyPattern = /\b(\d+\.?\d*)\s*(k|tr|nghìn|triệu|đồng|ngàn|củ|xị|chai)\b/i;
   const hasMoney = moneyPattern.test(user_input);
 
   if (!hasMoney) {
@@ -78,9 +83,14 @@ Câu này không đề cập rõ ràng số tiền. Hãy phản hồi lại bằ
 
   📌 QUY TẮC BẮT BUỘC:
   - Trả về đúng định dạng JSON. **Không thêm lời giải thích.**
-  - "amount" phải là số (có thể viết kiểu 75k, 100.000, 1tr v.v).
+  - "amount" phải là số sau đây là các cách nói dân gian cần hiểu đúng số tiền ${currencyPrompt}
+  
+
   - "category" chỉ được chọn từ danh sách: [${categoryList}]
-  - "transaction_date" = "${now}" nếu không đề cập. nếu có đề cập tới ví dụ hôm qua, 3 ngày trước thì lấy ${now} trừ đi tương ứng
+  - "transaction_date" = "${now}" nếu không đề cập.
+  - Nếu có cụm như: "hôm qua", "3 ngày trước", "tuần trước", "tháng trước", "2 tuần trước", "đầu tháng", "cuối tháng", "ngày 12/7", "12 tháng 7"...
+    → thì phân tích ngày tương ứng dựa theo "${now}".
+
   - "description" là mô tả giao dịch ví dụ "mua sắm tại siêu thị", "ăn sáng tại quán A", "đi cafe với bạn B".
   - "type" là "expense" nếu là chi tiêu, "income" nếu là thu nhập.
   📌 LƯU Ý:

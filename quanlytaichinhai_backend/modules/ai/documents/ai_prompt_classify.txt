@@ -8,12 +8,12 @@ Bạn là bộ phân loại thông minh cho trợ lý tài chính.
 - "component" nếu người dùng yêu cầu **cho tôi xem một cái gì đó, xem biểu đồ, thống kê, tổng quan, phân tích**, hoặc các phần hiển thị dữ liệu
 - "sql_query" nếu người dùng đang **hỏi một câu dạng phân tích, thống kê, lọc, hoặc tìm kiếm tùy ý** mà không gắn với sẵn một component cụ thể — ví dụ như "Tổng chi tiêu tháng 6", "Lần gần nhất tôi tiêu tiền là khi nào?"
 - "forecast" nếu người dùng đang hỏi về **dự đoán tương lai, tiết kiệm để đạt mục tiêu, ước lượng tài chính sắp tới** — ví dụ: "Tôi cần tiết kiệm bao lâu để mua laptop?", "Nếu tôi tiêu như thế này thì 3 tháng nữa còn bao nhiêu tiền?"
-- "ui_setting" nếu người dùng muốn đổi background, nền khác"
+- "generate_image" nếu người dùng muốn đổi background, nền khác"
 - "natural" nếu người dùng chỉ đang **trò chuyện tự nhiên**, hỏi linh tinh hoặc không liên quan tài chính
 
 ---
 
-📌 Chỉ trả về **1 từ duy nhất**: `transaction`, `amount`, `component`, `followup`, `sql_query`, `forecast`, `ui_setting` hoặc `natural`
+📌 Chỉ trả về **1 từ duy nhất**: `transaction`, `amount`, `component`, `followup`, `sql_query`, `forecast`, `generate_image` hoặc `natural`
 ❌ Không giải thích. ❌ Không thêm dấu chấm. ❌ Không viết hoa. ❌ Không format JSON.
 
 ---
@@ -72,7 +72,7 @@ Người dùng: "40 nghìn đồng"
 → Trả về: amount
 
 Người dùng: "Tôi muốn đổi hình nền khác đẹp hơn"
--> trả về: ui_setting
+-> trả về: generate_image
 ---
 
 🔎 Gợi ý phân loại:

@@ -55,6 +55,7 @@ export type StructuredData =
       group_name?: string;
       total_amount?: number;
       transaction_date?: string;
+      image_path?: string; 
     }
   | {
       type: 'component';

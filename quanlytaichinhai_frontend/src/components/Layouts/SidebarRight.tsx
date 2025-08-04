@@ -15,7 +15,7 @@ export default function RightSidebar({
   setIsSidebarOpen: (value: boolean) => void;
   title?: string;
 }) {
-  const [sidebarWidth, setSidebarWidth] = useState(300);
+  const [sidebarWidth, setSidebarWidth] = useState("16.67%"); // Default to 1/6 of viewport width
   const isResizing = useRef(false);
   const { transactions, refreshTransactions, loadMoreTransactions } = useTransaction();
   const transactionsContainerRef = useRef<HTMLDivElement>(null);
@@ -29,9 +29,12 @@ export default function RightSidebar({
   useEffect(() => {
     const handleMouseMove = (e: MouseEvent) => {
       if (!isResizing.current) return;
-      const newWidth = window.innerWidth - e.clientX;
-      if (newWidth >= 200 && newWidth <= 500) {
-        setSidebarWidth(newWidth);
+      const newWidthPx = window.innerWidth - e.clientX;
+      const minWidthPx = 200; // Minimum width in pixels
+      const maxWidthPx = window.innerWidth * 0.3; // Max width: 30% of viewport
+      if (newWidthPx >= minWidthPx && newWidthPx <= maxWidthPx) {
+        const newWidthPercent = (newWidthPx / window.innerWidth) * 100;
+        setSidebarWidth(`${newWidthPercent}%`);
       }
     };
 
@@ -47,7 +50,7 @@ export default function RightSidebar({
     };
   }, []);
 
-  // Scroll to top khi mở sidebar
+  // Scroll to top when opening sidebar
   useEffect(() => {
     if (isSidebarOpen && transactionsContainerRef.current) {
       transactionsContainerRef.current.scrollTop = 0;
@@ -57,9 +60,9 @@ export default function RightSidebar({
   return (
     <aside
       className={`fixed inset-y-0 right-0 z-50 bg-gradient-to-b from-slate-800 to-slate-900 shadow-xl transition-all duration-300 ease-in-out h-full flex flex-col`}
-      style={{ width: isSidebarOpen ? `${sidebarWidth}px` : "3rem" }}
+      style={{ width: isSidebarOpen ? sidebarWidth : "3rem" }}
     >
-      {/* Thanh kéo bên trái sidebar */}
+      {/* Resize handle on the left side of the sidebar */}
       {isSidebarOpen && (
         <div
           onMouseDown={() => {
@@ -70,27 +73,37 @@ export default function RightSidebar({
       )}
 
       {/* Header */}
-      <div className={`flex items-center gap-3 pb-4 border-b border-slate-700/50 transition-all duration-300 ${
-        isSidebarOpen ? "px-4 pt-4" : "hidden"
-      }`}>
+      <div
+        className={`flex items-center gap-3 pb-4 border-b border-slate-700/50 transition-all duration-300 ${
+          isSidebarOpen ? "px-4 pt-4" : "hidden"
+        }`}
+      >
         <button
-          onClick={() => setIsSidebarOpen(!isSidebarOpen)}
+          onClick={() => {
+            setIsSidebarOpen(!isSidebarOpen);
+            if (isSidebarOpen) setSidebarWidth("16.67%"); // Reset to 1/6 when closing
+          }}
           className="p-2 bg-slate-700 hover:bg-slate-600 text-slate-200 rounded-md shadow transition-all duration-200"
           aria-label="Toggle sidebar"
         >
           <Menu className="w-5 h-5" />
         </button>
-        <h2 className={`text-xl font-bold bg-gradient-to-r from-cyan-300 to-teal-300 bg-clip-text text-transparent ${
-          isSidebarOpen ? "opacity-100" : "opacity-0 pointer-events-none"
-        }`}>
+        <h2
+          className={`text-xl font-bold bg-gradient-to-r from-cyan-300 to-teal-300 bg-clip-text text-transparent ${
+            isSidebarOpen ? "opacity-100" : "opacity-0 pointer-events-none"
+          }`}
+        >
           {title}
         </h2>
       </div>
 
-      {/* Khi sidebar đang đóng */}
+      {/* When sidebar is closed */}
       {!isSidebarOpen && (
         <button
-          onClick={() => setIsSidebarOpen(true)}
+          onClick={() => {
+            setIsSidebarOpen(true);
+            setSidebarWidth("16.67%"); // Reset to 1/6 when opening
+          }}
           className="absolute top-0 right-0 m-1 p-3 bg-gray-100 hover:bg-gray-200 text-gray-800 rounded-md shadow-md z-10 transition-all duration-200 ease-in-out"
           aria-label="Open sidebar"
         >
@@ -101,7 +114,7 @@ export default function RightSidebar({
       {/* Main Content Area */}
       <div className="flex-1 flex flex-col overflow-hidden">
         {/* Transaction List */}
-        <div 
+        <div
           ref={transactionsContainerRef}
           className={`flex-1 overflow-y-auto transition-opacity duration-300 scroll-smooth ${
             isSidebarOpen ? "opacity-100" : "opacity-0 pointer-events-none"
@@ -118,12 +131,12 @@ export default function RightSidebar({
                     <span className="font-medium text-slate-100 truncate flex-1">
                       {transaction.description}
                     </span>
-                    <span className={`font-medium text-sm min-w-[80px] text-right ${
-                      transaction.type === "income" 
-                        ? "text-green-400" 
-                        : "text-red-400"
-                    }`}>
-                      {transaction.type === 'income' ? '+' : '-'}
+                    <span
+                      className={`font-medium text-sm min-w-[80px] text-right ${
+                        transaction.type === "income" ? "text-green-400" : "text-red-400"
+                      }`}
+                    >
+                      {transaction.type === "income" ? "+" : "-"}
                       {formatCurrency(transaction.amount)}
                     </span>
                   </div>
@@ -136,8 +149,18 @@ export default function RightSidebar({
               ))
             ) : (
               <div className="flex flex-col items-center justify-center py-8 text-center">
-                <svg className="w-12 h-12 text-slate-500 mb-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
+                <svg
+                  className="w-12 h-12 text-slate-500 mb-2"
+                  fill="none"
+                  stroke="currentColor"
+                  viewBox="0 0 24 24"
+                >
+                  <path
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                    strokeWidth={1}
+                    d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"
+                  />
                 </svg>
                 <p className="text-slate-400">Không có giao dịch nào</p>
                 <p className="text-slate-500 text-xs mt-1">Hãy thêm giao dịch mới</p>
@@ -155,7 +178,12 @@ export default function RightSidebar({
             >
               <span>Xem thêm</span>
               <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+                <path
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  strokeWidth={2}
+                  d="M19 9l-7 7-7-7"
+                />
               </svg>
             </button>
           </div>
@@ -163,9 +191,11 @@ export default function RightSidebar({
       </div>
 
       {/* Footer */}
-      <div className={`border-t border-slate-700/50 py-3 px-4 transition-opacity duration-300 ${
-        isSidebarOpen ? "opacity-100" : "opacity-0 pointer-events-none"
-      }`}>
+      <div
+        className={`border-t border-slate-700/50 py-3 px-4 transition-opacity duration-300 ${
+          isSidebarOpen ? "opacity-100" : "opacity-0 pointer-events-none"
+        }`}
+      >
         <div className="flex justify-between items-center text-xs">
           <span className="text-slate-500">Tổng: {transactions.length} giao dịch</span>
           <span className="text-slate-400">v1.0</span>

@@ -41,7 +41,7 @@ export default function Sidebar({
   return (
     <aside
       className={`fixed inset-y-0 left-0 z-50 bg-gradient-to-b from-slate-800 to-slate-900 p-4 shadow-xl transition-all duration-300 ease-in-out h-full ${
-        isSidebarOpen ? "w-64" : "w-12"
+        isSidebarOpen ? "w-1/6" : "w-12"
       }`}
     >
       {/* Header */}

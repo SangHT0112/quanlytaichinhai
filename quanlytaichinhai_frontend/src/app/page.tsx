@@ -297,6 +297,17 @@ export default function ChatAI() {
     extendedWindow.inputValue = inputValue;
   }, [handleSendMessage, setInputValue, inputValue]);
 
+  useEffect(() => {
+    const savedBg = localStorage.getItem('custom_background');
+    if (savedBg) {
+      document.body.style.backgroundImage = `url('${savedBg}')`;
+      document.body.style.backgroundSize = 'cover';
+      document.body.style.backgroundRepeat = 'no-repeat';
+      document.body.style.backgroundPosition = 'center';
+      document.body.style.backgroundAttachment = 'fixed';
+    }
+  }, []);
+
   return (
     <div className="flex flex-col h-full bg-cover bg-center pb-20">
       <div className="flex-1 overflow-y-auto space-y-4 pb-4 mt-3 mx-55">
