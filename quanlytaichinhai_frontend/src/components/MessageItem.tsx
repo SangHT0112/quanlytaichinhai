@@ -29,7 +29,7 @@ const isTransactionStructuredData = (
   return !("type" in data) || data.type !== "component"
 }
 
-function hasImagePath(data: StructuredData): data is {
+function hasImageUrl(data: StructuredData): data is {
   transactions?: Array<{
     type: 'expense' | 'income';
     amount: number;
@@ -42,10 +42,11 @@ function hasImagePath(data: StructuredData): data is {
   group_name?: string;
   total_amount?: number;
   transaction_date?: string;
-  image_path?: string;
+  image_url?: string;
 } {
-  return 'image_path' in data;
+  return 'image_url' in data;
 }
+
 
 export const MessageItem = ({
   message,
@@ -53,10 +54,10 @@ export const MessageItem = ({
   confirmedIds = [],
   onSaveEdit,
 }: {
-  message: ChatMessage
-  onConfirm?: (message: ChatMessage, correctedData?: TransactionData | TransactionData[]) => Promise<void>
-  confirmedIds?: string[]
-  onSaveEdit?: (messageId: string, editedData: TransactionData) => void
+  message: ChatMessage;
+  onConfirm?: (message: ChatMessage, correctedData?: TransactionData | TransactionData[]) => Promise<void>;
+  confirmedIds?: string[];
+  onSaveEdit?: (messageId: string, editedData: TransactionData, editingIndex: number) => Promise<void>; // Cập nhật chữ ký
 }) => {
   const [isEditing, setIsEditing] = useState(false)
   const [editingIndex, setEditingIndex] = useState(0)
@@ -111,15 +112,15 @@ export const MessageItem = ({
     }))
   }
 
-  const handleSaveEdit = async () => {
-    setIsLoading(true)
+ const handleSaveEdit = async () => {
+    setIsLoading(true);
     try {
-      await onSaveEdit?.(message.id, editedData)
-      setIsEditing(false)
+      await onSaveEdit?.(message.id, editedData, editingIndex); // Truyền thêm editingIndex
+      setIsEditing(false);
     } finally {
-      setIsLoading(false)
+      setIsLoading(false);
     }
-  }
+  };
 
   const handleCancelEdit = () => {
     setEditedData({
@@ -206,9 +207,13 @@ export const MessageItem = ({
           </div>
         )}
         {/* Hiển thị hình ảnh nếu structured có image_path */}
-        {message.structured && hasImagePath(message.structured) && message.structured.image_path && (
-        <BackgroundImageConfirmForm imagePath={message.structured.image_path} />
-      )}
+       {message.structured &&
+        hasImageUrl(message.structured) &&
+        typeof message.structured.image_url === 'string' && (
+          <BackgroundImageConfirmForm imageUrl={message.structured.image_url} />
+        )}
+
+
 
 
         {/* Hiển thị custom content nếu có */}

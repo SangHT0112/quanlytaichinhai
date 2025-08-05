@@ -15,6 +15,27 @@ import { useTransaction } from '@/contexts/TransactionContext';
 const isComponentStructuredData = (data: StructuredData): data is { type: 'component'; name: AllowedComponents; introText?: string; props?: Record<string, unknown>; layout?: 'inline' | 'block' } => {
   return 'type' in data && data.type === 'component';
 };
+
+const isTransactionStructuredData = (
+  data: StructuredData,
+): data is {
+  transactions?: Array<{
+    type: 'expense' | 'income';
+    category: string;
+    amount: number;
+    user_id?: number;
+    date?: string;
+    transaction_date?: string;
+    description?: string;
+  }>;
+  group_name?: string;
+  total_amount?: number;
+  transaction_date?: string;
+} => {
+  return !('type' in data) || data.type !== 'component';
+};
+
+
 // Helper: Convert structured → custom_content
 function convertStructuredToCustomContent(structured: StructuredData): ChatMessage['custom_content'] | undefined {
   if (isComponentStructuredData(structured)) {
@@ -90,7 +111,6 @@ export default function ChatAI() {
       let aiMessage: ChatMessage;
       if (imageData) {
         console.log('Gửi yêu cầu xử lý tài liệu đến API:');
-
         try {
           await fetch('https://quanlytaichinhai-python.onrender.com/ping');
           await new Promise((resolve) => setTimeout(resolve, 3000)); // đợi 3s cho chắc
@@ -164,7 +184,7 @@ export default function ChatAI() {
       setIsLoading(false);
       isApiProcessing.current = false;
     }
-  }, [setMessages, setIsLoading, currentUser?.user_id]); // Removed convertStructuredToCustomContent
+  }, [setMessages, setIsLoading, currentUser?.user_id]);
 
   const handleSendMessage = useCallback(async (message: string, imageData?: FormData) => {
     if (!message.trim() && !imageData) return;
@@ -225,6 +245,47 @@ export default function ChatAI() {
         {
           id: Date.now().toString(),
           content: '❌ Lỗi khi xác nhận giao dịch.',
+          role: MessageRole.ASSISTANT,
+          timestamp: new Date(),
+        },
+      ]);
+    }
+  };
+
+  const handleSaveEdit = async (messageId: string, editedData: TransactionData, editingIndex: number) => {
+    console.log('SAVE EDIT PAYLOAD:', {
+      messageId,
+      editedData,
+      user_id: currentUser?.user_id || 1,
+    });
+
+    try {
+      setMessages((prev) =>
+        prev.map((msg) =>
+          msg.id === messageId &&
+          msg.structured &&
+          isTransactionStructuredData(msg.structured) &&
+          Array.isArray(msg.structured.transactions) // Thêm kiểm tra transactions
+            ? {
+                ...msg,
+                structured: {
+                  ...msg.structured,
+                  transactions: msg.structured.transactions.map((tx, index) =>
+                    index === editingIndex ? editedData : tx
+                  ),
+                },
+                content: 'Giao dịch đã được chỉnh sửa, vui lòng xác nhận.',
+              }
+            : msg
+        )
+      );
+    } catch (err: unknown) {
+      console.error('❌ Lỗi khi lưu chỉnh sửa:', err instanceof Error ? err.message : 'Unknown error');
+      setMessages((prev) => [
+        ...prev,
+        {
+          id: Date.now().toString(),
+          content: '❌ Lỗi khi cập nhật giao dịch.',
           role: MessageRole.ASSISTANT,
           timestamp: new Date(),
         },
@@ -315,8 +376,9 @@ export default function ChatAI() {
           <MessageItem
             key={msg.id}
             message={msg}
-            onConfirm={(message, correctedData) => handleConfirm(message, correctedData)}
+            onConfirm={handleConfirm}
             confirmedIds={confirmedIds}
+            onSaveEdit={handleSaveEdit}
           />
         ))}
         {isLoading && <LoadingIndicator />}

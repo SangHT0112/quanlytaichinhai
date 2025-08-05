@@ -8,8 +8,8 @@ const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
 export const generateTransactionPrompt = async ({ user_input, now, user_id }) => {
-  const hintPath = path.join(__dirname, "../anti_patterns/transactionAntiPatterns.txt");
-  const antiPatterns = fs.readFileSync(hintPath, "utf-8");
+  const hintPath = path.join(__dirname, "../train_documents/transactionTrainDocs.txt");
+  const trainDocs = fs.readFileSync(hintPath, "utf-8");
 
   const categories = await getCategory();
   const categoryList = categories.join(", ");
@@ -18,8 +18,10 @@ export const generateTransactionPrompt = async ({ user_input, now, user_id }) =>
   const currencyPrompt = currencyMappings
   .map(c => `${c.term} = ${c.amount} ${c.currency_code}`)
   .join(", ");
+  console.log(currencyPrompt)
   // Kiểm tra xem user_input có chứa số tiền hay không
-  const moneyPattern = /\b(\d+\.?\d*)\s*(k|tr|nghìn|triệu|đồng|ngàn|củ|xị|chai)\b/i;
+  const moneyPattern = /\b(\d+(?:[.,]\d+)?)(\s*(tỷ|triệu|nghìn|ngàn|k|tr|củ|xị|chai|lít|cây|vé))\b/gi;
+
   const hasMoney = moneyPattern.test(user_input);
 
   if (!hasMoney) {
@@ -79,7 +81,7 @@ Câu này không đề cập rõ ràng số tiền. Hãy phản hồi lại bằ
     ]
   }
     
-  📌 Tài liệu cần học để rút kinh nghiệm ${antiPatterns}
+  📌 Tài liệu cần học để rút kinh nghiệm ${trainDocs}
 
   📌 QUY TẮC BẮT BUỘC:
   - Trả về đúng định dạng JSON. **Không thêm lời giải thích.**

@@ -1,0 +1,4 @@
+cấu trúc "input" + "lịch sử input trước đó" ví dụ bên dưới
+500k + cho tiền ăn xin   --> Tạo 1 giao dịch mới
+5 củ + đi từ thiện  --> Tạo 1 giao dịch mới 
+1 tỷ + mất cái bóp --> Tạo 1 giao dịch mới

@@ -2,33 +2,32 @@
 import {useState } from 'react';
 
 export default function BackgroundImageConfirmForm({
-  imagePath,
+  imageUrl,
 }: {
-  imagePath: string;
+  imageUrl: string;
 }) {
   const [confirmed, setConfirmed] = useState(false);
 
   const handleConfirm = () => {
-    const fullImageUrl = `${process.env.NEXT_PUBLIC_BACKEND_API_URL}/public/${imagePath}`;
+    // Không thêm backend URL nếu ảnh từ Cloudinary
+    const fullImageUrl = imageUrl;
 
-    // Đặt hình nền cho body
     document.body.style.backgroundImage = `url('${fullImageUrl}')`;
     document.body.style.backgroundSize = 'cover';
     document.body.style.backgroundRepeat = 'no-repeat';
     document.body.style.backgroundPosition = 'center';
     document.body.style.backgroundAttachment = 'fixed';
 
-    // Lưu vào localStorage để giữ sau khi F5
     localStorage.setItem('custom_background', fullImageUrl);
-
     setConfirmed(true);
   };
+
 
   return (
     <div className="p-6 max-w-xl mx-auto bg-white rounded-xl shadow space-y-4 mt-6">
       <h2 className="text-xl font-bold text-center">Xác nhận ảnh làm hình nền</h2>
       <img
-        src={`${process.env.NEXT_PUBLIC_BACKEND_API_URL}/public/${imagePath}`}
+        src={imageUrl}
         alt="Background Preview"
         className="w-full rounded-md shadow"
       />

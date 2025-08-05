@@ -15,6 +15,9 @@ import { fileURLToPath } from 'url';
 import { translateWithGemini } from './utils/translateWithGemini.js';
 import { fetchWithFailover } from './utils/fetchWithFailover.js';
 
+import cloudinary from '../../config/cloudinary.js';
+import streamifier from 'streamifier'; // mới cần
+
 import { fetchStabilityAI } from './utils/fetchStabilityAI.js';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
@@ -164,47 +167,54 @@ export const intentMap = {
     processResponse: async (aiText) => ({ raw: aiText }),
   },
   generate_image: {
-    generatePrompt: generateImagePrompt,
-    isJsonResponse: false,
-    processResponse: async (aiText, { user_input }) => {
-      try {
-        // ✨ Dịch tiếng Việt sang tiếng Anh (có thể cải thiện prompt)
-        const translatedPrompt = await translateWithGemini(user_input);
+      generatePrompt: generateImagePrompt,
+      isJsonResponse: false,
+      processResponse: async (aiText, { user_input }) => {
+        try {
+          const translatedPrompt = await translateWithGemini(user_input);
+          if (!translatedPrompt) {
+            return {
+              raw: "Không thể dịch prompt tiếng Việt.",
+              structured: { error: "Gemini translation failed" },
+            };
+          }
 
-        if (!translatedPrompt) {
+          const imageBuffer = await fetchStabilityAI(translatedPrompt);
+
+          // 👉 Upload buffer lên Cloudinary
+          const uploadFromBuffer = (buffer) => {
+            return new Promise((resolve, reject) => {
+              const uploadStream = cloudinary.uploader.upload_stream(
+                { folder: 'generated_images' },
+                (error, result) => {
+                  if (result) resolve(result);
+                  else reject(error);
+                }
+              );
+              streamifier.createReadStream(buffer).pipe(uploadStream);
+            });
+          };
+
+          const result = await uploadFromBuffer(imageBuffer);
+
           return {
-            raw: "Không thể dịch prompt tiếng Việt.",
-            structured: { error: "Gemini translation failed" },
+            raw: "Hình ảnh đã được tạo và lưu trên Cloudinary.",
+            structured: {
+              image_url: result.secure_url,
+              cloudinary_id: result.public_id,
+              original_prompt: user_input,
+              translated_prompt: translatedPrompt,
+            },
+          };
+        } catch (error) {
+          console.error('Upload to Cloudinary error:', error);
+          return {
+            raw: "Lỗi khi tạo hoặc lưu hình ảnh.",
+            structured: { error: error.message },
           };
         }
-
-        // 🖼️ Gọi Stability AI với prompt tiếng Anh đã dịch
-        const imageBuffer = await fetchStabilityAI(translatedPrompt);
-
-        const dir = path.join(process.cwd(), 'public', 'generated_images');
-        if (!fs.existsSync(dir)) fs.mkdirSync(dir, { recursive: true });
-
-        const filename = `generated_image_${Date.now()}.png`;
-        const imagePath = path.join(dir, filename);
-
-        fs.writeFileSync(imagePath, imageBuffer);
-
-        return {
-          raw: "Hình ảnh đã được tạo thành công.",
-          structured: {
-            image_path: `/generated_images/${filename}`,
-            original_prompt: user_input,
-            translated_prompt: translatedPrompt,
-          },
-        };
-      } catch (error) {
-        return {
-          raw: "Lỗi khi tạo hình ảnh.",
-          structured: { error: error.message },
-        };
-      }
+      },
     },
-  },
   natural: {
     generatePrompt: generateNaturalPrompt,
     isJsonResponse: false,
