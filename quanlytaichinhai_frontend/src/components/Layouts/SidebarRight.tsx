@@ -1,28 +1,23 @@
 "use client";
 
-import { useEffect, useRef } from "react";
+import { useEffect, useRef, useState } from "react";
 import { History } from "lucide-react";
 import { useTransaction } from "@/contexts/TransactionContext";
 import dayjs from "dayjs";
 import relativeTime from "dayjs/plugin/relativeTime";
-import utc from "dayjs/plugin/utc"; // Thêm plugin UTC
-import timezone from "dayjs/plugin/timezone"; // Thêm plugin múi giờ
 import "dayjs/locale/vi";
 import { formatCurrency } from "@/lib/transactionUtils";
 import { Button } from "../ui/button";
 
 // Cấu hình dayjs
 dayjs.extend(relativeTime);
-dayjs.extend(utc);
-dayjs.extend(timezone);
 dayjs.locale("vi");
-dayjs.tz.setDefault("Asia/Ho_Chi_Minh"); // Đặt múi giờ mặc định là Việt Nam
 
 // Hàm helper để định dạng thời gian tương đối kèm ngày tháng
 const formatRelativeTime = (time: string) => {
-  const now = dayjs().tz("Asia/Ho_Chi_Minh"); // Ngày hiện tại ở múi giờ Việt Nam
-  const transactionTime = dayjs(time).tz("Asia/Ho_Chi_Minh"); // Thời gian giao dịch ở múi giờ Việt Nam
-  const diffInDays = now.startOf("day").diff(transactionTime.startOf("day"), "day"); // So sánh ngày
+  const now = dayjs();
+  const transactionTime = dayjs(time);
+  const diffInDays = now.diff(transactionTime, "day");
   const formattedDate = transactionTime.format("DD/MM/YYYY");
 
   if (diffInDays === 0) {
@@ -30,7 +25,7 @@ const formatRelativeTime = (time: string) => {
   } else if (diffInDays === 1) {
     return `Hôm qua - ${formattedDate}`;
   } else if (diffInDays <= 7) {
-    return `${transactionTime.fromNow()} - ${formattedDate}`; // Ví dụ: "3 ngày trước - 03/08/2025"
+    return `${transactionTime.fromNow()} - ${formattedDate}`; // Ví dụ: "3 ngày trước - 29/07/2025"
   } else {
     return formattedDate; // Chỉ hiển thị ngày tháng nếu quá 7 ngày
   }
@@ -45,14 +40,9 @@ export default function RightSidebar({
   setIsSidebarOpen: (value: boolean) => void;
   title?: string;
 }) {
-  const { transactionGroups, refreshTransactionGroups, loadMoreTransactionGroups } = useTransaction();
+  const { transactionGroups, selectedGroupTransactions, fetchGroupTransactions, loadMoreTransactionGroups, refreshTransactionGroups, error, loading } = useTransaction();
   const transactionsContainerRef = useRef<HTMLDivElement>(null);
-
-  useEffect(() => {
-    if (isSidebarOpen) {
-      refreshTransactionGroups();
-    }
-  }, [isSidebarOpen, refreshTransactionGroups]);
+  const [selectedGroupId, setSelectedGroupId] = useState<number | null>(null);
 
   // Scroll to top when opening sidebar
   useEffect(() => {
@@ -60,6 +50,27 @@ export default function RightSidebar({
       transactionsContainerRef.current.scrollTop = 0;
     }
   }, [isSidebarOpen]);
+
+  // Refresh transaction groups when sidebar opens
+  useEffect(() => {
+    if (isSidebarOpen) {
+      refreshTransactionGroups();
+    }
+  }, [isSidebarOpen, refreshTransactionGroups]);
+
+  // Handle click on a transaction group to toggle dropdown
+  const handleGroupClick = (groupId: number) => {
+    if (selectedGroupId === groupId) {
+      // Đóng dropdown nếu nhấp lại vào cùng nhóm
+      setSelectedGroupId(null);
+      // Xóa danh sách giao dịch để tiết kiệm bộ nhớ (tùy chọn)
+      fetchGroupTransactions(0);
+    } else {
+      // Mở dropdown và lấy chi tiết giao dịch
+      setSelectedGroupId(groupId);
+      fetchGroupTransactions(groupId);
+    }
+  };
 
   return (
     <aside
@@ -114,31 +125,92 @@ export default function RightSidebar({
           <div className="space-y-3 py-2">
             {transactionGroups.length > 0 ? (
               transactionGroups.map((group) => (
-                <div
-                  key={group.group_id}
-                  className="group flex flex-col p-3 rounded-lg bg-slate-800/50 hover:bg-slate-700/70 transition-all duration-200 cursor-pointer border border-slate-700/50"
-                >
-                  <div className="flex justify-between items-baseline gap-2">
-                    <span className="font-medium text-slate-100 truncate flex-1">
-                      {group.group_name}
-                    </span>
-                    <span
-                      className={`font-medium text-sm min-w-[80px] text-right ${
-                        group.total_amount >= 0 ? "text-green-400" : "text-red-400"
-                      }`}
-                    >
-                      {group.total_amount >= 0 ? "+" : ""}
-                      {formatCurrency(Math.abs(group.total_amount))}
-                    </span>
+                <div key={group.group_id} className="mb-2">
+                  <div
+                    className="group flex flex-col p-3 rounded-lg bg-slate-800/50 hover:bg-slate-700/70 transition-all duration-200 cursor-pointer border border-slate-700/50"
+                    onClick={() => handleGroupClick(group.group_id)}
+                  >
+                    <div className="flex justify-between items-baseline gap-2">
+                      <span className="font-medium text-slate-100 truncate flex-1">
+                        {group.group_name}
+                      </span>
+                      <div className="flex items-center gap-2">
+                        <span
+                          className={`font-medium text-sm min-w-[80px] text-right ${
+                            group.total_amount >= 0 ? "text-green-400" : "text-red-400"
+                          }`}
+                        >
+                          {group.total_amount >= 0 ? "+" : ""}
+                          {formatCurrency(Math.abs(group.total_amount))}
+                        </span>
+                        <svg
+                          className={`w-4 text-white h-4 transform transition-transform duration-200 ${
+                            selectedGroupId === group.group_id ? "rotate-180" : ""
+                          }`}
+                          fill="none"
+                          stroke="currentColor"
+                          viewBox="0 0 24 24"
+                        >
+                          <path
+                            strokeLinecap="round"
+                            strokeLinejoin="round"
+                            strokeWidth={2}
+                            d="M19 9l-7 7-7-7"
+                          />
+                        </svg>
+                      </div>
+                    </div>
+                    <div className="flex justify-between items-center mt-1">
+                      <span className="text-xs text-slate-500">
+                        {formatRelativeTime(group.transaction_date)}
+                      </span>
+                      <span className="text-xs text-slate-500">
+                        {group.transaction_count} giao dịch
+                      </span>
+                    </div>
                   </div>
-                  <div className="flex justify-between items-center mt-1">
-                    <span className="text-xs text-slate-500">
-                      {formatRelativeTime(group.transaction_date)}
-                    </span>
-                    <span className="text-xs text-slate-500">
-                      {group.transaction_count} giao dịch
-                    </span>
-                  </div>
+                  {/* Dropdown hiển thị chi tiết giao dịch */}
+                  {selectedGroupId === group.group_id && (
+                    <div className="mt-2 pl-4 pr-2 pb-2 bg-slate-800/30 rounded-lg transition-all duration-200">
+                      {loading ? (
+                        <div className="text-center text-slate-400 py-2">Đang tải giao dịch...</div>
+                      ) : selectedGroupTransactions.length > 0 ? (
+                        selectedGroupTransactions.map((tx) => (
+                          <div
+                            key={tx.id}
+                            className="flex justify-between items-center p-2 rounded-lg bg-slate-700/50 mb-1"
+                          >
+                            <div className="flex items-center space-x-2">
+                              <span className="text-sm">
+                                {tx.category_icon || (tx.type === "income" ? "💰" : "💸")}
+                              </span>
+                              <div>
+                                <p className="text-sm text-white font-medium">{tx.description}</p>
+                                <p className="text-xs text-slate-400">
+                                  {tx.category_name || "Không rõ"}
+                                </p>
+                              </div>
+                            </div>
+                            <span
+                              className={`text-sm font-semibold ${
+                                tx.type === "income" ? "text-green-400" : "text-red-400"
+                              }`}
+                            >
+                              {tx.type === "income" ? "+" : "-"}
+                              {formatCurrency(tx.amount)}
+                            </span>
+                          </div>
+                        ))
+                      ) : (
+                        <div className="text-center text-slate-400 py-2">
+                          Không có giao dịch trong nhóm này
+                        </div>
+                      )}
+                      {error && selectedGroupId === group.group_id && (
+                        <div className="text-center text-red-400 py-2">{error}</div>
+                      )}
+                    </div>
+                  )}
                 </div>
               ))
             ) : (

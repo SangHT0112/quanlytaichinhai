@@ -97,7 +97,7 @@ export const createTransactionGroup = async (groupData) => {
 }
 
 // lấy các giao dịch trong 1 thời gian yêu cầu
-export const getTransactionGroupsByUserId = async (userId, limit = null, dateFilter = null) => {
+export const getTransactionGroupsByUserId = async (userId, limit = null, offset = 0, dateFilter = null) => {
   let query = `
     SELECT 
       tg.group_id,
@@ -129,16 +129,19 @@ export const getTransactionGroupsByUserId = async (userId, limit = null, dateFil
   }
 
   query += `
-    GROUP BY tg.group_id
+    GROUP BY tg.group_id, tg.group_name, tg.transaction_date
     ORDER BY tg.transaction_date DESC
   `;
 
+  // Thêm LIMIT và OFFSET
   if (limit && Number.isInteger(limit)) {
-    query += ' LIMIT ?';
-    params.push(limit);
+    query += ' LIMIT ? OFFSET ?';
+    params.push(limit, offset);
   }
 
+  console.log("Executing query:", query, "with params:", params); // Debug query
   const [rows] = await db.execute(query, params);
+  console.log("Returned rows:", rows); // Debug returned data
   return rows;
 };
 

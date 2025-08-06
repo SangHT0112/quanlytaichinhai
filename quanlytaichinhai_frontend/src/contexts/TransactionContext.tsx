@@ -19,6 +19,8 @@ interface Transaction {
   time: string;
   category?: string;
   group_id?: number;
+  category_name?: string;
+  category_icon?: string;
 }
 
 interface TransactionGroup {
@@ -43,8 +45,10 @@ interface ApiTransactionGroupResponse {
 interface TransactionContextType {
   transactions: Transaction[];
   transactionGroups: TransactionGroup[];
+  selectedGroupTransactions: Transaction[];
   refreshTransactionGroups: () => Promise<void>;
   loadMoreTransactionGroups: () => Promise<void>;
+  fetchGroupTransactions: (groupId: number) => Promise<void>;
   setTransactionGroups: (groups: TransactionGroup[]) => void;
   error: string | null;
   loading: boolean;
@@ -53,8 +57,10 @@ interface TransactionContextType {
 export const TransactionContext = createContext<TransactionContextType>({
   transactions: [],
   transactionGroups: [],
+  selectedGroupTransactions: [],
   refreshTransactionGroups: async () => {},
   loadMoreTransactionGroups: async () => {},
+  fetchGroupTransactions: async () => {},
   setTransactionGroups: () => {},
   error: null,
   loading: false,
@@ -67,6 +73,7 @@ interface Props {
 
 export const TransactionProvider = ({ children, user }: Props) => {
   const [transactionGroups, setTransactionGroups] = useState<TransactionGroup[]>([]);
+  const [selectedGroupTransactions, setSelectedGroupTransactions] = useState<Transaction[]>([]);
   const [offset, setOffset] = useState(0);
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
@@ -83,6 +90,18 @@ export const TransactionProvider = ({ children, user }: Props) => {
     }));
   };
 
+  const removeDuplicates = (groups: TransactionGroup[]): TransactionGroup[] => {
+    const seen = new Set<number>();
+    return groups.filter((group) => {
+      if (seen.has(group.group_id)) {
+        console.warn(`Duplicate group_id found: ${group.group_id}`);
+        return false;
+      }
+      seen.add(group.group_id);
+      return true;
+    });
+  };
+
   const refreshTransactionGroups = useCallback(async () => {
     if (!user?.user_id) {
       setError("Không tìm thấy user ID");
@@ -93,6 +112,7 @@ export const TransactionProvider = ({ children, user }: Props) => {
       setLoading(true);
       setError(null);
 
+      console.log("Refreshing groups with offset: 0");
       const res = await axiosInstance.get<ApiTransactionGroupResponse[]>("/transactions/groups", {
         params: {
           user_id: user.user_id,
@@ -101,7 +121,8 @@ export const TransactionProvider = ({ children, user }: Props) => {
         },
       });
 
-      setTransactionGroups(mapApiResponseToTransactionGroup(res.data));
+      const uniqueGroups = removeDuplicates(mapApiResponseToTransactionGroup(res.data));
+      setTransactionGroups(uniqueGroups);
       setOffset(0);
     } catch (error) {
       const err = error as Error;
@@ -122,16 +143,25 @@ export const TransactionProvider = ({ children, user }: Props) => {
       setLoading(true);
       setError(null);
 
+      const currentOffset = offset + limit;
+      console.log("Fetching more groups with offset:", currentOffset);
       const res = await axiosInstance.get<ApiTransactionGroupResponse[]>("/transactions/groups", {
         params: {
           user_id: user.user_id,
           limit,
-          offset: offset + limit,
+          offset: currentOffset,
         },
       });
 
-      setTransactionGroups((prev) => [...prev, ...mapApiResponseToTransactionGroup(res.data)]);
-      setOffset((prev) => prev + limit);
+      console.log("Received groups:", res.data);
+      if (res.data.length === 0) {
+        setError("Không còn nhóm giao dịch để tải.");
+        return;
+      }
+
+      const uniqueGroups = removeDuplicates(mapApiResponseToTransactionGroup(res.data));
+      setTransactionGroups((prev) => removeDuplicates([...prev, ...uniqueGroups]));
+      setOffset(currentOffset);
     } catch (error) {
       const err = error as Error;
       console.error("❌ Lỗi khi fetch thêm nhóm giao dịch:", err.message);
@@ -141,6 +171,28 @@ export const TransactionProvider = ({ children, user }: Props) => {
     }
   }, [user?.user_id, offset]);
 
+  const fetchGroupTransactions = useCallback(async (groupId: number) => {
+    if (!user?.user_id) {
+      setError("Không tìm thấy user ID");
+      return;
+    }
+
+    try {
+      setLoading(true);
+      setError(null);
+
+      console.log(`Fetching transactions for group_id: ${groupId}`);
+      const res = await axiosInstance.get<Transaction[]>(`/transactions/groups/${groupId}`);
+      setSelectedGroupTransactions(res.data);
+    } catch (error) {
+      const err = error as Error;
+      console.error("❌ Lỗi khi fetch chi tiết giao dịch:", err.message);
+      setError("Không thể tải chi tiết giao dịch. Vui lòng thử lại sau.");
+    } finally {
+      setLoading(false);
+    }
+  }, [user?.user_id]);
+
   useEffect(() => {
     refreshTransactionGroups();
   }, [refreshTransactionGroups]);
@@ -148,10 +200,12 @@ export const TransactionProvider = ({ children, user }: Props) => {
   return (
     <TransactionContext.Provider
       value={{
-        transactions: [], // Giữ lại để tương thích, nhưng không sử dụng
+        transactions: [],
         transactionGroups,
+        selectedGroupTransactions,
         refreshTransactionGroups,
         loadMoreTransactionGroups,
+        fetchGroupTransactions,
         setTransactionGroups,
         error,
         loading,

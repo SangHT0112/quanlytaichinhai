@@ -51,20 +51,21 @@ export const getGroupTransactionHistory = async (req, res) => {
   try {
     const userId = req.query.user_id;
     const limit = req.query.limit ? parseInt(req.query.limit) : null;
-    const dateFilter = req.query.date || null; // ⬅️ nhận thêm ngày lọc từ query
+    const offset = req.query.offset ? parseInt(req.query.offset) : 0;
+    const dateFilter = req.query.date || null;
 
     if (!userId) {
       return res.status(400).json({ message: "Thiếu user_id" });
     }
 
-    const groups = await getTransactionGroupsByUserId(userId, limit, dateFilter);
+    console.log("Fetching groups with params:", { userId, limit, offset, dateFilter }); // Debug params
+    const groups = await getTransactionGroupsByUserId(userId, limit, offset, dateFilter);
     res.json(groups);
   } catch (err) {
     console.error("Lỗi getGroupTransactionHistory:", err);
     res.status(500).json({ message: "Lỗi server khi lấy danh sách nhóm giao dịch" });
   }
 };
-
 
 export const getGroupTransactionDetail = async (req, res) => {
   try {
