@@ -116,7 +116,7 @@ export const getTransactionGroupsByUserId = async (userId, limit = null, offset 
     WHERE tg.user_id = ?
   `;
 
-  const params = [userId];
+  const params = [Number(userId)]; // Convert userId to number
 
   // Lọc theo ngày
   if (dateFilter === "today") {
@@ -133,10 +133,9 @@ export const getTransactionGroupsByUserId = async (userId, limit = null, offset 
     ORDER BY tg.transaction_date DESC
   `;
 
-  // Thêm LIMIT và OFFSET
-  if (limit && Number.isInteger(limit)) {
-    query += ' LIMIT ? OFFSET ?';
-    params.push(limit, offset);
+  // Thêm LIMIT và OFFSET trực tiếp vào query
+  if (limit && Number.isInteger(Number(limit))) {
+    query += ` LIMIT ${Number(limit)} OFFSET ${Number(offset)}`;
   }
 
   console.log("Executing query:", query, "with params:", params); // Debug query
@@ -144,7 +143,6 @@ export const getTransactionGroupsByUserId = async (userId, limit = null, offset 
   console.log("Returned rows:", rows); // Debug returned data
   return rows;
 };
-
 
 //lấy các chi tiết giao dịch trong 1 nhóm yêu cầu
 export const getTransactionsByGroupId = async (groupId) => {
