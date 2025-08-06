@@ -43,19 +43,18 @@ export default function Sidebar({
       className={`fixed inset-y-0 left-0 z-50 p-4 transition-all duration-300 ease-in-out h-full
         ${isSidebarOpen
           ? "w-60 bg-gradient-to-b from-slate-800 to-slate-900 shadow-xl"
-          : "w-12 bg-transparent shadow-none"
-        }`}
+          : "w-0 bg-transparent shadow-none md:w-60 md:bg-gradient-to-b md:from-slate-800 md:to-slate-900 md:shadow-xl"
+        } md:block`} // Thêm md:block để hiển thị trên màn hình lớn
     >
-
       {/* Header */}
       <div
         className={`flex items-center justify-between pb-4 border-b border-slate-700/50 transition-all duration-300 ${
-          isSidebarOpen ? "" : "hidden"
-        }`}
+          isSidebarOpen ? "block" : "hidden md:block"
+        }`} // Ẩn header trên di động khi sidebar đóng
       >
         <h2
           className={`text-xl font-bold bg-gradient-to-r from-cyan-300 to-teal-300 bg-clip-text text-transparent transition-opacity duration-300 ${
-            isSidebarOpen ? "opacity-100" : "opacity-0 pointer-events-none"
+            isSidebarOpen ? "opacity-100" : "opacity-0 pointer-events-none md:opacity-100"
           }`}
         >
           AI Finance
@@ -69,10 +68,12 @@ export default function Sidebar({
         </button>
       </div>
 
-      {/* Toggle button when closed */}
+      {/* Toggle button khi sidebar đóng */}
       <button
         onClick={() => setIsSidebarOpen(!isSidebarOpen)}
-       className={`absolute top-4 left-2 p-2 bg-white/90 hover:bg-white text-gray-800 rounded-md shadow-md transition-all duration-200 ease-in-out z-10 ${isSidebarOpen ? "hidden" : ""}`}
+        className={`absolute top-4 left-2 p-2 bg-white/90 hover:bg-white text-gray-800 rounded-md shadow-md transition-all duration-200 ease-in-out z-10 ${
+          isSidebarOpen ? "hidden" : "block md:hidden"
+        }`} // Chỉ hiển thị nút toggle trên di động khi sidebar đóng
         aria-label="Open sidebar"
       >
         <Menu className="w-5 h-5" />
@@ -81,8 +82,8 @@ export default function Sidebar({
       {/* Menu items */}
       <nav
         className={`space-y-2 text-sm mt-4 transition-opacity duration-300 ${
-          isSidebarOpen ? "opacity-100" : "opacity-0 pointer-events-none"
-        }`}
+          isSidebarOpen ? "opacity-100" : "opacity-0 pointer-events-none md:opacity-100 md:pointer-events-auto"
+        }`} // Hiển thị menu trên desktop ngay cả khi isSidebarOpen là false
       >
         {menuItems.map((item, index) => (
           <Link key={index} href={item.href} onClick={() => handleLinkClick(item.href)}>
@@ -97,10 +98,9 @@ export default function Sidebar({
       {/* Version + User Greeting */}
       <div
         className={`absolute bottom-15 left-4 right-4 space-y-2 pt-4 border-t border-slate-700/50 transition-opacity duration-300 ${
-          isSidebarOpen ? "opacity-100" : "opacity-0 pointer-events-none"
-        }`}
+          isSidebarOpen ? "opacity-100" : "opacity-0 pointer-events-none md:opacity-100 md:pointer-events-auto"
+        }`} // Hiển thị trên desktop ngay cả khi isSidebarOpen là false
       >
-
         {user && (
           <DropdownMenu>
             <DropdownMenuTrigger asChild>
