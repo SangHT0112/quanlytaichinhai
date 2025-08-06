@@ -214,3 +214,26 @@ body.waiting-navigation::after {
   background: #888;
   border-radius: 10px;
 }
+
+
+
+/* globals.css */
+.message-container {
+  width: 100%;
+  max-width: 900px; /* Giới hạn chiều rộng tối đa trên desktop */
+  margin: 0 auto; /* Căn giữa */
+  padding-left: 16px;
+  padding-right: 16px;
+}
+
+/* Responsive cho mobile */
+@media (max-width: 768px) {
+  .message-container {
+    max-width: 100%; /* Full width trên mobile */
+    padding-left: 8px; /* Giảm padding cho mobile */
+    padding-right: 8px;
+  }
+}
+
+
+

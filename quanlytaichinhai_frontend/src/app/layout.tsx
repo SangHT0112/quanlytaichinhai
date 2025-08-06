@@ -35,21 +35,21 @@ export default function RootLayout({ children }: { children: ReactNode }) {
           backgroundImage: "url('/background.png')",
         }}
       >
-        {/* Sidebar */}
-        <Sidebar user={user} isSidebarOpen={isSidebarOpen} setIsSidebarOpen={setIsSidebarOpen} />
+      
 
         {/* Main content */}
         <UserProvider>
           <TransactionProvider user={user}>
-            {/* Tất cả phải nằm trong đây */}
+           
+            <Sidebar user={user} isSidebarOpen={isSidebarOpen} setIsSidebarOpen={setIsSidebarOpen} />
+         
             <div className={`flex flex-col flex-1 transition-all duration-300 ease-in-out`}>
-              <main className="flex-1 w-full max-w-[calc(100%-16rem)] mx-auto px-4">
+              <main className="flex-1 w-full mx-auto px-4">
                 {children}
               </main>
               <ChatInput isSidebarOpen={isSidebarOpen} pathname={pathname} />
             </div>
 
-            {/* ✅ Move RightSidebar inside here */}
             <RightSidebar
               isSidebarOpen={isSidebarRightOpen}
               setIsSidebarOpen={setSidebarRightOpen}

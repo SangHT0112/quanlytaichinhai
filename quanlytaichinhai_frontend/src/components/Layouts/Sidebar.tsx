@@ -39,11 +39,14 @@ export default function Sidebar({
   }
 
   return (
-    <aside
-      className={`fixed inset-y-0 left-0 z-50 bg-gradient-to-b from-slate-800 to-slate-900 p-4 shadow-xl transition-all duration-300 ease-in-out h-full ${
-        isSidebarOpen ? "w-1/6" : "w-12"
-      }`}
+   <aside
+      className={`fixed inset-y-0 left-0 z-50 p-4 transition-all duration-300 ease-in-out h-full
+        ${isSidebarOpen
+          ? "w-60 bg-gradient-to-b from-slate-800 to-slate-900 shadow-xl"
+          : "w-12 bg-transparent shadow-none"
+        }`}
     >
+
       {/* Header */}
       <div
         className={`flex items-center justify-between pb-4 border-b border-slate-700/50 transition-all duration-300 ${
@@ -69,9 +72,7 @@ export default function Sidebar({
       {/* Toggle button when closed */}
       <button
         onClick={() => setIsSidebarOpen(!isSidebarOpen)}
-        className={`absolute top-0 left-0 p-3 bg-gray-100 hover:bg-gray-200 text-gray-800 rounded-md shadow-md transition-all duration-200 ease-in-out z-10 ${
-          isSidebarOpen ? "hidden" : ""
-        }`}
+       className={`absolute top-4 left-2 p-2 bg-white/90 hover:bg-white text-gray-800 rounded-md shadow-md transition-all duration-200 ease-in-out z-10 ${isSidebarOpen ? "hidden" : ""}`}
         aria-label="Open sidebar"
       >
         <Menu className="w-5 h-5" />

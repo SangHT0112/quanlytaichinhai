@@ -94,7 +94,7 @@ export default function ChatAI() {
     ? JSON.parse(localStorage.getItem('user') || 'null')
     : null;
 
-  const { refreshTransactions } = useTransaction();
+  const { refreshTransactionGroups } = useTransaction();
 
   const getWelcomeMessage = (): ChatMessage => ({
     id: '1',
@@ -235,7 +235,7 @@ export default function ChatAI() {
         role: MessageRole.ASSISTANT,
         timestamp: new Date(),
       };
-      await refreshTransactions();
+      await refreshTransactionGroups();
       setMessages((prev) => [...prev, confirmMsg]);
       setConfirmedIds((prev) => [...prev, message.id]);
     } catch (err: unknown) {
@@ -370,21 +370,21 @@ export default function ChatAI() {
   }, []);
 
   return (
-    <div className="flex flex-col h-full bg-cover bg-center pb-20">
-      <div className="flex-1 overflow-y-auto space-y-4 pb-4 mt-3 mx-55">
-        {messages.map((msg) => (
-          <MessageItem
-            key={msg.id}
-            message={msg}
-            onConfirm={handleConfirm}
-            confirmedIds={confirmedIds}
-            onSaveEdit={handleSaveEdit}
-          />
-        ))}
-        {isLoading && <LoadingIndicator />}
-        <div ref={messagesEndRef} />
-      </div>
-      <QuickActions userId={currentUser?.user_id || 1} onAction={handleQuickAction} />
+   <div className="flex flex-col h-full bg-cover bg-center pb-20">
+    <div className="flex-1 overflow-y-auto space-y-4 pb-4 mt-3 px-4 sm:px-16 message-container">
+      {messages.map((msg) => (
+        <MessageItem
+          key={msg.id}
+          message={msg}
+          onConfirm={handleConfirm}
+          confirmedIds={confirmedIds}
+          onSaveEdit={handleSaveEdit}
+        />
+      ))}
+      {isLoading && <LoadingIndicator />}
+      <div ref={messagesEndRef} />
     </div>
+    <QuickActions userId={currentUser?.user_id || 1} onAction={handleQuickAction} />
+  </div>
   );
 }

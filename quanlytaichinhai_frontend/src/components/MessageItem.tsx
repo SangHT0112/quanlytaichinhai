@@ -149,7 +149,7 @@ export const MessageItem = ({
   }
 
   return (
-    <div className={`flex gap-3 w-full ${message.role === "user" ? "justify-end" : "justify-start"}`}>
+    <div className={`flex w-full px-3 mb-3 ${message.role === "user" ? "justify-end" : "justify-start"}`}>
       {message.role === "assistant" && (
         <div className="flex-shrink-0 w-8 h-8 bg-gradient-to-r from-teal-500 to-cyan-500 rounded-full flex items-center justify-center">
           <Bot className="w-5 h-5 text-white" />
@@ -157,20 +157,24 @@ export const MessageItem = ({
       )}
       <div
         className={`
-          max-w-[min(90vw,800px)]
-          w-fit min-w-[120px] min-h-[4rem]
-          rounded-2xl px-4 py-3 overflow-x-auto break-words
-          ${message.role === "user" ? "bg-gradient-to-r from-teal-500 to-cyan-500 text-white" : "bg-white/90 text-slate-700 border border-slate-200/50"}
+          flex flex-col
+          max-w-[80%] sm:max-w-[70%] md:max-w-[60%]
+          min-w-[120px]
+          rounded-2xl px-4 py-3
+          break-words
+          ${message.role === "user"
+            ? "bg-gradient-to-r from-teal-500 to-cyan-500 text-white rounded-br-none"
+            : "bg-white text-slate-700 border border-slate-200 rounded-bl-none"}
           ${hasCustomContent ? "!min-w-[300px]" : ""}
         `}
       >
-        {/* Hiển thị nội dung thông thường nếu không phải transaction */}
+        {/* Nội dung hiển thị */}
         {!isTransaction && !hasCustomContent && message.content && (
           <div className="mt-2">
             <MessageRenderer content={message.content} />
           </div>
         )}
-        {/* Phần xử lý transaction */}
+
         {isTransaction && (
           <div className="mt-2">
             {isEditing ? (
@@ -206,24 +210,24 @@ export const MessageItem = ({
             )}
           </div>
         )}
-        {/* Hiển thị hình ảnh nếu structured có image_path */}
-       {message.structured &&
-        hasImageUrl(message.structured) &&
-        typeof message.structured.image_url === 'string' && (
-          <BackgroundImageConfirmForm imageUrl={message.structured.image_url} />
-        )}
 
+        {message.structured &&
+          hasImageUrl(message.structured) &&
+          typeof message.structured.image_url === "string" && (
+            <BackgroundImageConfirmForm imageUrl={message.structured.image_url} />
+          )}
 
-
-
-        {/* Hiển thị custom content nếu có */}
         {message.custom_content?.map((part, index) => (
           <div key={index} className="mt-2">
             {renderCustomContent(part)}
           </div>
         ))}
-        {/* Hiển thị thời gian */}
-        <div className={`text-xs mt-2 opacity-70 ${message.role === "user" ? "text-teal-100" : "text-slate-500"}`}>
+
+        <div
+          className={`text-xs mt-2 opacity-70 ${
+            message.role === "user" ? "text-teal-100" : "text-slate-500"
+          }`}
+        >
           {new Date(message.timestamp).toLocaleTimeString("vi-VN", {
             hour: "2-digit",
             minute: "2-digit",
@@ -231,10 +235,11 @@ export const MessageItem = ({
         </div>
       </div>
       {message.role === "user" && (
-        <div className="flex-shrink-0 w-8 h-8 bg-slate-300 rounded-full flex items-center justify-center">
+        <div className="flex-shrink-0 w-8 h-8 bg-slate-300 rounded-full flex items-center justify-center ml-2">
           <User className="w-5 h-5 text-slate-600" />
         </div>
       )}
     </div>
   )
+
 }
