@@ -161,9 +161,8 @@ export const ChatInput = ({
 
   return (
     <div className="w-full">
-      {/* Container chính với padding an toàn cho mobile */}
-      <div className="bg-white/90 backdrop-blur-md border border-slate-200/50 rounded-xl px-3 py-2 shadow-xl mx-2 mb-2">
-        {/* Hiển thị ảnh xem trước (nếu có) */}
+      <div className="bg-white/90 backdrop-blur-md border border-slate-200/50 rounded-xl px-3 py-2 shadow-xl mx-2">
+        {/* Hiển thị ảnh xem trước (giữ nguyên) */}
         {selectedImage && (
           <div className="relative">
             <Image
@@ -182,9 +181,8 @@ export const ChatInput = ({
           </div>
         )}
         
-        {/* Flex container với các điều chỉnh cho mobile */}
         <div className="flex items-center w-full gap-1">
-          {/* Nút tải ảnh */}
+          {/* Nút thêm ảnh (giữ nguyên như bạn muốn) */}
           <input
             type="file"
             ref={fileInputRef}
@@ -194,13 +192,26 @@ export const ChatInput = ({
           />
           <button
             onClick={() => fileInputRef.current?.click()}
-            className="text-teal-600 hover:text-teal-700 p-1 rounded-full hover:bg-teal-50 transition-colors flex-shrink-0"
+            className="text-teal-600 hover:text-teal-700 p-1 rounded-full hover:bg-teal-50 transition-colors"
             title="Tải lên ảnh"
           >
-            <svg className="w-5 h-5">...</svg>
+            <svg
+              xmlns="http://www.w3.org/2000/svg"
+              fill="none"
+              viewBox="0 0 24 24"
+              strokeWidth={1.5}
+              stroke="currentColor"
+              className="w-6 h-6"
+            >
+              <path
+                strokeLinecap="round"
+                strokeLinejoin="round"
+                d="M2.25 15.75l5.159-5.159a2.25 2.25 0 013.182 0l5.159 5.159m-1.5-1.5l1.409-1.409a2.25 2.25 0 013.182 0l2.909 2.909m-18 3.75h16.5a1.5 1.5 0 001.5-1.5V6a1.5 1.5 0 00-1.5-1.5H3.75A1.5 1.5 0 002.25 6v12a1.5 1.5 0 001.5 1.5zm10.5-11.25h.008v.008h-.008V8.25zm.375 0a.375.375 0 11-.75 0 .375.375 0 01.75 0z"
+              />
+            </svg>
           </button>
 
-          {/* Nút ghi âm */}
+          {/* Các phần tử còn lại với điều chỉnh */}
           <button
             onClick={handleVoiceInput}
             className={`text-teal-600 hover:text-teal-700 p-1 rounded-full hover:bg-teal-50 transition-colors flex-shrink-0 ${
@@ -211,7 +222,6 @@ export const ChatInput = ({
             <Mic className="w-5 h-5" />
           </button>
 
-          {/* Input text - phần quan trọng nhất */}
           <input
             type="text"
             ref={inputRef}
@@ -227,7 +237,6 @@ export const ChatInput = ({
             className="flex-1 min-w-0 px-3 py-2 rounded-full bg-white text-slate-800 placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-teal-500 focus:border-transparent transition-all text-sm"
           />
 
-          {/* Nút Send với kích thước phù hợp */}
           <button
             className="bg-gradient-to-r from-teal-500 to-cyan-500 hover:from-teal-600 hover:to-cyan-600 text-white p-1.5 rounded-full transition-all flex-shrink-0"
             onClick={handleSend}
