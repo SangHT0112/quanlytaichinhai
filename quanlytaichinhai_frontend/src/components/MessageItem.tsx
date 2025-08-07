@@ -149,7 +149,7 @@ export const MessageItem = ({
   }
 
   return (
-    <div className={`flex w-full px-3 mb-3 ${message.role === "user" ? "justify-end" : "justify-start"}`}>
+    <div className={`flex w-full mb-3 ${message.role === "user" ? "justify-end" : "justify-start"}`}>
       {message.role === "assistant" && (
         <div className="flex-shrink-0 w-8 h-8 bg-gradient-to-r from-teal-500 to-cyan-500 rounded-full flex items-center justify-center">
           <Bot className="w-5 h-5 text-white" />

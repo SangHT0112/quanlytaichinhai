@@ -8,6 +8,7 @@ import { ReactNode, useState, useEffect } from "react";
 import { UserProvider } from "@/contexts/UserProvider";
 import RightSidebar from "@/components/Layouts/SidebarRight";
 import { TransactionProvider } from "@/contexts/TransactionContext";
+import MusicPlayerPopup from "./music/components/MusicPlayerPopup";
 
 export default function RootLayout({ children }: { children: ReactNode }) {
   type UserType = {
@@ -17,22 +18,24 @@ export default function RootLayout({ children }: { children: ReactNode }) {
 
   const [isSidebarOpen, setIsSidebarOpen] = useState(() => {
     if (typeof window !== "undefined") {
-      return window.innerWidth >= 768; // Mặc định mở trên desktop
+      return window.innerWidth >= 768;
     }
-    return false; // Mặc định đóng trên di động
+    return false;
   });
 
   const [isSidebarRightOpen, setSidebarRightOpen] = useState(() => {
     if (typeof window !== "undefined") {
-      return window.innerWidth >= 768; // Mặc định mở trên desktop
+      return window.innerWidth >= 768;
     }
-    return false; // Mặc định đóng trên di động
+    return false;
   });
+
+  const [isMusicPlayerOpen, setIsMusicPlayerOpen] = useState(false); // State for music player dropdown
 
   const pathname = usePathname();
   const [user, setUser] = useState<UserType | null>(null);
 
-  // Cập nhật trạng thái sidebar khi resize
+  // Handle resize
   useEffect(() => {
     const handleResize = () => {
       const isDesktop = window.innerWidth >= 768;
@@ -44,7 +47,7 @@ export default function RootLayout({ children }: { children: ReactNode }) {
     return () => window.removeEventListener("resize", handleResize);
   }, []);
 
-  // Lấy thông tin user từ localStorage
+  // Load user from localStorage
   useEffect(() => {
     try {
       const storedUser = localStorage.getItem("user");
@@ -73,20 +76,56 @@ export default function RootLayout({ children }: { children: ReactNode }) {
               setIsSidebarOpen={setIsSidebarOpen}
             />
 
+            {/* Music Player Button and Dropdown */}
+            <div className="relative">
+              <button
+                onClick={() => setIsMusicPlayerOpen(!isMusicPlayerOpen)}
+                className="fixed top-2 left-80 z-50 bg-blue-500 text-white px-4 py-2 rounded-full shadow-lg hover:bg-blue-600"
+              >
+                {isMusicPlayerOpen ? "Ẩn Nhạc" : "Nghe Nhạc"}
+              </button>
+              <MusicPlayerPopup
+                isOpen={isMusicPlayerOpen}
+                onToggle={() => setIsMusicPlayerOpen(false)}
+              />
+            </div>
+
             {/* Nội dung chính */}
             <div
-              className={`flex flex-col flex-1 transition-all duration-300 ease-in-out ${
+              className={`flex flex-col flex-1 mt-16 transition-all duration-300 ease-in-out w-full ${
                 isSidebarOpen && isSidebarRightOpen
-                  ? "md:ml-60 md:mr-60"
+                  ? "md:ml-60 md:mr-75"
                   : isSidebarOpen
                   ? "md:ml-60"
                   : isSidebarRightOpen
-                  ? "md:mr-60"
+                  ? "md:mr-75"
                   : ""
               }`}
             >
-              <main className="flex-1 w-full mx-auto px-4">{children}</main>
-              <ChatInput isSidebarOpen={isSidebarOpen} pathname={pathname} />
+              <main className="flex-1 w-full mx-auto px-1 pb-1">
+                {children}
+              </main>
+              {/* ChatInput trên desktop */}
+              <div className="hidden md:flex w-full justify-center px-4 py-4">
+                <div className="w-full max-w-3xl">
+                  <ChatInput
+                    isSidebarOpen={isSidebarOpen}
+                    isSidebarRightOpen={isSidebarRightOpen}
+                    pathname={pathname}
+                  />
+                </div>
+              </div>
+            </div>
+
+            {/* ChatInput trên mobile */}
+            <div className="md:hidden fixed bottom-0 left-0 right-0 px-4 pb-4 z-50">
+              <div className="w-full max-w-3xl mx-auto space-y-2">
+                <ChatInput
+                  isSidebarOpen={isSidebarOpen}
+                  isSidebarRightOpen={isSidebarRightOpen}
+                  pathname={pathname}
+                />
+              </div>
             </div>
 
             {/* Sidebar phải */}

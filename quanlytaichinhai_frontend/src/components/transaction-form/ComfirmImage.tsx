@@ -1,6 +1,6 @@
 'use client';
 import {useState } from 'react';
-
+import Image from 'next/image';
 export default function BackgroundImageConfirmForm({
   imageUrl,
 }: {
@@ -26,7 +26,7 @@ export default function BackgroundImageConfirmForm({
   return (
     <div className="p-6 max-w-xl mx-auto bg-white rounded-xl shadow space-y-4 mt-6">
       <h2 className="text-xl font-bold text-center">Xác nhận ảnh làm hình nền</h2>
-      <img
+      <Image
         src={imageUrl}
         alt="Background Preview"
         className="w-full rounded-md shadow"

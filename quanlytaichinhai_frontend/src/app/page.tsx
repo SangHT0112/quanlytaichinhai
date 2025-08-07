@@ -370,8 +370,8 @@ export default function ChatAI() {
   }, []);
 
   return (
-   <div className="flex flex-col h-full bg-cover bg-center pb-20">
-    <div className="flex-1 overflow-y-auto space-y-4 pb-4 mt-3 px-4 sm:px-16 message-container">
+   <div className="flex flex-col h-full bg-cover bg-center pb-20 md:pb-0">
+    <div className="flex-1 overflow-y-auto space-y-4 pb-2 sm:px-16 message-container">
       {messages.map((msg) => (
         <MessageItem
           key={msg.id}

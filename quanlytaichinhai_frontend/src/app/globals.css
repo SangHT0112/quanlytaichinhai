@@ -121,6 +121,14 @@
   }
 }
 
+html {
+  box-sizing: border-box;
+}
+
+*, *::before, *::after {
+  box-sizing: inherit;
+}
+
 /* Thêm vào file CSS global */
 .transition-all {
   transition-property: all;
@@ -237,3 +245,18 @@ body.waiting-navigation::after {
 
 
 
+/* Đảm bảo input không bị tràn */
+.chat-input-container {
+  max-width: 100vw;
+}
+
+/* Ngăn không cho các nút bị đẩy ra ngoài */
+.chat-input-button {
+  flex-shrink: 0;
+}
+
+/* Đảm bảo input có thể co lại */
+.chat-input-field {
+  min-width: 0;
+  flex: 1 1 0%;
+}
