@@ -8,7 +8,6 @@ import { ReactNode, useState, useEffect } from "react";
 import { UserProvider } from "@/contexts/UserProvider";
 import RightSidebar from "@/components/Layouts/SidebarRight";
 import { TransactionProvider } from "@/contexts/TransactionContext";
-import MusicPlayerPopup from "./music/components/MusicPlayerPopup";
 
 export default function RootLayout({ children }: { children: ReactNode }) {
   type UserType = {
@@ -30,7 +29,7 @@ export default function RootLayout({ children }: { children: ReactNode }) {
     return false;
   });
 
-  const [isMusicPlayerOpen, setIsMusicPlayerOpen] = useState(false); // State for music player dropdown
+  // const [isMusicPlayerOpen, setIsMusicPlayerOpen] = useState(false); // State for music player dropdown
 
   const pathname = usePathname();
   const [user, setUser] = useState<UserType | null>(null);
@@ -76,7 +75,7 @@ export default function RootLayout({ children }: { children: ReactNode }) {
               setIsSidebarOpen={setIsSidebarOpen}
             />
 
-            {/* Music Player Button and Dropdown */}
+            {/* Music Player Button and Dropdown
             <div className="relative">
               <button
                 onClick={() => setIsMusicPlayerOpen(!isMusicPlayerOpen)}
@@ -88,7 +87,7 @@ export default function RootLayout({ children }: { children: ReactNode }) {
                 isOpen={isMusicPlayerOpen}
                 onToggle={() => setIsMusicPlayerOpen(false)}
               />
-            </div>
+            </div> */}
 
             {/* Nội dung chính */}
             <div
