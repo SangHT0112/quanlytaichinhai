@@ -13,9 +13,11 @@ interface LoginResponse {
   user: {
     id: string;
     email: string;
-    [key: string]: unknown; // Cho phép các thuộc tính khác của user
+    role: string;  // thêm role ở đây
+    [key: string]: unknown;
   };
 }
+
 
 export async function login(email: string, password: string): Promise<LoginResponse> {
   try {

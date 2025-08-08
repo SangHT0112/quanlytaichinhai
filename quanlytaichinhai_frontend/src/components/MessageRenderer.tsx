@@ -1,6 +1,6 @@
 'use client';
 import React from 'react';
-import { MessageContentPart, AllowedComponents, TransactionData } from './types';
+import { MessageContentPart, AllowedComponents, TransactionData } from '../utils/types';
 import BalanceCardPage from '@/app/tongquan/components/BalanceCard';
 import TopExpenseCategories from '@/app/tongquan/components/TopExpenseCategories';
 import TransactionList from '@/app/tongquan/components/TransactionList';

@@ -140,7 +140,7 @@ export const createTransaction = async (req, res) => {
 //lây 10 giao dịch gần nhất
 export const getRecentTransactions = async (req, res) => {
   const { user_id, limit = 5, offset = 0 } = req.query;
-  console.log("Query params:", user_id, limit, offset);
+  // console.log("Query params:", user_id, limit, offset);
   try {
     const data = await getRecentTransactionsByUserId(Number(user_id), Number(limit), Number(offset));
     return res.json(data);

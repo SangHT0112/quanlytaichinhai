@@ -163,6 +163,11 @@ body.waiting-navigation::after {
   animation: loadingAnimation 5s linear forwards;
 }
 
+body.admin-body {
+  background: #ecf0f1 !important; /* nền xám nhạt hoặc trắng */
+  background-image: none !important;
+}
+
 @keyframes loadingAnimation {
   0% { width: 0% }
   100% { width: 100% }

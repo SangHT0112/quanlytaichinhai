@@ -1,6 +1,6 @@
 // components/hooks/renderCustomContent.tsx
 import React from 'react'
-import { MessageContentPart } from "../types"
+import { MessageContentPart } from "../../utils/types"
 import { componentMap } from './componentMap'
 
 export const renderCustomContent = (part: MessageContentPart) => {

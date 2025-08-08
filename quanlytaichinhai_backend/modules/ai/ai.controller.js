@@ -52,9 +52,9 @@ export const handleChat = async (req, res) => {
 
     const rawIntent = classifyData.candidates?.[0]?.content?.parts?.[0]?.text?.trim().toLowerCase();
     const intent = Object.keys(intentMap).includes(rawIntent) ? rawIntent : "natural";
-    console.log("Input:", user_input);
-    console.log("Raw intent from Gemini:", rawIntent);
-    console.log("Final intent:", intent);
+    // console.log("Input:", user_input);
+    // console.log("Raw intent from Gemini:", rawIntent);
+    // console.log("Final intent:", intent);
 
     const { generatePrompt, isJsonResponse, processResponse } = intentMap[intent];
     const prompt = await generatePrompt({ user_input, now, user_id, historyText });
@@ -75,7 +75,7 @@ export const handleChat = async (req, res) => {
     });
 
     const aiText = geminiData.candidates?.[0]?.content?.parts?.[0]?.text?.trim() || "Không nhận được phản hồi từ AI.";
-    console.log("Phản hồi từ Gemini:", aiText);
+    // console.log("Phản hồi từ Gemini:", aiText);
 
     const { raw = aiText, structured = null } = await processResponse(aiText, {
       user_input,

@@ -4,73 +4,14 @@ import { useRouter } from 'next/navigation';
 import { LoadingIndicator } from '@/components/LoadingIndicator';
 import { MessageItem } from '@/components/MessageItem';
 import QuickActions from '@/components/QuickActions';
-import { ChatMessage, MessageRole, StructuredData, TransactionData } from '@/components/types';
+import { ChatMessage, MessageRole, StructuredData, TransactionData } from '@/utils/types';
 import axiosInstance from '@/config/axios';
 import { saveChatHistory } from '@/api/chatHistoryApi';
 import { useCallback } from 'react';
-import { AllowedComponents } from '@/components/types';
 import { useTransaction } from '@/contexts/TransactionContext';
+import { convertStructuredToCustomContent } from '@/utils/convertStructured';
 
-// Helper: Type guard để kiểm tra StructuredData dạng component
-const isComponentStructuredData = (data: StructuredData): data is { type: 'component'; name: AllowedComponents; introText?: string; props?: Record<string, unknown>; layout?: 'inline' | 'block' } => {
-  return 'type' in data && data.type === 'component';
-};
 
-const isTransactionStructuredData = (
-  data: StructuredData,
-): data is {
-  transactions?: Array<{
-    type: 'expense' | 'income';
-    category: string;
-    amount: number;
-    user_id?: number;
-    date?: string;
-    transaction_date?: string;
-    description?: string;
-  }>;
-  group_name?: string;
-  total_amount?: number;
-  transaction_date?: string;
-} => {
-  return !('type' in data) || data.type !== 'component';
-};
-
-// Helper: Convert structured → custom_content
-function convertStructuredToCustomContent(structured: StructuredData): ChatMessage['custom_content'] | undefined {
-  if (isComponentStructuredData(structured)) {
-    return [
-      {
-        type: 'text',
-        text: structured.introText || 'Thông tin từ AI',
-        style: 'default',
-      },
-      {
-        type: 'component',
-        name: structured.name,
-        layout: structured.layout || 'block',
-        props: structured.props || {},
-      },
-    ];
-  } else if ('transactions' in structured && structured.transactions) {
-    return [
-      {
-        type: 'text',
-        text: structured.group_name || 'Thông tin giao dịch từ AI',
-        style: 'default',
-      },
-      {
-        type: 'component',
-        name: 'TransactionConfirmationForm',
-        layout: 'block',
-        props: {
-          transactionData: structured.transactions,
-          transactionType: structured.transactions[0]?.type || 'expense',
-        },
-      },
-    ];
-  }
-  return undefined;
-}
 
 // Extend Window interface
 interface ExtendedWindow extends Window {
@@ -92,7 +33,24 @@ export default function ChatAI() {
   const currentUser = typeof window !== 'undefined'
     ? JSON.parse(localStorage.getItem('user') || 'null')
     : null;
-
+  const isTransactionStructuredData = (
+    data: StructuredData,
+  ): data is {
+    transactions?: Array<{
+      type: 'expense' | 'income';
+      category: string;
+      amount: number;
+      user_id?: number;
+      date?: string;
+      transaction_date?: string;
+      description?: string;
+    }>;
+    group_name?: string;
+    total_amount?: number;
+    transaction_date?: string;
+  } => {
+    return !('type' in data) || data.type !== 'component';
+  };
   const { refreshTransactionGroups } = useTransaction();
 
   const getWelcomeMessage = (): ChatMessage => ({

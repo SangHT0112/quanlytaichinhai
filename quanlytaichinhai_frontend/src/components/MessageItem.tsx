@@ -2,7 +2,7 @@
 
 import { useState } from "react"
 import { Bot, User } from "lucide-react" // Import DollarSign icon
-import type { ChatMessage, StructuredData, TransactionData } from "./types" // Đảm bảo các types này đã được định nghĩa
+import type { ChatMessage, StructuredData, TransactionData } from "../utils/types" // Đảm bảo các types này đã được định nghĩa
 import { MessageRenderer } from "./MessageRenderer" // Đảm bảo component này đã được định nghĩa
 import SingleTransactionConfirmationForm from "./transaction-form/SingleTransactionConfirmationForm" // Đảm bảo component này đã được định nghĩa
 import MultiTransactionConfirmationForm from "./transaction-form/MultiTransactionConfirmationForm" // Đảm bảo component này đã được định nghĩa

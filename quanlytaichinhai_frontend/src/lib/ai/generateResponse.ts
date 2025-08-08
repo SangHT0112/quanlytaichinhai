@@ -1,5 +1,5 @@
 
-  import { MessageContent } from "@/components/types"
+  import { MessageContent } from "@/utils/types"
   export const generateResponse = (userMessage: string): MessageContent => {
     const lowerMessage = userMessage.toLowerCase()
     // Danh sách từ khóa điều hướng (không phân biệt vị trí trong câu)

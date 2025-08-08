@@ -30,7 +30,7 @@ export default function LoginPage() {
 
     try {
       const data = await login(email, password)
-
+      console.log("DU LIEU USER",data.user);
       localStorage.setItem("token", data.token)
       localStorage.setItem("user", JSON.stringify(data.user))
 

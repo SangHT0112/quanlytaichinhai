@@ -25,6 +25,7 @@
     "mysql2": "^3.14.1",
     "node-fetch": "^3.3.2",
     "openai": "^5.8.2",
+    "socket.io": "^4.8.1",
     "streamifier": "^0.1.1",
     "swagger-jsdoc": "^6.2.8",
     "swagger-ui-express": "^5.0.1"

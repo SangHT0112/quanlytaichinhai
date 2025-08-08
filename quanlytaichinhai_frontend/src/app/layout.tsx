@@ -8,45 +8,36 @@ import { ReactNode, useState, useEffect } from "react";
 import { UserProvider } from "@/contexts/UserProvider";
 import RightSidebar from "@/components/Layouts/SidebarRight";
 import { TransactionProvider } from "@/contexts/TransactionContext";
+import OnlineStatus from "@/components/OnlineStatus";
 
 export default function RootLayout({ children }: { children: ReactNode }) {
   type UserType = {
     user_id: number;
     username: string;
+    role: string
   };
 
-  const [isSidebarOpen, setIsSidebarOpen] = useState(() => {
-    if (typeof window !== "undefined") {
-      return window.innerWidth >= 768;
-    }
-    return false;
-  });
-
-  const [isSidebarRightOpen, setSidebarRightOpen] = useState(() => {
-    if (typeof window !== "undefined") {
-      return window.innerWidth >= 768;
-    }
-    return false;
-  });
-
-  // const [isMusicPlayerOpen, setIsMusicPlayerOpen] = useState(false); // State for music player dropdown
-
+  const [isSidebarOpen, setIsSidebarOpen] = useState(false);
+  const [isSidebarRightOpen, setSidebarRightOpen] = useState(false);
   const pathname = usePathname();
   const [user, setUser] = useState<UserType | null>(null);
 
-  // Handle resize
+  // Xử lý khi resize màn hình
   useEffect(() => {
-    const handleResize = () => {
-      const isDesktop = window.innerWidth >= 768;
-      setIsSidebarOpen(isDesktop);
-      setSidebarRightOpen(isDesktop);
-    };
+    const isDesktop = window.innerWidth >= 768;
+    setIsSidebarOpen(isDesktop);
+    setSidebarRightOpen(isDesktop);
 
+    const handleResize = () => {
+      const isDesktopResize = window.innerWidth >= 768;
+      setIsSidebarOpen(isDesktopResize);
+      setSidebarRightOpen(isDesktopResize);
+    };
     window.addEventListener("resize", handleResize);
     return () => window.removeEventListener("resize", handleResize);
   }, []);
 
-  // Load user from localStorage
+  // Load user từ localStorage
   useEffect(() => {
     try {
       const storedUser = localStorage.getItem("user");
@@ -58,14 +49,11 @@ export default function RootLayout({ children }: { children: ReactNode }) {
     }
   }, []);
 
-  // Không áp dụng RootLayout cho trang login
-  if (pathname === "/login") {
-    return <>{children}</>;
-  }
-  // Không áp dụng RootLayout cho trang login
-  if (pathname === "/register") {
-    return <>{children}</>;
-  }
+  // Các trang không cần sidebar + header
+  const isPlainLayout =
+    pathname === "/login" ||
+    pathname === "/register" ||
+    pathname.startsWith("/admin");
 
   return (
     <html lang="vi">
@@ -75,47 +63,50 @@ export default function RootLayout({ children }: { children: ReactNode }) {
           backgroundImage: "url('/background.png')",
         }}
       >
-        <UserProvider>
-          <TransactionProvider user={user}>
-            {/* Sidebar trái */}
-            <Sidebar
-              user={user}
-              isSidebarOpen={isSidebarOpen}
-              setIsSidebarOpen={setIsSidebarOpen}
-            />
+        {isPlainLayout ? (
+          children
+        ) : (
+          <UserProvider>
+            <TransactionProvider user={user}>
+              {/* Bắt sự kiện online/offline qua WebSocket */}
+              {user?.user_id && <OnlineStatus userId={user.user_id} />}
 
-            {/* Music Player Button and Dropdown
-            <div className="relative">
-              <button
-                onClick={() => setIsMusicPlayerOpen(!isMusicPlayerOpen)}
-                className="fixed top-2 left-80 z-50 bg-blue-500 text-white px-4 py-2 rounded-full shadow-lg hover:bg-blue-600"
-              >
-                {isMusicPlayerOpen ? "Ẩn Nhạc" : "Nghe Nhạc"}
-              </button>
-              <MusicPlayerPopup
-                isOpen={isMusicPlayerOpen}
-                onToggle={() => setIsMusicPlayerOpen(false)}
+              <Sidebar
+                user={user}
+                isSidebarOpen={isSidebarOpen}
+                setIsSidebarOpen={setIsSidebarOpen}
               />
-            </div> */}
 
-            {/* Nội dung chính */}
-            <div
-              className={`flex flex-col flex-1 mt-16 transition-all duration-300 ease-in-out w-full ${
-                isSidebarOpen && isSidebarRightOpen
-                  ? "md:ml-60 md:mr-75"
-                  : isSidebarOpen
-                  ? "md:ml-60"
-                  : isSidebarRightOpen
-                  ? "md:mr-75"
-                  : ""
-              }`}
-            >
-              <main className="flex-1 w-full mx-auto px-1 pb-1">
-                {children}
-              </main>
-              {/* ChatInput trên desktop */}
-              <div className="hidden md:flex w-full justify-center px-4 py-4">
-                <div className="w-full max-w-3xl">
+              <div
+                className={`flex flex-col flex-1 mt-16 transition-all duration-300 ease-in-out w-full ${
+                  isSidebarOpen && isSidebarRightOpen
+                    ? "md:ml-60 md:mr-75"
+                    : isSidebarOpen
+                    ? "md:ml-60"
+                    : isSidebarRightOpen
+                    ? "md:mr-75"
+                    : ""
+                }`}
+              >
+                <main className="flex-1 w-full mx-auto px-1 pb-1">
+                  {children}
+                </main>
+
+                {/* ChatInput desktop */}
+                <div className="hidden md:flex w-full justify-center px-4 py-4">
+                  <div className="w-full max-w-3xl">
+                    <ChatInput
+                      isSidebarOpen={isSidebarOpen}
+                      isSidebarRightOpen={isSidebarRightOpen}
+                      pathname={pathname}
+                    />
+                  </div>
+                </div>
+              </div>
+
+              {/* ChatInput mobile */}
+              <div className="md:hidden fixed bottom-0 left-0 right-0 px-4 pb-4 z-50">
+                <div className="w-full max-w-3xl mx-auto space-y-2">
                   <ChatInput
                     isSidebarOpen={isSidebarOpen}
                     isSidebarRightOpen={isSidebarRightOpen}
@@ -123,27 +114,15 @@ export default function RootLayout({ children }: { children: ReactNode }) {
                   />
                 </div>
               </div>
-            </div>
 
-            {/* ChatInput trên mobile */}
-            <div className="md:hidden fixed bottom-0 left-0 right-0 px-4 pb-4 z-50">
-              <div className="w-full max-w-3xl mx-auto space-y-2">
-                <ChatInput
-                  isSidebarOpen={isSidebarOpen}
-                  isSidebarRightOpen={isSidebarRightOpen}
-                  pathname={pathname}
-                />
-              </div>
-            </div>
-
-            {/* Sidebar phải */}
-            <RightSidebar
-              isSidebarOpen={isSidebarRightOpen}
-              setIsSidebarOpen={setSidebarRightOpen}
-              title="Lịch sử giao dịch"
-            />
-          </TransactionProvider>
-        </UserProvider>
+              <RightSidebar
+                isSidebarOpen={isSidebarRightOpen}
+                setIsSidebarOpen={setSidebarRightOpen}
+                title="Lịch sử giao dịch"
+              />
+            </TransactionProvider>
+          </UserProvider>
+        )}
       </body>
     </html>
   );

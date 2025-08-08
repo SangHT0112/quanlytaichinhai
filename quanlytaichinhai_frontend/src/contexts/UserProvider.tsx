@@ -2,9 +2,12 @@
 import { createContext, useContext, useEffect, useState } from 'react'
 
 interface User {
-  user_id: number
-  username: string
-  // các field khác
+  user_id: number;
+  username: string;
+  email: string;
+  role: "user" | "admin";
+  status: "online" | "offline" | string;
+  last_active_at?: string; // ISO date string, có thể undefined
 }
 const UserContext = createContext<User | null>(null)
 

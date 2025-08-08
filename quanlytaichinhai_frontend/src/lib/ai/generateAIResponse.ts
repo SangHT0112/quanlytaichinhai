@@ -1,4 +1,4 @@
-import { MessageContent } from "@/components/types"
+import { MessageContent } from "@/utils/types"
 
 export const generateAIResponse = (userMessage: string): MessageContent => {
   const lowerMessage = userMessage.toLowerCase().trim();

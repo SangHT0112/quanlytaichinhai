@@ -1,6 +1,6 @@
-"use client"
+"use client";
 
-import Link from "next/link"
+import Link from "next/link";
 import {
   Plus,
   BarChart3,
@@ -9,13 +9,14 @@ import {
   PieChart,
   Menu,
   User,
-} from "lucide-react"
+  Shield,
+} from "lucide-react";
 import {
   DropdownMenu,
   DropdownMenuTrigger,
   DropdownMenuContent,
   DropdownMenuItem,
-} from "@/components/ui/dropdown-menu"
+} from "@/components/ui/dropdown-menu";
 
 const menuItems = [
   { icon: Plus, label: "Thêm giao dịch", href: "/", emoji: "➕" },
@@ -23,20 +24,21 @@ const menuItems = [
   { icon: Calendar, label: "Lập kế hoạch tài chính", href: "/financial_plan", emoji: "📋" },
   { icon: TrendingUp, label: "Lịch sử", href: "/history", emoji: "📜" },
   { icon: BarChart3, label: "Thống kê", href: "/thongke", emoji: "📈" },
-]
+  { icon: Shield, label: "Quản trị", href: "/admin", emoji: "🛡️", adminOnly: true },
+];
 
 export default function Sidebar({
   isSidebarOpen,
   setIsSidebarOpen,
   user,
 }: {
-  isSidebarOpen: boolean
-  setIsSidebarOpen: (value: boolean) => void
-  user: { username: string } | null
+  isSidebarOpen: boolean;
+  setIsSidebarOpen: (value: boolean) => void;
+  user: { username: string; role: string } | null;
 }) {
   const handleLinkClick = (href: string) => {
-    localStorage.setItem("redirectAfterLogin", href)
-  }
+    localStorage.setItem("redirectAfterLogin", href);
+  };
 
   return (
     <>
@@ -88,31 +90,45 @@ export default function Sidebar({
           }`}
         >
           <nav className="space-y-2 text-sm mt-4">
-            {menuItems.map((item, index) => (
-              <Link
-                key={index}
-                href={item.href}
-                onClick={() => handleLinkClick(item.href)}
-              >
-                <div className="flex items-center space-x-3 px-4 py-3 rounded-lg text-slate-300 hover:text-white hover:bg-slate-700/50 transition-all duration-200 group cursor-pointer">
-                  <item.icon className="w-5 h-5 group-hover:text-cyan-400 transition-colors" />
-                  <span className="font-medium">{item.label}</span>
-                </div>
-              </Link>
-            ))}
+            {menuItems.map((item, index) => {
+              if (item.adminOnly && user?.role !== "admin") return null;
+              return (
+                <Link
+                  key={index}
+                  href={item.href}
+                  onClick={() => handleLinkClick(item.href)}
+                >
+                  <div className="flex items-center space-x-3 px-4 py-3 rounded-lg text-slate-300 hover:text-white hover:bg-slate-700/50 transition-all duration-200 group cursor-pointer">
+                    <item.icon className="w-5 h-5 group-hover:text-cyan-400 transition-colors" />
+                    <span className="font-medium">{item.label}</span>
+                  </div>
+                </Link>
+              );
+            })}
           </nav>
         </div>
 
-        {/* Version + User Greeting */}
-        <div
-          className={`absolute bottom-15 left-4 right-4 space-y-2 pt-4 border-t border-slate-700/50 transition-opacity duration-300 ${
-            isSidebarOpen ? "opacity-100" : "opacity-0 pointer-events-none"
-          }`}
-        >
-          {user && (
+      {/* Version + User Greeting + nút Admin nằm trên */}
+      <div
+        className={`absolute bottom-4 left-4 right-4 flex flex-col space-y-2 pt-4 border-t border-slate-700/50 transition-opacity duration-300 ${
+          isSidebarOpen ? "opacity-100" : "opacity-0 pointer-events-none"
+        }`}
+      >
+        {user && (
+          <>
+            {/* Nút Trang Admin nằm trên */}
+            {user.role === "admin" && (
+              <Link href="/admin" onClick={() => handleLinkClick("/admin")}>
+                <button className="bg-teal-600 hover:bg-teal-700 text-white font-semibold py-2 px-4 rounded-md transition-colors whitespace-nowrap w-full">
+                  Trang Admin
+                </button>
+              </Link>
+            )}
+
+            {/* Greeting user nằm dưới */}
             <DropdownMenu>
               <DropdownMenuTrigger asChild>
-                <div className="flex items-center space-x-3 px-3 py-2 rounded-lg bg-teal-100 hover:bg-teal-200 transition-colors cursor-pointer">
+                <div className="flex items-center space-x-3 px-3 py-2 rounded-lg bg-teal-100 hover:bg-teal-200 transition-colors cursor-pointer max-w-full">
                   <div className="w-4 h-4 bg-gradient-to-r from-teal-500 to-cyan-500 rounded-full flex items-center justify-center">
                     <User className="w-4 h-4 text-white" />
                   </div>
@@ -132,18 +148,20 @@ export default function Sidebar({
                 <DropdownMenuItem
                   className="hover:bg-teal-50"
                   onClick={() => {
-                    localStorage.removeItem("user")
-                    localStorage.removeItem("token")
-                    window.location.href = "/login"
+                    localStorage.removeItem("user");
+                    localStorage.removeItem("token");
+                    window.location.href = "/login";
                   }}
                 >
                   Đăng xuất
                 </DropdownMenuItem>
               </DropdownMenuContent>
             </DropdownMenu>
-          )}
-        </div>
+          </>
+        )}
+      </div>
+
       </aside>
     </>
-  )
+  );
 }
