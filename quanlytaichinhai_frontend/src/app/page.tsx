@@ -35,7 +35,6 @@ const isTransactionStructuredData = (
   return !('type' in data) || data.type !== 'component';
 };
 
-
 // Helper: Convert structured → custom_content
 function convertStructuredToCustomContent(structured: StructuredData): ChatMessage['custom_content'] | undefined {
   if (isComponentStructuredData(structured)) {
@@ -265,7 +264,7 @@ export default function ChatAI() {
           msg.id === messageId &&
           msg.structured &&
           isTransactionStructuredData(msg.structured) &&
-          Array.isArray(msg.structured.transactions) // Thêm kiểm tra transactions
+          Array.isArray(msg.structured.transactions)
             ? {
                 ...msg,
                 structured: {
@@ -293,7 +292,7 @@ export default function ChatAI() {
     }
   };
 
-  // Check login và load lịch sử chat
+  // Check login và load lịch sử chat từ localStorage
   useEffect(() => {
     const user = localStorage.getItem('user');
     if (!user) {
@@ -302,12 +301,14 @@ export default function ChatAI() {
     }
 
     const stored = localStorage.getItem('chatHistory');
-    const today = new Date().toDateString();
-
     if (stored) {
       try {
-        const { date, messages: savedMessages } = JSON.parse(stored);
-        if (date === today) {
+        const { expiry, messages: savedMessages } = JSON.parse(stored);
+        const now = new Date().getTime();
+        const expiryTime = new Date(expiry).getTime();
+
+        if (now < expiryTime) {
+          // Chưa hết hạn, khôi phục messages
           const restored = savedMessages.map((m: Partial<ChatMessage>) => ({
             ...m,
             role: m.role ?? MessageRole.USER,
@@ -315,13 +316,34 @@ export default function ChatAI() {
           }));
           setMessages(restored);
           return;
+        } else {
+          // Hết hạn, xóa và khởi tạo lại
+          localStorage.removeItem('chatHistory');
         }
       } catch (e) {
         console.warn('⚠️ Lỗi khi đọc lịch sử:', e);
+        localStorage.removeItem('chatHistory'); // Xóa nếu có lỗi parse
       }
     }
     setMessages([getWelcomeMessage()]);
   }, [router]);
+
+  // Lưu tin nhắn vào localStorage với thời hạn 24 giờ
+  useEffect(() => {
+    if (messages.length > 0) {
+      const expiry = new Date();
+      expiry.setDate(expiry.getDate() + 1); // Thêm 1 ngày (24 giờ)
+      const chatHistory = {
+        date: new Date().toDateString(),
+        expiry: expiry.toISOString(),
+        messages: messages.map((msg) => ({
+          ...msg,
+          timestamp: msg.timestamp.toISOString(), // Chuyển thành string để lưu
+        })),
+      };
+      localStorage.setItem('chatHistory', JSON.stringify(chatHistory));
+    }
+  }, [messages]);
 
   // Tự động scroll xuống cuối
   useEffect(() => {
@@ -370,21 +392,21 @@ export default function ChatAI() {
   }, []);
 
   return (
-   <div className="flex flex-col h-full bg-cover bg-center pb-20 md:pb-0">
-    <div className="flex-1 overflow-y-auto space-y-4 pb-2 sm:px-16 message-container">
-      {messages.map((msg) => (
-        <MessageItem
-          key={msg.id}
-          message={msg}
-          onConfirm={handleConfirm}
-          confirmedIds={confirmedIds}
-          onSaveEdit={handleSaveEdit}
-        />
-      ))}
-      {isLoading && <LoadingIndicator />}
-      <div ref={messagesEndRef} />
+    <div className="flex flex-col h-full bg-cover bg-center pb-20 md:pb-0">
+      <div className="flex-1 overflow-y-auto space-y-4 pb-2 sm:px-16 message-container">
+        {messages.map((msg) => (
+          <MessageItem
+            key={msg.id}
+            message={msg}
+            onConfirm={handleConfirm}
+            confirmedIds={confirmedIds}
+            onSaveEdit={handleSaveEdit}
+          />
+        ))}
+        {isLoading && <LoadingIndicator />}
+        <div ref={messagesEndRef} />
+      </div>
+      <QuickActions userId={currentUser?.user_id || 1} onAction={handleQuickAction} />
     </div>
-    <QuickActions userId={currentUser?.user_id || 1} onAction={handleQuickAction} />
-  </div>
   );
 }

@@ -58,6 +58,15 @@ export default function RootLayout({ children }: { children: ReactNode }) {
     }
   }, []);
 
+  // Không áp dụng RootLayout cho trang login
+  if (pathname === "/login") {
+    return <>{children}</>;
+  }
+  // Không áp dụng RootLayout cho trang login
+  if (pathname === "/register") {
+    return <>{children}</>;
+  }
+
   return (
     <html lang="vi">
       <body
