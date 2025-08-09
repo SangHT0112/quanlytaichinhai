@@ -2,35 +2,51 @@
 
 import Link from "next/link";
 import styles from "@/styles/admin.module.css";
-import { usePathname } from "next/navigation";
-import { useEffect } from "react";
+import { usePathname, useRouter } from "next/navigation";
+import { useEffect, useState } from "react";
 import Image from "next/image";
+
 export default function AdminLayout({ children }: { children: React.ReactNode }) {
   const pathname = usePathname();
+  const router = useRouter();
+
+  const [authorized, setAuthorized] = useState<boolean | null>(null); // null = chưa check
 
   useEffect(() => {
-    // Thêm class admin-body để CSS riêng
+    const userStr = localStorage.getItem("user");
+    if (!userStr) {
+      router.replace("/login");
+      return;
+    }
+    const user = JSON.parse(userStr);
+    if (user.role !== "admin") {
+      router.replace("/");
+      return;
+    }
+    setAuthorized(true);
     document.body.classList.add("admin-body");
-
-    // Xóa khi thoát layout admin
     return () => {
       document.body.classList.remove("admin-body");
     };
-  }, []);
+  }, [router]);
+
+  if (authorized === null) {
+    // Chưa biết có quyền hay không thì không render gì cả hoặc hiển thị loading
+    return null; // hoặc <div>Loading...</div>
+  }
 
   return (
     <div className={styles.adminContainer}>
       <aside className={styles.sidebar}>
         <div className={styles.info}>
           <Link href="/">
-          <Image
-            src="/favicon.ico"
-            alt="Logo"
-            width={80}
-            height={80}
-            className="w-20 h-20"
-          />
-
+            <Image
+              src="/favicon.ico"
+              alt="Logo"
+              width={80}
+              height={80}
+              className="w-20 h-20"
+            />
           </Link>
           <h2>Trang Quản Lý</h2>
         </div>
@@ -48,9 +64,7 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
         </ul>
       </aside>
 
-      <main className={styles.adminContent}>
-        {children}
-      </main>
+      <main className={styles.adminContent}>{children}</main>
     </div>
   );
 }

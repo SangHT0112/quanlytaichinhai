@@ -27,6 +27,7 @@ export const register = async (req, res) => {
 
 export const login = async (req, res) => {
   const { email, password } = req.body;
+
   try {
     const user = await findUserByEmail(email);
     if (!user) return res.status(400).json({ message: "Email không tồn tại" });
@@ -34,15 +35,21 @@ export const login = async (req, res) => {
     const match = await bcrypt.compare(password, user.password_hash);
     if (!match) return res.status(400).json({ message: "Sai mật khẩu" });
 
-    const token = jwt.sign({ id: user.user_id }, process.env.JWT_SECRET, { expiresIn: "7d" });
-    res.json({ 
-      message: "Đăng nhập thành công", 
-      token, 
+    // Tạo token có thêm role trong payload
+    const token = jwt.sign(
+      { id: user.user_id, role: user.role },
+      process.env.JWT_SECRET,
+      { expiresIn: "7d" }
+    );
+
+    res.json({
+      message: "Đăng nhập thành công",
+      token,
       user: {
         user_id: user.user_id,
         username: user.username,
         email: user.email,
-        role: user.role,    // Trả thêm role
+        role: user.role,
       },
     });
   } catch (err) {
@@ -50,4 +57,3 @@ export const login = async (req, res) => {
     res.status(500).json({ message: "Lỗi server" });
   }
 };
-
