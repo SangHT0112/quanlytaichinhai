@@ -14,8 +14,6 @@ import chatHistoryRoutes from "./modules/chat_history/chat_history.routes.js"
 import quickActionsRoutes from "./modules/quickactions/quickactions.routes.js";
 import aiRoutes from './modules/ai/ai.routes.js';
 import userRoutes from "./modules/users/user.routes.js";
-import { authenticateJWT, checkAdminRole } from './modules/auth/auth.middleware.js';
-
 import db from './config/db.js';
 dotenv.config();
 const app = express();
