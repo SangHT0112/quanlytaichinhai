@@ -4,12 +4,12 @@ import { MessageContentPart, AllowedComponents, TransactionData } from '../utils
 import BalanceCardPage from '@/app/tongquan/components/BalanceCard';
 import TopExpenseCategories from '@/app/tongquan/components/TopExpenseCategories';
 import TransactionList from '@/app/tongquan/components/TransactionList';
-import MonthlyBarChart from '@/app/thongke/MonthlyBarChart';
+import MonthlyBarChart from '@/app/thongke/components/MonthlyBarChart';
 import WeeklyBarChart from '@/app/tongquan/components/WeeklyBarChart';
 import TransactionConfirmationForm from './transaction-form/SingleTransactionConfirmationForm';
-import CategoryDetailList from '@/app/thongke/CategoryDetailList';
-import ExpensePieChart from '@/app/thongke/ExpensePieChart';
-import DailySpendingAreaChart from '@/app/thongke/DailySpendingAreaChart';
+import CategoryDetailList from '@/app/thongke/components/CategoryDetailList';
+import ExpensePieChart from '@/app/thongke/components/ExpensePieChart';
+import DailySpendingAreaChart from '@/app/thongke/components/DailySpendingAreaChart';
 
 // Định nghĩa interface cho props của từng component
 interface BalanceCardPageProps {

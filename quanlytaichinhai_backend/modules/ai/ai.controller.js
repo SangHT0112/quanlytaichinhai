@@ -75,7 +75,7 @@ export const handleChat = async (req, res) => {
     });
 
     const aiText = geminiData.candidates?.[0]?.content?.parts?.[0]?.text?.trim() || "Không nhận được phản hồi từ AI.";
-    // console.log("Phản hồi từ Gemini:", aiText);
+    console.log("Phản hồi từ Gemini:", aiText);
 
     const { raw = aiText, structured = null } = await processResponse(aiText, {
       user_input,

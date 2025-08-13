@@ -1,5 +1,5 @@
 // components/componentMap.ts
-import MonthlyBarChart from '@/app/thongke/MonthlyBarChart'
+import MonthlyBarChart from '@/app/thongke/components/MonthlyBarChart'
 import BalanceCardPage from '@/app/tongquan/components/BalanceCard'
 import TopExpenseCategories from '@/app/tongquan/components/TopExpenseCategories'
 import TransactionList from '@/app/tongquan/components/TransactionList'

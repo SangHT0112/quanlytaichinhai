@@ -63,15 +63,18 @@ export async function getMonthlyIncomeVsExpense(userId, months = 4) {
         CASE WHEN t.type = 'expense' THEN t.amount ELSE 0 END AS expense
       FROM transactions t
       WHERE t.user_id = ?
+        AND t.transaction_date >= DATE_FORMAT(DATE_SUB(CURDATE(), INTERVAL ? MONTH), '%Y-%m-01')
     ) AS sub
     GROUP BY month
     ORDER BY STR_TO_DATE(month, "%m/%Y") DESC
-    LIMIT ${parseInt(months)}
+    LIMIT ?
   `
 
-  const [rows] = await db.execute(sql, [userId])
+  // Lấy từ đầu tháng cách đây (months) tháng (ví dụ months=4 thì lấy từ đầu tháng 4 tháng trước)
+  const [rows] = await db.execute(sql, [userId, months - 1, months])
   return rows.reverse()
 }
+
 
 
 

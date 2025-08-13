@@ -1,6 +1,7 @@
 'use client';
-import {useState } from 'react';
+import { useState } from 'react';
 import Image from 'next/image';
+
 export default function BackgroundImageConfirmForm({
   imageUrl,
 }: {
@@ -9,19 +10,15 @@ export default function BackgroundImageConfirmForm({
   const [confirmed, setConfirmed] = useState(false);
 
   const handleConfirm = () => {
-    // Không thêm backend URL nếu ảnh từ Cloudinary
     const fullImageUrl = imageUrl;
-
     document.body.style.backgroundImage = `url('${fullImageUrl}')`;
     document.body.style.backgroundSize = 'cover';
     document.body.style.backgroundRepeat = 'no-repeat';
     document.body.style.backgroundPosition = 'center';
     document.body.style.backgroundAttachment = 'fixed';
-
     localStorage.setItem('custom_background', fullImageUrl);
     setConfirmed(true);
   };
-
 
   return (
     <div className="p-6 max-w-xl mx-auto bg-white rounded-xl shadow space-y-4 mt-6">
@@ -29,7 +26,10 @@ export default function BackgroundImageConfirmForm({
       <Image
         src={imageUrl}
         alt="Background Preview"
+        width={500} // Thêm width mặc định
+        height={300} // Thêm height mặc định
         className="w-full rounded-md shadow"
+        style={{ objectFit: 'cover' }} // Đảm bảo hình ảnh hiển thị đúng tỷ lệ
       />
       {!confirmed ? (
         <div className="flex justify-center gap-4 mt-4">

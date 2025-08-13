@@ -6,7 +6,7 @@ Dưới đây là câu hỏi của người dùng:
 Và đây là kết quả từ cơ sở dữ liệu (có thể là danh sách giao dịch, tổng số tiền, hoặc các thông tin khác):
 ${JSON.stringify(query_result, null, 2)}
 
-Hãy viết một câu trả lời ngắn gọn, tự nhiên, dễ hiểu như đang trò chuyện. Ưu tiên:
+Hãy viết một câu trả lời ngắn gọn, tự nhiên, dễ hiểu như đang trò chuyện. có thể kèm thêm icon phù hợp. Ưu tiên:
 - Diễn giải cụ thể các số liệu (nếu có tổng tiền, liệt kê danh sách thì hãy nêu rõ).
 - Tránh trả lời chung chung hoặc mơ hồ.
 - Tuyệt đối không hiển thị SQL hoặc từ ngữ kỹ thuật.

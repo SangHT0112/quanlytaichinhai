@@ -138,9 +138,9 @@ export const getTransactionGroupsByUserId = async (userId, limit = null, offset 
     query += ` LIMIT ${Number(limit)} OFFSET ${Number(offset)}`;
   }
 
-  console.log("Executing query:", query, "with params:", params); // Debug query
+  // console.log("Executing query:", query, "with params:", params); // Debug query
   const [rows] = await db.execute(query, params);
-  console.log("Returned rows:", rows); // Debug returned data
+  // console.log("Returned rows:", rows); // Debug returned data
   return rows;
 };
 

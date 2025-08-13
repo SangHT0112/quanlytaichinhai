@@ -14,7 +14,7 @@ Dưới đây là schema cơ sở dữ liệu tài chính cá nhân:
 ${schemaText}
 
 Yêu cầu:
-- Nhiệm vụ của bạn là tạo kế hoạch tài chính tiết kiệm dựa trên câu nói của người dùng.
+- Nhiệm vụ của bạn là tạo kế hoạch tài chính tiết kiệm dựa trên câu nói của người dùng kèm thêm icon phù hợp cho sinh động.
 - Nếu người dùng nói về việc **mua một món đồ trong tương lai** (ví dụ: "mua laptop 35 triệu", "tiết kiệm 50 triệu trong bao lâu"), bạn cần:
   1. Trích số tiền mục tiêu (goal_amount)
   2. Viết truy vấn **MySQL** tính **tổng trung bình thu nhập và chi tiêu trong 3 tháng gần nhất** của \`user_id = ${user_id}\`

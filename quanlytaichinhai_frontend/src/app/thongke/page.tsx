@@ -3,10 +3,10 @@
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { useEffect, useState } from "react"
-import MonthlyBarChart from "./MonthlyBarChart"
-import ExpensePieChart from "./ExpensePieChart"
-import DailySpendingAreaChart from "./DailySpendingAreaChart"
-import CategoryDetailList from "./CategoryDetailList"
+import MonthlyBarChart from "./components/MonthlyBarChart"
+import ExpensePieChart from "./components/ExpensePieChart"
+import DailySpendingAreaChart from "./components/DailySpendingAreaChart"
+import CategoryDetailList from "./components/CategoryDetailList"
 // const monthlyData = [
 //   { month: "T10", income: 15000000, expense: 8500000 },
 //   { month: "T11", income: 15000000, expense: 7200000 },
