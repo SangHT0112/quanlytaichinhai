@@ -36,22 +36,22 @@ export default function Home() {
 
       setUser(parsedUser)
       setIsLoggedIn(true)
-
-      } catch (error) {
-        console.error("Lỗi khi parse user:", error)
-        setIsLoggedIn(false)
-        setIsLoadingData(false)
-      } 
-    }, [])
+      setIsLoadingData(false) // Thêm dòng này để kết thúc loading khi thành công
+    } catch (error) {
+      console.error("Lỗi khi parse user:", error)
+      setIsLoggedIn(false)
+      setIsLoadingData(false)
+    }
+  }, []) // Thêm dependency array rỗng nếu chưa có
 
   if (isLoadingData) {
     return <OverviewSkeleton isLoggedIn={isLoggedIn} />
   }
 
   return (
-    <div className="flex min-h-screen bg-black text-white font-sans">
+    <div className="flex h-full bg-white text-white font-sans">
       <main className="flex-1 p-6 space-y-6">
-        <h1 className="text-3xl font-bold">Tổng quan tài chính</h1>
+        <h1 className="text-3xl text-black font-bold">Tổng quan tài chính</h1>
 
         <BalanceCardPage />
 
@@ -61,7 +61,6 @@ export default function Home() {
         </div>
 
         <div className="bg-zinc-800 p-4 rounded-xl shadow">
-          <h3 className="text-lg font-semibold mb-2">Chi tiêu trong tuần</h3>
           <div className="h-40">
             <WeeklyBarChart />
           </div>

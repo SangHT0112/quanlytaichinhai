@@ -5,6 +5,7 @@ import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer } from "recha
 import { fetchWeeklyExpenses } from "@/api/overviewApi"
 import { useUser } from "@/contexts/UserProvider"
 import { formatCurrency } from "@/lib/format"
+
 export interface WeeklyExpenseData {
   day: string
   chi: number
@@ -31,14 +32,14 @@ export default function WeeklyBarChart() {
           "Thứ sáu": "Thứ 6",
           "Thứ bảy": "Thứ 7",
         }
-        const normalized = res.map(item => ({
+        const normalized = res.map((item) => ({
           ...item,
-          day: dayMap[item.day] || item.day
+          day: dayMap[item.day] || item.day,
         }))
 
         // Tạo dữ liệu đủ 7 ngày
-        const fullWeek = days.map(day => {
-          const found = normalized.find(item => item.day === day)
+        const fullWeek = days.map((day) => {
+          const found = normalized.find((item) => item.day === day)
           return found || { day, chi: 0 }
         })
 
@@ -47,22 +48,42 @@ export default function WeeklyBarChart() {
       .catch(console.error)
   }, [userId])
 
-  return (
-    <div className="w-130 h-80">
-      <h3>Chi tiêu trong tuần</h3>
-     <ResponsiveContainer>
-      <BarChart data={data}>
-        <XAxis dataKey="day" />
-        <YAxis
-          width={70} // khoảng trống bên trái
-          tickFormatter={(value) => formatCurrency(Number(value))}
-          tick={{ dx: -4 }} // dịch text sang trái để tránh sát cột
-        />
-        <Tooltip formatter={(value: number) => formatCurrency(Number(value))} />
-        <Bar dataKey="chi" fill="#3B82F6" />
-      </BarChart>
-    </ResponsiveContainer>
+  const CustomTooltip = ({ active, payload, label }: any) => {
+    if (active && payload && payload.length) {
+      return (
+        <div className="bg-white border border-gray-200 rounded-lg shadow-lg p-3">
+          <p className="text-gray-900 font-medium">{label}</p>
+          <p className="text-blue-600 font-semibold">Chi tiêu: {formatCurrency(payload[0].value)}</p>
+        </div>
+      )
+    }
+    return null
+  }
 
+  return (
+    <div className="bg-white border border-gray-200 rounded-lg p-6 shadow-sm">
+      <h3 className="text-lg font-semibold text-gray-900 mb-4">Chi tiêu trong tuần</h3>
+      <div className="w-full h-80">
+        <ResponsiveContainer>
+          <BarChart data={data} margin={{ top: 20, right: 30, left: 20, bottom: 5 }}>
+            <XAxis
+              dataKey="day"
+              tick={{ fill: "#374151", fontSize: 12 }}
+              axisLine={{ stroke: "#D1D5DB" }}
+              tickLine={{ stroke: "#D1D5DB" }}
+            />
+            <YAxis
+              width={70}
+              tickFormatter={(value) => formatCurrency(Number(value))}
+              tick={{ dx: -4, fill: "#374151", fontSize: 12 }}
+              axisLine={{ stroke: "#D1D5DB" }}
+              tickLine={{ stroke: "#D1D5DB" }}
+            />
+            <Tooltip content={<CustomTooltip />} />
+            <Bar dataKey="chi" fill="#3B82F6" radius={[4, 4, 0, 0]} />
+          </BarChart>
+        </ResponsiveContainer>
+      </div>
     </div>
   )
 }

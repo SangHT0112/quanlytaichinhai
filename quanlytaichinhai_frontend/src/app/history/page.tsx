@@ -175,7 +175,7 @@ export default function TransactionHistory() {
 
   return (
     <div className="space-y-6" id="transactions-history">
-      <h1 className="text-3xl font-bold">Lịch sử giao dịch</h1>
+      <h1 className="text-3xl font-bold text-black">Lịch sử giao dịch</h1>
 
       <SummaryCards 
         totalIncome={totalIncome} 
@@ -196,7 +196,7 @@ export default function TransactionHistory() {
         categories={categories}
       />
 
-      <div className="bg-gray-900 dark:bg-zinc-900 rounded-lg p-4 shadow">
+      <div className="bg-white dark:bg-zinc-900 rounded-lg p-4 shadow">
         <div className="mb-4">
           <h2 className="text-lg font-semibold">Danh sách giao dịch</h2>
           <p className="text-sm text-gray-500">Hiển thị {filteredTransactions.length} giao dịch</p>

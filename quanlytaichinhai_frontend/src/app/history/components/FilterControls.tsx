@@ -27,11 +27,11 @@ export default function FilterControls({
   setSortBy,
   filterMonth,
   setFilterMonth,
-  categories
+  categories = [], // Default empty array to prevent map error
 }: FilterControlsProps) {
   return (
-    <div className="bg-gray-900 dark:bg-zinc-900 rounded-lg p-4 shadow space-y-4">
-      <h2 className="text-lg font-semibold">Bộ lọc và tìm kiếm</h2>
+    <div className="bg-white dark:bg-white rounded-lg p-4 shadow border space-y-4">
+      <h2 className="text-lg font-semibold text-gray-900">Bộ lọc và tìm kiếm</h2>
       <div className="grid gap-4 md:grid-cols-5">
         <div className="relative">
           <Search className="absolute left-3 top-3 h-4 w-4 text-gray-500" />
@@ -40,14 +40,14 @@ export default function FilterControls({
             placeholder="Tìm kiếm giao dịch..."
             value={searchTerm}
             onChange={(e) => setSearchTerm(e.target.value)}
-            className="w-full pl-10 py-2 border rounded-md bg-transparent text-sm"
+            className="w-full pl-10 py-2 border rounded-md bg-white text-gray-900 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
           />
         </div>
 
         <select
           value={filterType}
           onChange={(e) => setFilterType(e.target.value)}
-          className="w-full py-2 px-3 rounded-md border border-zinc-700 bg-zinc-800 text-white text-sm focus:outline-none"
+          className="w-full py-2 px-3 rounded-md border border-gray-300 bg-white text-gray-900 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
         >
           <option value="all">Tất cả</option>
           <option value="income">Thu nhập</option>
@@ -55,22 +55,22 @@ export default function FilterControls({
         </select>
 
         <select
-            value={filterCategory}
-            onChange={(e) => setFilterCategory(e.target.value)}
-            className="w-full py-2 px-3 rounded-md border border-zinc-700 bg-zinc-800 text-white text-sm focus:outline-none"
-            >
-            <option value="all">Tất cả danh mục</option>
-            {categories.map((category) => (
-                <option key={category} value={category}>
-                {category}
-                </option>
-            ))}
+          value={filterCategory}
+          onChange={(e) => setFilterCategory(e.target.value)}
+          className="w-full py-2 px-3 rounded-md border border-gray-300 bg-white text-gray-900 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+        >
+          <option value="all">Tất cả danh mục</option>
+          {categories.map((category) => (
+            <option key={category} value={category}>
+              {category}
+            </option>
+          ))}
         </select>
 
         <select
           value={sortBy}
           onChange={(e) => setSortBy(e.target.value)}
-          className="w-full py-2 px-3 rounded-md border border-zinc-700 bg-zinc-800 text-white text-sm focus:outline-none"
+          className="w-full py-2 px-3 rounded-md border border-gray-300 bg-white text-gray-900 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
         >
           <option value="date">Sắp xếp theo ngày</option>
           <option value="amount">Sắp xếp theo số tiền</option>
@@ -79,7 +79,7 @@ export default function FilterControls({
         <select
           value={filterMonth}
           onChange={(e) => setFilterMonth(e.target.value)}
-          className="w-full py-2 px-3 rounded-md border border-zinc-700 bg-zinc-800 text-white text-sm focus:outline-none"
+          className="w-full py-2 px-3 rounded-md border border-gray-300 bg-white text-gray-900 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
         >
           <option value="all">Tất cả tháng</option>
           {Array.from({ length: 12 }, (_, i) => {
