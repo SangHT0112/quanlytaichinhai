@@ -52,6 +52,7 @@ interface TransactionContextType {
   setTransactionGroups: (groups: TransactionGroup[]) => void;
   error: string | null;
   loading: boolean;
+  balance: number;
 }
 
 export const TransactionContext = createContext<TransactionContextType>({
@@ -64,6 +65,7 @@ export const TransactionContext = createContext<TransactionContextType>({
   setTransactionGroups: () => {},
   error: null,
   loading: false,
+  balance: 0,
 });
 
 interface Props {
@@ -209,6 +211,7 @@ export const TransactionProvider = ({ children, user }: Props) => {
         setTransactionGroups,
         error,
         loading,
+        balance: transactionGroups.reduce((sum, g) => sum + g.total_amount, 0),
       }}
     >
       {children}

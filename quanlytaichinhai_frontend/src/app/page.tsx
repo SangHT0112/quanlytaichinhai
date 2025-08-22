@@ -10,15 +10,15 @@ import { saveChatHistory } from '@/api/chatHistoryApi';
 import { useCallback } from 'react';
 import { useTransaction } from '@/contexts/TransactionContext';
 import { convertStructuredToCustomContent } from '@/utils/convertStructured';
-
-
-
+import { FinancialSummary } from "@/types/financial"
+import { fetchOverview } from '@/api/overviewApi';
 // Extend Window interface
 interface ExtendedWindow extends Window {
   sendChatMessage: (message: string, imageData?: FormData) => void;
   setInputValue: (value: string) => void;
   inputValue: string;
 }
+
 
 export default function ChatAI() {
   const router = useRouter();
@@ -178,6 +178,7 @@ export default function ChatAI() {
     });
 
     try {
+      // Send confirmation request to API
       await axiosInstance.post('/ai/confirm', {
         user_id: currentUser?.user_id || 1,
         user_input: message.user_input || message.content,
@@ -186,15 +187,29 @@ export default function ChatAI() {
         confirmed: true,
       });
 
+      // Fetch the latest financial overview to get the current balance
+      const financialSummary: FinancialSummary = await fetchOverview(currentUser?.user_id || 1);
+
+      // Create confirmation message with current balance
       const confirmMsg: ChatMessage = {
         id: Date.now().toString(),
-        content: '✅ Giao dịch đã được lưu vào hệ thống.',
+        content: `✅ Giao dịch đã được lưu vào hệ thống. Số dư hiện tại: ${financialSummary.actual_balance.toLocaleString('vi-VN')} VND`,
         role: MessageRole.ASSISTANT,
         timestamp: new Date(),
       };
+
       await refreshTransactionGroups();
       setMessages((prev) => [...prev, confirmMsg]);
-      setConfirmedIds((prev) => [...prev, message.id]);
+     setConfirmedIds((prev) => {
+        const newConfirmedIds = [...prev, message.id];
+        // Save confirmedIds to localStorage
+        localStorage.setItem('confirmedIds', JSON.stringify({
+          user_id: currentUser?.user_id || 1,
+          ids: newConfirmedIds,
+          expiry: new Date(new Date().setDate(new Date().getDate() + 1)).toISOString(),
+        }));
+        return newConfirmedIds;
+      });
     } catch (err: unknown) {
       console.error('❌ Xác nhận lỗi:', err instanceof Error ? err.message : 'Unknown error');
       setMessages((prev) => [
@@ -251,40 +266,62 @@ export default function ChatAI() {
   };
 
   // Check login và load lịch sử chat từ localStorage
-  useEffect(() => {
-    const user = localStorage.getItem('user');
-    if (!user) {
-      router.push('/login');
-      return;
-    }
-
-    const stored = localStorage.getItem('chatHistory');
-    if (stored) {
-      try {
-        const { expiry, messages: savedMessages } = JSON.parse(stored);
-        const now = new Date().getTime();
-        const expiryTime = new Date(expiry).getTime();
-
-        if (now < expiryTime) {
-          // Chưa hết hạn, khôi phục messages
-          const restored = savedMessages.map((m: Partial<ChatMessage>) => ({
-            ...m,
-            role: m.role ?? MessageRole.USER,
-            timestamp: m.timestamp ? new Date(m.timestamp) : new Date(),
-          }));
-          setMessages(restored);
-          return;
-        } else {
-          // Hết hạn, xóa và khởi tạo lại
-          localStorage.removeItem('chatHistory');
-        }
-      } catch (e) {
-        console.warn('⚠️ Lỗi khi đọc lịch sử:', e);
-        localStorage.removeItem('chatHistory'); // Xóa nếu có lỗi parse
+  // Check login and load chat history and confirmedIds from localStorage
+    useEffect(() => {
+      const user = localStorage.getItem('user');
+      if (!user) {
+        router.push('/login');
+        return;
       }
-    }
-    setMessages([getWelcomeMessage()]);
-  }, [router]);
+
+      // Load chat history
+      const storedChat = localStorage.getItem('chatHistory');
+      if (storedChat) {
+        try {
+          const { expiry, messages: savedMessages } = JSON.parse(storedChat);
+          const now = new Date().getTime();
+          const expiryTime = new Date(expiry).getTime();
+
+          if (now < expiryTime) {
+            const restored = savedMessages.map((m: Partial<ChatMessage>) => ({
+              ...m,
+              role: m.role ?? MessageRole.USER,
+              timestamp: m.timestamp ? new Date(m.timestamp) : new Date(),
+            }));
+            setMessages(restored);
+          } else {
+            localStorage.removeItem('chatHistory');
+            setMessages([getWelcomeMessage()]);
+          }
+        } catch (e) {
+          console.warn('⚠️ Lỗi khi đọc lịch sử:', e);
+          localStorage.removeItem('chatHistory');
+          setMessages([getWelcomeMessage()]);
+        }
+      } else {
+        setMessages([getWelcomeMessage()]);
+      }
+
+      // Load confirmedIds
+      const storedConfirmedIds = localStorage.getItem('confirmedIds');
+      if (storedConfirmedIds) {
+        try {
+          const { user_id, ids, expiry } = JSON.parse(storedConfirmedIds);
+          const now = new Date().getTime();
+          const expiryTime = new Date(expiry).getTime();
+
+          if (now < expiryTime && user_id === (currentUser?.user_id || 1)) {
+            setConfirmedIds(ids);
+          } else {
+            localStorage.removeItem('confirmedIds');
+          }
+        } catch (e) {
+          console.warn('⚠️ Lỗi khi đọc confirmedIds:', e);
+          localStorage.removeItem('confirmedIds');
+        }
+      }
+    }, [router, currentUser?.user_id]);
+    
 
   // Lưu tin nhắn vào localStorage với thời hạn 24 giờ
   useEffect(() => {

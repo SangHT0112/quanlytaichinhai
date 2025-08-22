@@ -41,7 +41,7 @@ export default function RootLayout({ children }: { children: ReactNode }) {
   useEffect(() => {
     try {
       const storedUser = localStorage.getItem("user");
-      if (storedUser) {
+      if (storedUser) { 
         setUser(JSON.parse(storedUser));
       }
     } catch (error) {

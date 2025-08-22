@@ -5,7 +5,7 @@ import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer } from "recha
 import { fetchWeeklyExpenses } from "@/api/overviewApi"
 import { useUser } from "@/contexts/UserProvider"
 import { formatCurrency } from "@/lib/format"
-
+import { TooltipProps } from "recharts"
 export interface WeeklyExpenseData {
   day: string
   chi: number
@@ -48,12 +48,14 @@ export default function WeeklyBarChart() {
       .catch(console.error)
   }, [userId])
 
-  const CustomTooltip = ({ active, payload, label }: any) => {
+  const CustomTooltip = ({ active, payload, label }: TooltipProps<number, string>) => {
     if (active && payload && payload.length) {
       return (
         <div className="bg-white border border-gray-200 rounded-lg shadow-lg p-3">
           <p className="text-gray-900 font-medium">{label}</p>
-          <p className="text-blue-600 font-semibold">Chi tiêu: {formatCurrency(payload[0].value)}</p>
+          <p className="text-blue-600 font-semibold">
+            Chi tiêu: {formatCurrency(payload[0].value as number)}
+          </p>
         </div>
       )
     }

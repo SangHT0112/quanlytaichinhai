@@ -233,6 +233,20 @@ export const ChatInput = ({
                 handleSend();
               }
             }}
+            onPaste={(e) => {
+              const items = e.clipboardData?.items;
+              if (items) {
+                for (let i = 0; i < items.length; i++) {
+                  const item = items[i];
+                  if (item.type.startsWith("image/")) {
+                    const file = item.getAsFile();
+                    if (file) {
+                      setSelectedImage(file); // set ảnh vào state
+                    }
+                  }
+                }
+              }
+            }}
             placeholder="Thêm giao dịch..."
             className="flex-1 min-w-0 px-3 py-2 rounded-full bg-white text-slate-800 placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-teal-500 focus:border-transparent transition-all text-sm"
           />

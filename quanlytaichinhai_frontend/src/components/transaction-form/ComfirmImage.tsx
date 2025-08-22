@@ -25,6 +25,7 @@ export default function BackgroundImageConfirmForm({
   return (
     <div className="p-6 max-w-xl mx-auto bg-white rounded-xl shadow space-y-4 mt-6">
       <h2 className="text-xl font-bold text-center">Xác nhận ảnh làm hình nền</h2>
+      {/* eslint-disable-next-line @next/next/no-img-element */}
       <img
         src={imageUrl}
         alt="Background Preview"

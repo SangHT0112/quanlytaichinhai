@@ -12,7 +12,7 @@ interface TransactionConfirmationFormProps {
   transactionData: TransactionData
   onConfirm?: (data: TransactionData) => void
   isConfirmed?: boolean 
-   onEdit?: () => void 
+  onEdit?: () => void 
 }
 
 export default function SingleTransactionConfirmationForm({
@@ -45,7 +45,6 @@ export default function SingleTransactionConfirmationForm({
     })
   }
 
-
   const handleConfirm = async () => {
     setIsSubmitting(true)
     try {
@@ -58,7 +57,6 @@ export default function SingleTransactionConfirmationForm({
       setIsSubmitting(false)
     }
   }
-
 
   return (
     <Card className="w-full max-w-md mx-auto">
@@ -119,8 +117,8 @@ export default function SingleTransactionConfirmationForm({
         </div>
       </CardContent>
 
-      <CardFooter className="flex gap-3  min-w-[300px]">
-        {isConfirmed ? onEdit && (
+      <CardFooter className="flex gap-3 min-w-[300px]">
+        {isConfirmed ? (
           <Button className="w-full justify-center" disabled>
             <CheckCircle className="h-4 w-4 mr-2" />
             Đã xác nhận
@@ -139,8 +137,6 @@ export default function SingleTransactionConfirmationForm({
           </>
         )}
       </CardFooter>
-
-
     </Card>
   )
 }
