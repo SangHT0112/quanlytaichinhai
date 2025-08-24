@@ -35,6 +35,43 @@ export const confirmCategory = async (req, res) => {
     }
 
     if (confirm) {
+
+      // Nếu là fallback category -> KHÔNG tạo mới trong DB
+      if (!create_category && (name === "Chi tiêu khác" || name === "Thu nhập khác")) {
+        if (temporary_transaction) {
+          const updatedTransactions = {
+            ...temporary_transaction,
+            transactions: temporary_transaction.transactions.map(tx => ({
+              ...tx,
+              category_id: null, // không có category_id trong DB
+              category: name,
+            })),
+            user_id,
+          };
+
+          return res.status(200).json({
+            message: "Fallback category applied, no new category created",
+            structured: {
+              response_type: "transaction",
+              group_name: updatedTransactions.group_name || name,
+              transaction_date: updatedTransactions.transaction_date || new Date().toISOString(),
+              user_id,
+              transactions: updatedTransactions.transactions.map(tx => ({
+                type: tx.type || "expense",
+                amount: Number(tx.amount) || 0,
+                category: tx.category || name,
+                user_id: tx.user_id || user_id,
+                transaction_date: tx.transaction_date || new Date().toISOString(),
+                description: tx.description || `Giao dịch với danh mục ${name}`,
+              })),
+            },
+          });
+        }
+
+        return res.status(200).json({
+          message: "Fallback category applied (no transaction linked)",
+        });
+      }
       // Thêm danh mục mới
       const categoryId = await Category.create({ name, type, icon, user_id });
 

@@ -42,7 +42,6 @@ interface CategoryConfirmationFormProps {
 export default function CategoryConfirmationForm({
   categoryData,
   user_id,
-  messageId,
   onConfirm,
   isConfirmed: propIsConfirmed = false, // Sử dụng prop isConfirmed
   temporary_transaction,

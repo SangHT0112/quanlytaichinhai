@@ -34,8 +34,13 @@ const isTransactionStructuredData = (
 const isSuggestNewCategory = (
   data: StructuredData | undefined
 ): data is Extract<StructuredData, { response_type: "suggest_new_category" }> => {
-  return data != null && (data as any).response_type === "suggest_new_category";
+  return (
+    data !== undefined &&
+    typeof (data as { response_type?: string }).response_type === "string" &&
+    (data as { response_type?: string }).response_type === "suggest_new_category"
+  );
 };
+
 
 function hasImageUrl(data: StructuredData): data is {
   transactions?: Array<{
