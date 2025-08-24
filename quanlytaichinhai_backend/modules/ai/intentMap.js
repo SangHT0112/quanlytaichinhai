@@ -8,6 +8,7 @@ import { generateExplainPrompt } from './prompts/sqlPrompts/generateExplainPromp
 import { generateSQLPrompt } from './prompts/sqlPrompts/generateSQLPrompt.js';
 import { generateForecastSQLPrompt } from './prompts/sqlPrompts/generateForecastSQLPrompt.js';
 import { generateImagePrompt } from './prompts/generateImagePrompt.js';
+import { generateCreateCategoryPrompt } from './prompts/generateCreateCategoryPrompt.js';
 import db from '../../config/db.js';
 import path from 'path'
 import fs from 'fs'
@@ -21,7 +22,7 @@ import streamifier from 'streamifier'; // mới cần
 import { fetchStabilityAI } from './utils/fetchStabilityAI.js';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
-const processTransactionResponse = async (aiText, { user_input, now, user_id, historyText }) => {
+const processTransactionResponse = async (aiText, { user_input, now, user_id }) => {
   const parsed = parseJsonFromText(aiText, { fallback: null });
   if (!parsed) {
     return {
@@ -48,18 +49,30 @@ const processTransactionResponse = async (aiText, { user_input, now, user_id, hi
     };
   }
 
+  if (parsed.response_type === 'suggest_new_category') {
+      return {
+        raw: parsed.message,
+        structured: {
+          response_type: 'suggest_new_category',
+          message: parsed.message,
+          suggest_new_category: parsed.suggest_new_category,
+          temporary_transaction: parsed.temporary_transaction,
+        },
+      };
+  }
+
   const structured = {
-    group_name: parsed.group_name || parsed.transactions?.[0]?.description || null,
-    transaction_date: parsed.transaction_date || now,
+    group_name: parsed.group_name || parsed.temporary_transaction?.group_name || parsed.transactions?.[0]?.description || user_input,
+    transaction_date: parsed.transaction_date || parsed.temporary_transaction?.transaction_date || now,
     user_id: parsed.user_id || user_id,
     transactions: Array.isArray(parsed.transactions)
       ? parsed.transactions.map(tx => ({ ...tx, amount: Number(tx.amount) || 0 }))
-      : Array.isArray(parsed)
-      ? parsed.map(tx => ({ ...tx, amount: Number(tx.amount) || 0 }))
+      : Array.isArray(parsed.temporary_transaction?.transactions)
+      ? parsed.temporary_transaction.transactions.map(tx => ({ ...tx, amount: Number(tx.amount) || 0 }))
       : [{ ...parsed, amount: Number(parsed.amount) || 0 }],
   };
 
-  return { structured };
+  return { raw: parsed.message || aiText, structured };
 };
 
 const genericJsonProcessor = async (aiText) => {
@@ -215,6 +228,51 @@ export const intentMap = {
         }
       },
     },
+  create_category: {
+    generatePrompt: generateCreateCategoryPrompt,
+    isJsonResponse: true,
+    processResponse: async (aiText, { user_input, now, user_id }) => {
+      const parsed = parseJsonFromText(aiText, { fallback: null });
+      if (!parsed) {
+        return {
+          raw: 'Không thể phân tích dữ liệu danh mục.',
+          structured: {
+            error: 'JSON không hợp lệ',
+          },
+        };
+      }
+
+      // Lấy dữ liệu từ parsed (AI trả về)
+      if (parsed.name && parsed.type) {
+        return {
+          raw: `Đã đề xuất danh mục mới '${parsed.name}'.`,
+          structured: {
+            response_type: 'suggest_new_category',
+            suggest_new_category: {
+              name: parsed.name.trim(),
+              type: parsed.type,
+              parent_id: null,
+              icon: parsed.icon || null, // ✅ lấy icon từ AI, chỉ fallback null nếu AI không có
+            },
+            temporary_transaction: {
+              user_id: parsed.user_id ?? user_id,
+              type: parsed.type,
+              category: parsed.name.trim(),
+              amount: 0,
+              description: user_input,
+              transaction_date: now,
+            },
+            message: `Đã đề xuất danh mục mới '${parsed.name.trim()}'. Chờ phê duyệt.`,
+          },
+        };
+      }
+
+      return {
+        raw: 'Không thể nhận diện yêu cầu tạo danh mục.',
+        structured: { error: 'Yêu cầu không hợp lệ' },
+      };
+    },
+  },
   natural: {
     generatePrompt: generateNaturalPrompt,
     isJsonResponse: false,

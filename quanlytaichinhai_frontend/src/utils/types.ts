@@ -63,6 +63,32 @@ export type StructuredData =
       introText?: string;
       props?: Record<string, unknown>;
       layout?: 'inline' | 'block';
+    }
+    | {
+      response_type: 'suggest_new_category';
+      message: string;
+      suggest_new_category: {
+        name: string;
+        type: 'expense' | 'income';
+        parent_id: number | null;
+        color: string | null;
+        icon: string | null;
+      };
+      temporary_transaction?: {
+        group_name?: string;
+        transaction_date?: string;
+        user_id?: number;
+        total_amount?: number;
+        transactions: Array<{
+          type: 'expense' | 'income';
+          amount: number;
+          category: string;
+          description?: string;
+          date?: string;
+          user_id?: number;
+          transaction_date?: string;
+        }>;
+      };
     };
 
 // 5. Kiểu cho TransactionData (từ MessageItem.tsx)

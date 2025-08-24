@@ -187,20 +187,8 @@ export default function ChatAI() {
         confirmed: true,
       });
 
-      // Fetch the latest financial overview to get the current balance
-      const financialSummary: FinancialSummary = await fetchOverview(currentUser?.user_id || 1);
-
-      // Create confirmation message with current balance
-      const confirmMsg: ChatMessage = {
-        id: Date.now().toString(),
-        content: `✅ Giao dịch đã được lưu vào hệ thống. Số dư hiện tại: ${financialSummary.actual_balance.toLocaleString('vi-VN')} VND`,
-        role: MessageRole.ASSISTANT,
-        timestamp: new Date(),
-      };
-
-      await refreshTransactionGroups();
-      setMessages((prev) => [...prev, confirmMsg]);
-     setConfirmedIds((prev) => {
+      // Cập nhật confirmedIds cho cả danh mục và giao dịch
+      setConfirmedIds((prev) => {
         const newConfirmedIds = [...prev, message.id];
         // Save confirmedIds to localStorage
         localStorage.setItem('confirmedIds', JSON.stringify({
@@ -210,13 +198,29 @@ export default function ChatAI() {
         }));
         return newConfirmedIds;
       });
+
+      // Fetch the latest financial overview to get the current balance
+      const financialSummary: FinancialSummary = await fetchOverview(currentUser?.user_id || 1);
+
+      // Create confirmation message
+      const confirmMsg: ChatMessage = {
+        id: Date.now().toString(),
+        content: correctedData
+          ? `✅ Giao dịch đã được lưu vào hệ thống. Số dư hiện tại: ${financialSummary.actual_balance.toLocaleString('vi-VN')} VND`
+          : `✅ Danh mục đã được xác nhận.`,
+        role: MessageRole.ASSISTANT,
+        timestamp: new Date(),
+      };
+
+      await refreshTransactionGroups();
+      setMessages((prev) => [...prev, confirmMsg]);
     } catch (err: unknown) {
       console.error('❌ Xác nhận lỗi:', err instanceof Error ? err.message : 'Unknown error');
       setMessages((prev) => [
         ...prev,
         {
           id: Date.now().toString(),
-          content: '❌ Lỗi khi xác nhận giao dịch.',
+          content: '❌ Lỗi khi xác nhận.',
           role: MessageRole.ASSISTANT,
           timestamp: new Date(),
         },

@@ -106,3 +106,6 @@ export async function getFinancialSummary(userId) {
   const balance = summary.income - summary.expense
   return { ...summary, balance }
 }
+
+
+

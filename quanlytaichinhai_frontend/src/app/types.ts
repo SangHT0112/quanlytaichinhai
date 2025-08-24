@@ -39,7 +39,12 @@ export type MessageContentPart =
       name: string;
       arguments: string;
     };
-
+export interface SuggestNewCategoryData {
+  name: string;
+  type: "income" | "expense";
+  parent_id: number | null;
+  icon: string | null;
+}
 // 4. Định nghĩa kiểu cho structured
 export type StructuredData =
   | {
@@ -56,6 +61,25 @@ export type StructuredData =
       total_amount?: number;
       transaction_date?: string;
     }
+    | {
+    response_type: "suggest_new_category";
+    suggest_new_category: SuggestNewCategoryData;
+    temporary_transaction?: {
+      group_name?: string;
+      transaction_date?: string;
+      user_id?: number;
+      total_amount?: number;
+      transactions: Array<{
+        type: "expense" | "income";
+        amount: number;
+        category: string;
+        description?: string;
+        date?: string;
+        user_id?: number;
+        transaction_date?: string;
+      }>;
+    };
+  }
   | {
       type: 'component';
       name: AllowedComponents;

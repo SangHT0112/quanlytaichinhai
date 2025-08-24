@@ -1,37 +1,45 @@
-"use client"
+"use client";
 
-import { useState } from "react"
-import { Bot, User } from "lucide-react" // Import DollarSign icon
-import type { ChatMessage, StructuredData, TransactionData } from "../utils/types" // Đảm bảo các types này đã được định nghĩa
-import { MessageRenderer } from "./MessageRenderer" // Đảm bảo component này đã được định nghĩa
-import SingleTransactionConfirmationForm from "./transaction-form/SingleTransactionConfirmationForm" // Đảm bảo component này đã được định nghĩa
-import MultiTransactionConfirmationForm from "./transaction-form/MultiTransactionConfirmationForm" // Đảm bảo component này đã được định nghĩa
-import TransactionEditForm from "./transaction-form/TransactionEditForm" // Đảm bảo component này đã được định nghĩa
-import { renderCustomContent } from "./hooks/renderCustomContent" // Đảm bảo hook này đã được định nghĩa
-import BackgroundImageConfirmForm from "./transaction-form/ComfirmImage"
+import { useState, useEffect } from "react"; // Thêm useEffect để load từ localStorage
+import { Bot, User } from "lucide-react";
+import type { ChatMessage, StructuredData, TransactionData } from "../utils/types";
+import { MessageRenderer } from "./MessageRenderer";
+import SingleTransactionConfirmationForm from "./transaction-form/SingleTransactionConfirmationForm";
+import MultiTransactionConfirmationForm from "./transaction-form/MultiTransactionConfirmationForm";
+import TransactionEditForm from "./transaction-form/TransactionEditForm";
+import { renderCustomContent } from "./hooks/renderCustomContent";
+import BackgroundImageConfirmForm from "./transaction-form/ComfirmImage";
+import CategoryConfirmationForm from "./transaction-form/CategoryConfirmationForm";
+
 // Type guard để kiểm tra StructuredData dạng transactions
 const isTransactionStructuredData = (
   data: StructuredData,
 ): data is {
   transactions?: Array<{
-    type: "expense" | "income"
-    category: string
-    amount: number
-    user_id?: number
-    date?: string
-    transaction_date?: string
-    description?: string
-  }>
-  group_name?: string
-  total_amount?: number
-  transaction_date?: string
+    type: "expense" | "income";
+    category: string;
+    amount: number;
+    user_id?: number;
+    date?: string;
+    transaction_date?: string;
+    description?: string;
+  }>;
+  group_name?: string;
+  total_amount?: number;
+  transaction_date?: string;
 } => {
-  return !("type" in data) || data.type !== "component"
-}
+  return !("type" in data) || data.type !== "component";
+};
+
+const isSuggestNewCategory = (
+  data: StructuredData | undefined
+): data is Extract<StructuredData, { response_type: "suggest_new_category" }> => {
+  return data != null && (data as any).response_type === "suggest_new_category";
+};
 
 function hasImageUrl(data: StructuredData): data is {
   transactions?: Array<{
-    type: 'expense' | 'income';
+    type: "expense" | "income";
     amount: number;
     category: string;
     date?: string;
@@ -44,9 +52,8 @@ function hasImageUrl(data: StructuredData): data is {
   transaction_date?: string;
   image_url?: string;
 } {
-  return 'image_url' in data;
+  return "image_url" in data;
 }
-
 
 export const MessageItem = ({
   message,
@@ -57,12 +64,25 @@ export const MessageItem = ({
   message: ChatMessage;
   onConfirm?: (message: ChatMessage, correctedData?: TransactionData | TransactionData[]) => Promise<void>;
   confirmedIds?: string[];
-  onSaveEdit?: (messageId: string, editedData: TransactionData, editingIndex: number) => Promise<void>; // Cập nhật chữ ký
+  onSaveEdit?: (messageId: string, editedData: TransactionData, editingIndex: number) => Promise<void>;
 }) => {
-  const [isEditing, setIsEditing] = useState(false)
-  const [editingIndex, setEditingIndex] = useState(0)
-  const [isLoading, setIsLoading] = useState(false)
+  const [isEditing, setIsEditing] = useState(false);
+  const [editingIndex, setEditingIndex] = useState(0);
+  const [isLoading, setIsLoading] = useState(false);
   const groupTransactionDate = (message.structured as { transaction_date?: string })?.transaction_date;
+
+  const [pendingTransaction, setPendingTransaction] = useState<TransactionData | null>(null);
+  const [isCategoryConfirmed, setIsCategoryConfirmed] = useState(confirmedIds.includes(message.id));
+  const [isTransactionConfirmed, setIsTransactionConfirmed] = useState(confirmedIds.includes(message.id));
+
+  // Load pendingTransaction từ localStorage khi component mount
+  useEffect(() => {
+    const storedPending = localStorage.getItem(`pendingTransaction_${message.id}`);
+    if (storedPending) {
+      setPendingTransaction(JSON.parse(storedPending));
+    }
+  }, [message.id]);
+
   // Lấy transactions từ structured và đảm bảo khớp với TransactionData
   const transactions: TransactionData[] =
     message.structured &&
@@ -70,14 +90,14 @@ export const MessageItem = ({
     Array.isArray(message.structured.transactions)
       ? message.structured.transactions.map((tx) => ({
           type: tx.type || "expense",
-          amount: tx.amount, // amount là bắt buộc
-          category: tx.category, // category là bắt buộc
+          amount: tx.amount,
+          category: tx.category,
           date: tx.date,
           user_id: tx.user_id ?? 1,
           description: tx.description || message.user_input || message.content || "Không có mô tả",
-         transaction_date: tx.transaction_date || groupTransactionDate || new Date().toISOString(),
+          transaction_date: tx.transaction_date || groupTransactionDate || new Date().toISOString(),
         }))
-      : []
+      : [];
 
   // Transaction mặc định để edit
   const defaultTransaction: TransactionData = transactions[editingIndex] || {
@@ -88,19 +108,19 @@ export const MessageItem = ({
     date: new Date().toISOString(),
     description: message.user_input || message.content || "Không có mô tả",
     transaction_date: new Date().toISOString(),
-  }
+  };
 
   const [editedData, setEditedData] = useState<TransactionData>({
     ...defaultTransaction,
-  })
+  });
 
   // Kiểm tra các trạng thái
-  const isTransaction = transactions.length > 0
-  const isSingleTransaction = transactions.length === 1
-  const isMultiTransaction = transactions.length > 1
+  const isTransaction = transactions.length > 0;
+  const isSingleTransaction = transactions.length === 1;
+  const isMultiTransaction = transactions.length > 1;
   const hasCustomContent =
     Array.isArray(message.custom_content) &&
-    message.custom_content.some((part) => part.type === "component" || part.type === "function_call")
+    message.custom_content.some((part) => part.type === "component" || part.type === "function_call");
 
   const handleEditChange = (field: keyof TransactionData, value: string | number) => {
     setEditedData((prev) => ({
@@ -109,13 +129,13 @@ export const MessageItem = ({
       user_id: prev.user_id ?? 1,
       description: field === "description" ? (value as string) : prev.description,
       transaction_date: field === "date" ? (value as string) : prev.transaction_date,
-    }))
-  }
+    }));
+  };
 
- const handleSaveEdit = async () => {
+  const handleSaveEdit = async () => {
     setIsLoading(true);
     try {
-      await onSaveEdit?.(message.id, editedData, editingIndex); // Truyền thêm editingIndex
+      await onSaveEdit?.(message.id, editedData, editingIndex);
       setIsEditing(false);
     } finally {
       setIsLoading(false);
@@ -125,28 +145,62 @@ export const MessageItem = ({
   const handleCancelEdit = () => {
     setEditedData({
       ...(transactions[editingIndex] || defaultTransaction),
-    })
-    setIsEditing(false)
-  }
+    });
+    setIsEditing(false);
+  };
 
   const handleStartEdit = (index: number) => {
-    setEditingIndex(index)
+    setEditingIndex(index);
     setEditedData({
       ...transactions[index],
-    })
-    setIsEditing(true)
-  }
+    });
+    setIsEditing(true);
+  };
 
   const handleConfirmAll = async () => {
-    setIsLoading(true)
+    setIsLoading(true);
     try {
       if (onConfirm) {
-        await onConfirm(message, transactions)
+        await onConfirm(message, transactions);
       }
     } finally {
-      setIsLoading(false)
+      setIsLoading(false);
     }
-  }
+  };
+
+  // Xử lý xác nhận danh mục
+  const handleCategoryConfirm = async (confirmed: boolean, transactionData?: TransactionData) => {
+    if (confirmed) {
+      setIsCategoryConfirmed(true);
+      if (transactionData) {
+        setPendingTransaction(transactionData);
+        // Lưu pendingTransaction vào localStorage để duy trì sau refresh
+        localStorage.setItem(`pendingTransaction_${message.id}`, JSON.stringify(transactionData));
+      } else {
+        // Chỉ gọi onConfirm khi KHÔNG có transactionData (chỉ tạo category), để thêm confirmedIds
+        await onConfirm?.(message);
+      }
+    } else {
+      setIsCategoryConfirmed(false);
+      setPendingTransaction(null);
+      localStorage.removeItem(`pendingTransaction_${message.id}`);
+    }
+  };
+
+  // Xử lý xác nhận giao dịch
+  const handleTransactionConfirm = async (transactionData: TransactionData) => {
+    if (onConfirm) {
+      setIsLoading(true);
+      try {
+        await onConfirm(message, transactionData);
+        setIsTransactionConfirmed(true);
+        // Xóa pendingTransaction khỏi localStorage sau khi xác nhận thành công
+        localStorage.removeItem(`pendingTransaction_${message.id}`);
+      } finally {
+        setIsLoading(false);
+      }
+    }
+  };
 
   return (
     <div className={`flex w-full mb-3 ${message.role === "user" ? "justify-end" : "justify-start"}`}>
@@ -190,7 +244,7 @@ export const MessageItem = ({
                 {isSingleTransaction && (
                   <SingleTransactionConfirmationForm
                     transactionData={transactions[0]}
-                    isConfirmed={confirmedIds.includes(message.id)}
+                    isConfirmed={isTransactionConfirmed || confirmedIds.includes(message.id)}
                     onConfirm={() => onConfirm?.(message, transactions[0])}
                     onEdit={() => handleStartEdit(0)}
                   />
@@ -211,6 +265,36 @@ export const MessageItem = ({
           </div>
         )}
 
+        {/* Hiển thị CategoryConfirmationForm - LUÔN HIỂN THỊ KHI CÓ DANH MỤC MỚI */}
+        {message.structured && isSuggestNewCategory(message.structured) && (
+          <div className="mt-2">
+            <CategoryConfirmationForm
+              categoryData={message.structured.suggest_new_category}
+              user_id={message.structured.temporary_transaction?.user_id ?? 1}
+              messageId={message.id}
+              onConfirm={handleCategoryConfirm}
+              temporary_transaction={message.structured.temporary_transaction}
+              isConfirmed={isCategoryConfirmed}
+            />
+          </div>
+        )}
+
+        {/* Hiển thị SingleTransactionConfirmationForm - HIỂN THỊ KHI CÓ GIAO DỊCH CHỜ */}
+        {pendingTransaction && (
+          <div className="mt-2">
+            <SingleTransactionConfirmationForm
+              transactionData={pendingTransaction}
+              isConfirmed={isTransactionConfirmed || confirmedIds.includes(message.id)} // CẬP NHẬT isConfirmed
+              onConfirm={() => handleTransactionConfirm(pendingTransaction)}
+              onEdit={() => {
+                setEditedData(pendingTransaction);
+                setIsEditing(true);
+              }}
+            />
+          </div>
+        )}
+        
+
         {message.structured &&
           hasImageUrl(message.structured) &&
           typeof message.structured.image_url === "string" && (
@@ -224,9 +308,7 @@ export const MessageItem = ({
         ))}
 
         <div
-          className={`text-xs mt-2 opacity-70 ${
-            message.role === "user" ? "text-teal-100" : "text-slate-500"
-          }`}
+          className={`text-xs mt-2 opacity-70 ${message.role === "user" ? "text-teal-100" : "text-slate-500"}`}
         >
           {new Date(message.timestamp).toLocaleTimeString("vi-VN", {
             hour: "2-digit",
@@ -240,6 +322,5 @@ export const MessageItem = ({
         </div>
       )}
     </div>
-  )
-
-}
+  );
+};
