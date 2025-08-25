@@ -3,7 +3,6 @@
 import { usePathname } from "next/navigation";
 import "./globals.css";
 import Sidebar from "@/components/Layouts/Sidebar";
-import { ChatInput } from "@/components/Layouts/ChatInput";
 import { ReactNode, useState, useEffect } from "react";
 import { UserProvider } from "@/contexts/UserProvider";
 import RightSidebar from "@/components/Layouts/SidebarRight";
@@ -14,7 +13,7 @@ export default function RootLayout({ children }: { children: ReactNode }) {
   type UserType = {
     user_id: number;
     username: string;
-    role: string
+    role: string;
   };
 
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
@@ -41,7 +40,7 @@ export default function RootLayout({ children }: { children: ReactNode }) {
   useEffect(() => {
     try {
       const storedUser = localStorage.getItem("user");
-      if (storedUser) { 
+      if (storedUser) {
         setUser(JSON.parse(storedUser));
       }
     } catch (error) {
@@ -58,7 +57,7 @@ export default function RootLayout({ children }: { children: ReactNode }) {
   return (
     <html lang="vi">
       <body
-        className={`flex text-slate-800 font-sans min-h-screen w-full overflow-x-hidden bg-cover bg-center bg-no-repeat`}
+        className="flex text-slate-800 font-sans min-h-screen w-full overflow-x-hidden bg-cover bg-center bg-no-repeat"
         style={{
           backgroundImage: "url('/background.png')",
         }}
@@ -68,7 +67,6 @@ export default function RootLayout({ children }: { children: ReactNode }) {
         ) : (
           <UserProvider>
             <TransactionProvider user={user}>
-              {/* Bắt sự kiện online/offline qua WebSocket */}
               {user?.user_id && <OnlineStatus userId={user.user_id} />}
 
               <Sidebar
@@ -78,41 +76,31 @@ export default function RootLayout({ children }: { children: ReactNode }) {
               />
 
               <div
-                className={`flex flex-col flex-1 mt-16 transition-all duration-300 ease-in-out w-full ${
+                className={`flex flex-col flex-1 transition-all duration-300 ease-in-out w-full ${
                   isSidebarOpen && isSidebarRightOpen
-                    ? "md:ml-60 md:mr-75"
+                    ? "md:ml-60 md:mr-60"
                     : isSidebarOpen
                     ? "md:ml-60"
                     : isSidebarRightOpen
-                    ? "md:mr-75"
+                    ? "md:mr-60"
                     : ""
                 }`}
               >
-                <main className="flex-1 w-full mx-auto px-1 pb-1">
+                <main className="flex-1 w-full mx-auto px-4 pb-20">
                   {children}
                 </main>
 
-                {/* ChatInput desktop */}
-                <div className="hidden md:flex w-full justify-center px-4 py-4">
-                  <div className="w-full max-w-3xl">
+                {/* ChatInput cố định, không phụ thuộc vào sidebar
+                <div className="fixed bottom-0 left-0 right-0 z-50 px-4 pb-4">
+                  <div className="w-full max-w-3xl mx-auto">
                     <ChatInput
                       isSidebarOpen={isSidebarOpen}
                       isSidebarRightOpen={isSidebarRightOpen}
                       pathname={pathname}
+                      centered={true} // Thêm prop centered
                     />
                   </div>
-                </div>
-              </div>
-
-              {/* ChatInput mobile */}
-              <div className="md:hidden fixed bottom-0 left-0 right-0 px-4 pb-4 z-50">
-                <div className="w-full max-w-3xl mx-auto space-y-2">
-                  <ChatInput
-                    isSidebarOpen={isSidebarOpen}
-                    isSidebarRightOpen={isSidebarRightOpen}
-                    pathname={pathname}
-                  />
-                </div>
+                </div> */}
               </div>
 
               <RightSidebar

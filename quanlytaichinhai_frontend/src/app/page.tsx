@@ -12,19 +12,23 @@ import { useTransaction } from '@/contexts/TransactionContext';
 import { convertStructuredToCustomContent } from '@/utils/convertStructured';
 import { FinancialSummary } from "@/types/financial"
 import { fetchOverview } from '@/api/overviewApi';
+import { ChatInput } from '@/components/Layouts/ChatInput';
 // Extend Window interface
 interface ExtendedWindow extends Window {
   sendChatMessage: (message: string, imageData?: FormData) => void;
   setInputValue: (value: string) => void;
   inputValue: string;
 }
-
-
+declare global {
+  interface Window {
+    hasMessages: boolean;
+  }
+}
 export default function ChatAI() {
   const router = useRouter();
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const isApiProcessing = useRef(false);
-
+  
   const [messages, setMessages] = useState<ChatMessage[]>([]);
   const [inputValue, setInputValue] = useState('');
   const [isLoading, setIsLoading] = useState(false);
@@ -53,12 +57,12 @@ export default function ChatAI() {
   };
   const { refreshTransactionGroups } = useTransaction();
 
-  const getWelcomeMessage = (): ChatMessage => ({
-    id: '1',
-    content: 'Xin chào! Tôi là AI hỗ trợ tài chính. Hãy hỏi tôi về: số dư, chi tiêu, tiết kiệm...',
-    role: MessageRole.ASSISTANT,
-    timestamp: new Date(),
-  });
+  // const getWelcomeMessage = (): ChatMessage => ({
+  //   id: '1',
+  //   content: 'Xin chào! Tôi là AI hỗ trợ tài chính. Hãy hỏi tôi về: số dư, chi tiêu, tiết kiệm...',
+  //   role: MessageRole.ASSISTANT,
+  //   timestamp: new Date(),
+  // });
 
   const sendToApi = useCallback(async (message: string, updatedMessages: ChatMessage[], imageData?: FormData) => {
     if (isApiProcessing.current) return;
@@ -270,61 +274,60 @@ export default function ChatAI() {
   };
 
   // Check login và load lịch sử chat từ localStorage
-  // Check login and load chat history and confirmedIds from localStorage
-    useEffect(() => {
-      const user = localStorage.getItem('user');
-      if (!user) {
-        router.push('/login');
-        return;
-      }
+  useEffect(() => {
+    const user = localStorage.getItem('user');
+    if (!user) {
+      router.push('/login');
+      return;
+    }
 
-      // Load chat history
-      const storedChat = localStorage.getItem('chatHistory');
-      if (storedChat) {
-        try {
-          const { expiry, messages: savedMessages } = JSON.parse(storedChat);
-          const now = new Date().getTime();
-          const expiryTime = new Date(expiry).getTime();
+    // Load chat history
+    const storedChat = localStorage.getItem('chatHistory');
+    if (storedChat) {
+      try {
+        const { expiry, messages: savedMessages } = JSON.parse(storedChat);
+        const now = new Date().getTime();
+        const expiryTime = new Date(expiry).getTime();
 
-          if (now < expiryTime) {
-            const restored = savedMessages.map((m: Partial<ChatMessage>) => ({
-              ...m,
-              role: m.role ?? MessageRole.USER,
-              timestamp: m.timestamp ? new Date(m.timestamp) : new Date(),
-            }));
-            setMessages(restored);
-          } else {
-            localStorage.removeItem('chatHistory');
-            setMessages([getWelcomeMessage()]);
-          }
-        } catch (e) {
-          console.warn('⚠️ Lỗi khi đọc lịch sử:', e);
+        if (now < expiryTime) {
+          const restored = savedMessages.map((m: Partial<ChatMessage>) => ({
+            ...m,
+            role: m.role ?? MessageRole.USER,
+            timestamp: m.timestamp ? new Date(m.timestamp) : new Date(),
+          }));
+          setMessages(restored);
+        } else {
           localStorage.removeItem('chatHistory');
-          setMessages([getWelcomeMessage()]);
+          // setMessages([getWelcomeMessage()]);
         }
-      } else {
-        setMessages([getWelcomeMessage()]);
+      } catch (e) {
+        console.warn('⚠️ Lỗi khi đọc lịch sử:', e);
+        localStorage.removeItem('chatHistory');
+        // setMessages([getWelcomeMessage()]);
       }
+    } else {
+      // setMessages([getWelcomeMessage()]);
+    }
 
-      // Load confirmedIds
-      const storedConfirmedIds = localStorage.getItem('confirmedIds');
-      if (storedConfirmedIds) {
-        try {
-          const { user_id, ids, expiry } = JSON.parse(storedConfirmedIds);
-          const now = new Date().getTime();
-          const expiryTime = new Date(expiry).getTime();
+    // Load confirmedIds
+    const storedConfirmedIds = localStorage.getItem('confirmedIds');
+    if (storedConfirmedIds) {
+      try {
+        const { user_id, ids, expiry } = JSON.parse(storedConfirmedIds);
+        const now = new Date().getTime();
+        const expiryTime = new Date(expiry).getTime();
 
-          if (now < expiryTime && user_id === (currentUser?.user_id || 1)) {
-            setConfirmedIds(ids);
-          } else {
-            localStorage.removeItem('confirmedIds');
-          }
-        } catch (e) {
-          console.warn('⚠️ Lỗi khi đọc confirmedIds:', e);
+        if (now < expiryTime && user_id === (currentUser?.user_id || 1)) {
+          setConfirmedIds(ids);
+        } else {
           localStorage.removeItem('confirmedIds');
         }
+      } catch (e) {
+        console.warn('⚠️ Lỗi khi đọc confirmedIds:', e);
+        localStorage.removeItem('confirmedIds');
       }
-    }, [router, currentUser?.user_id]);
+    }
+  }, [router, currentUser?.user_id]);
     
 
   // Lưu tin nhắn vào localStorage với thời hạn 24 giờ
@@ -390,22 +393,88 @@ export default function ChatAI() {
     }
   }, []);
 
+  // Kiểm tra xem có chỉ có tin nhắn chào mừng hay không
+  const hasMessages = messages.length > 0;
+   useEffect(() => {
+      window.hasMessages = hasMessages;
+    }, [hasMessages]);
+
+
   return (
     <div className="flex flex-col h-full bg-cover bg-center pb-20 md:pb-0">
-      <div className="flex-1 overflow-y-auto space-y-4 pb-2 sm:px-16 message-container">
-        {messages.map((msg) => (
-          <MessageItem
-            key={msg.id}
-            message={msg}
-            onConfirm={handleConfirm}
-            confirmedIds={confirmedIds}
-            onSaveEdit={handleSaveEdit}
-          />
-        ))}
-        {isLoading && <LoadingIndicator />}
-        <div ref={messagesEndRef} />
+      <div className={`flex-1 overflow-y-auto space-y-4 pb-40 sm:px-16 message-container ${!hasMessages ? 'flex flex-col justify-center items-center' : ''}`}>
+        {!hasMessages && (
+          <div className="text-center mb-8">
+            <div className="text-center mb-8">
+              <h1 className="text-4xl md:text-5xl font-bold bg-gradient-to-r from-emerald-400 via-teal-300 to-cyan-400 bg-clip-text text-transparent mb-4 leading-tight drop-shadow-lg">
+                Quản Lý Tài Chính AI
+              </h1>
+
+              <p className="text-xl text-slate-200 mb-6 leading-relaxed max-w-2xl mx-auto">
+                Hệ thống quản lý tài chính thông minh với trí tuệ nhân tạo
+              </p>
+            </div>
+
+            {/* Placeholder content */}
+            
+          </div>
+        )}
+         <div className="mt-3">
+            {messages.map((msg) => (
+              <MessageItem
+                key={msg.id}
+                message={msg}
+                onConfirm={handleConfirm}
+                confirmedIds={confirmedIds}
+                onSaveEdit={handleSaveEdit}
+              />
+            ))}
+            {isLoading && <LoadingIndicator />}
+          <div ref={messagesEndRef} />
+        </div>
+       
       </div>
-      <QuickActions userId={currentUser?.user_id || 1} onAction={handleQuickAction} />
+      
+      {/* Nếu có tin nhắn → ChatInput fixed dưới, nếu chưa có thì ở giữa */}
+    {!hasMessages ? (
+      <div className="fixed inset-0 flex justify-center items-center">
+        <div className="flex flex-col items-center w-full max-w-3xl px-4">
+          <ChatInput
+            isSidebarOpen={false}
+            isSidebarRightOpen={false}
+            pathname="/chat"
+            centered={true}
+          />
+          <div className="mt-6">
+            <QuickActions
+              userId={currentUser?.user_id || 1}
+              onAction={handleQuickAction}
+            />
+          </div>
+        </div>
+      </div>
+    ) : (
+      <>
+        <div className="z-50 px-4 fixed bottom-0 left-0 right-0 pb-4 bg-transparent">
+          <div className="w-full max-w-3xl mx-auto">
+            <ChatInput
+              isSidebarOpen={false}
+              isSidebarRightOpen={false}
+              pathname="/chat"
+              centered={false}
+            />
+          </div>
+        </div>
+        <div className="mb-20">
+          <QuickActions
+            userId={currentUser?.user_id || 1}
+            onAction={handleQuickAction}
+          />
+        </div>
+      </>
+    )}
+
+
     </div>
   );
 }

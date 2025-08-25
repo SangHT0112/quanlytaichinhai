@@ -265,3 +265,37 @@ body.admin-body {
   min-width: 0;
   flex: 1 1 0%;
 }
+
+
+.chat-input-container {
+  position: fixed;
+  bottom: 0;
+  left: 0;
+  right: 0;
+  z-index: 100;
+  padding: 1rem;
+  display: flex;
+  justify-content: center;
+  background: transparent;
+}
+
+@media (min-width: 768px) {
+  .chat-input-container {
+    padding: 1rem 2rem;
+  }
+}
+
+@media (max-width: 768px) {
+  .chat-input-container {
+    padding: 0.5rem;
+  }
+}
+
+.chat-input-button {
+  flex-shrink: 0;
+}
+
+.chat-input-field {
+  min-width: 0;
+  flex: 1 1 0%;
+}
