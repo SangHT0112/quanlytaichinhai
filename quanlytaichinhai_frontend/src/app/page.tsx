@@ -281,15 +281,14 @@ export default function ChatAI() {
       return;
     }
 
-    // Load chat history
     const storedChat = localStorage.getItem('chatHistory');
     if (storedChat) {
       try {
-        const { expiry, messages: savedMessages } = JSON.parse(storedChat);
-        const now = new Date().getTime();
-        const expiryTime = new Date(expiry).getTime();
+        const { date, messages: savedMessages } = JSON.parse(storedChat);
+        const today = new Date().toDateString();
 
-        if (now < expiryTime) {
+        if (date === today) {
+          // Khôi phục tin nhắn cũ trong ngày
           const restored = savedMessages.map((m: Partial<ChatMessage>) => ({
             ...m,
             role: m.role ?? MessageRole.USER,
@@ -297,55 +296,34 @@ export default function ChatAI() {
           }));
           setMessages(restored);
         } else {
+          // Ngày mới -> xóa lịch sử cũ
           localStorage.removeItem('chatHistory');
-          // setMessages([getWelcomeMessage()]);
         }
       } catch (e) {
         console.warn('⚠️ Lỗi khi đọc lịch sử:', e);
         localStorage.removeItem('chatHistory');
-        // setMessages([getWelcomeMessage()]);
-      }
-    } else {
-      // setMessages([getWelcomeMessage()]);
-    }
-
-    // Load confirmedIds
-    const storedConfirmedIds = localStorage.getItem('confirmedIds');
-    if (storedConfirmedIds) {
-      try {
-        const { user_id, ids, expiry } = JSON.parse(storedConfirmedIds);
-        const now = new Date().getTime();
-        const expiryTime = new Date(expiry).getTime();
-
-        if (now < expiryTime && user_id === (currentUser?.user_id || 1)) {
-          setConfirmedIds(ids);
-        } else {
-          localStorage.removeItem('confirmedIds');
-        }
-      } catch (e) {
-        console.warn('⚠️ Lỗi khi đọc confirmedIds:', e);
-        localStorage.removeItem('confirmedIds');
       }
     }
   }, [router, currentUser?.user_id]);
+
     
 
   // Lưu tin nhắn vào localStorage với thời hạn 24 giờ
+  // Lưu tin nhắn vào localStorage theo ngày
   useEffect(() => {
     if (messages.length > 0) {
-      const expiry = new Date();
-      expiry.setDate(expiry.getDate() + 1); // Thêm 1 ngày (24 giờ)
+      const today = new Date().toDateString(); // vd: "Tue Aug 26 2025"
       const chatHistory = {
-        date: new Date().toDateString(),
-        expiry: expiry.toISOString(),
+        date: today,
         messages: messages.map((msg) => ({
           ...msg,
-          timestamp: msg.timestamp.toISOString(), // Chuyển thành string để lưu
+          timestamp: msg.timestamp.toISOString(),
         })),
       };
       localStorage.setItem('chatHistory', JSON.stringify(chatHistory));
     }
   }, [messages]);
+
 
   // Tự động scroll xuống cuối
   useEffect(() => {
