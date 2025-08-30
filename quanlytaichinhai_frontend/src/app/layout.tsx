@@ -8,7 +8,7 @@ import { UserProvider } from "@/contexts/UserProvider";
 import RightSidebar from "@/components/Layouts/SidebarRight";
 import { TransactionProvider } from "@/contexts/TransactionContext";
 import OnlineStatus from "@/components/OnlineStatus";
-
+import { ChatInput } from "@/components/Layouts/ChatInput";
 export default function RootLayout({ children }: { children: ReactNode }) {
   type UserType = {
     user_id: number;
@@ -90,7 +90,7 @@ export default function RootLayout({ children }: { children: ReactNode }) {
                   {children}
                 </main>
 
-                {/* ChatInput cố định, không phụ thuộc vào sidebar
+                {/* ChatInput cố định, không phụ thuộc vào sidebar */}
                 <div className="fixed bottom-0 left-0 right-0 z-50 px-4 pb-4">
                   <div className="w-full max-w-3xl mx-auto">
                     <ChatInput
@@ -100,7 +100,7 @@ export default function RootLayout({ children }: { children: ReactNode }) {
                       centered={true} // Thêm prop centered
                     />
                   </div>
-                </div> */}
+                </div>
               </div>
 
               <RightSidebar

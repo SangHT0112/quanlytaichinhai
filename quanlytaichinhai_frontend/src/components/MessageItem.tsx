@@ -1,22 +1,20 @@
-"use client";
+'use client';
+import { useState, useEffect } from 'react';
+import { Bot, User } from 'lucide-react';
+import type { ChatMessage, StructuredData, TransactionData } from '../utils/types';
+import { MessageRenderer } from './MessageRenderer';
+import SingleTransactionConfirmationForm from './transaction-form/SingleTransactionConfirmationForm';
+import MultiTransactionConfirmationForm from './transaction-form/MultiTransactionConfirmationForm';
+import TransactionEditForm from './transaction-form/TransactionEditForm';
+import { renderCustomContent } from './hooks/renderCustomContent';
+import BackgroundImageConfirmForm from './transaction-form/ComfirmImage';
+import CategoryConfirmationForm from './transaction-form/CategoryConfirmationForm';
 
-import { useState, useEffect } from "react"; // Thêm useEffect để load từ localStorage
-import { Bot, User } from "lucide-react";
-import type { ChatMessage, StructuredData, TransactionData } from "../utils/types";
-import { MessageRenderer } from "./MessageRenderer";
-import SingleTransactionConfirmationForm from "./transaction-form/SingleTransactionConfirmationForm";
-import MultiTransactionConfirmationForm from "./transaction-form/MultiTransactionConfirmationForm";
-import TransactionEditForm from "./transaction-form/TransactionEditForm";
-import { renderCustomContent } from "./hooks/renderCustomContent";
-import BackgroundImageConfirmForm from "./transaction-form/ComfirmImage";
-import CategoryConfirmationForm from "./transaction-form/CategoryConfirmationForm";
-
-// Type guard để kiểm tra StructuredData dạng transactions
 const isTransactionStructuredData = (
   data: StructuredData,
 ): data is {
   transactions?: Array<{
-    type: "expense" | "income";
+    type: 'expense' | 'income';
     category: string;
     amount: number;
     user_id?: number;
@@ -28,23 +26,45 @@ const isTransactionStructuredData = (
   total_amount?: number;
   transaction_date?: string;
 } => {
-  return !("type" in data) || data.type !== "component";
+  // Xử lý trường hợp data là chuỗi JSON
+  let parsedData = data;
+  if (typeof data === 'string') {
+    try {
+      parsedData = JSON.parse(data);
+    } catch (e) {
+      console.error('Lỗi parse structured data:', e, { data });
+      return false;
+    }
+  }
+  // Xử lý trường hợp parsedData là { message: string }
+  if (parsedData && typeof parsedData === 'object' && 'message' in parsedData && !('type' in parsedData)) {
+    return false; // Không phải dữ liệu giao dịch
+  }
+  return !('type' in parsedData) || parsedData.type !== 'component';
 };
 
 const isSuggestNewCategory = (
-  data: StructuredData | undefined
-): data is Extract<StructuredData, { response_type: "suggest_new_category" }> => {
+  data: StructuredData | undefined,
+): data is Extract<StructuredData, { response_type: 'suggest_new_category' }> => {
+  if (!data) return false;
+  let parsedData = data;
+  if (typeof data === 'string') {
+    try {
+      parsedData = JSON.parse(data);
+    } catch (e) {
+      console.error('Lỗi parse structured data for category:', e, { data });
+      return false;
+    }
+  }
   return (
-    data !== undefined &&
-    typeof (data as { response_type?: string }).response_type === "string" &&
-    (data as { response_type?: string }).response_type === "suggest_new_category"
+    typeof (parsedData as { response_type?: string }).response_type === 'string' &&
+    (parsedData as { response_type?: string }).response_type === 'suggest_new_category'
   );
 };
 
-
 function hasImageUrl(data: StructuredData): data is {
   transactions?: Array<{
-    type: "expense" | "income";
+    type: 'expense' | 'income';
     amount: number;
     category: string;
     date?: string;
@@ -57,7 +77,16 @@ function hasImageUrl(data: StructuredData): data is {
   transaction_date?: string;
   image_url?: string;
 } {
-  return "image_url" in data;
+  let parsedData = data;
+  if (typeof data === 'string') {
+    try {
+      parsedData = JSON.parse(data);
+    } catch (e) {
+      console.error('Lỗi parse structured data for image:', e, { data });
+      return false;
+    }
+  }
+  return 'image_url' in parsedData;
 }
 
 export const MessageItem = ({
@@ -80,7 +109,6 @@ export const MessageItem = ({
   const [isCategoryConfirmed, setIsCategoryConfirmed] = useState(confirmedIds.includes(message.id));
   const [isTransactionConfirmed, setIsTransactionConfirmed] = useState(confirmedIds.includes(message.id));
 
-  // Load pendingTransaction từ localStorage khi component mount
   useEffect(() => {
     const storedPending = localStorage.getItem(`pendingTransaction_${message.id}`);
     if (storedPending) {
@@ -88,30 +116,28 @@ export const MessageItem = ({
     }
   }, [message.id]);
 
-  // Lấy transactions từ structured và đảm bảo khớp với TransactionData
   const transactions: TransactionData[] =
     message.structured &&
     isTransactionStructuredData(message.structured) &&
-    Array.isArray(message.structured.transactions)
-      ? message.structured.transactions.map((tx) => ({
-          type: tx.type || "expense",
+    Array.isArray((typeof message.structured === 'string' ? JSON.parse(message.structured) : message.structured).transactions)
+      ? (typeof message.structured === 'string' ? JSON.parse(message.structured) : message.structured).transactions.map((tx) => ({
+          type: tx.type || 'expense',
           amount: tx.amount,
           category: tx.category,
           date: tx.date,
           user_id: tx.user_id ?? 1,
-          description: tx.description || message.user_input || message.content || "Không có mô tả",
+          description: tx.description || message.user_input || message.content || 'Không có mô tả',
           transaction_date: tx.transaction_date || groupTransactionDate || new Date().toISOString(),
         }))
       : [];
 
-  // Transaction mặc định để edit
   const defaultTransaction: TransactionData = transactions[editingIndex] || {
-    type: "expense",
+    type: 'expense',
     amount: 0,
-    category: "",
+    category: '',
     user_id: 1,
     date: new Date().toISOString(),
-    description: message.user_input || message.content || "Không có mô tả",
+    description: message.user_input || message.content || 'Không có mô tả',
     transaction_date: new Date().toISOString(),
   };
 
@@ -119,21 +145,20 @@ export const MessageItem = ({
     ...defaultTransaction,
   });
 
-  // Kiểm tra các trạng thái
   const isTransaction = transactions.length > 0;
   const isSingleTransaction = transactions.length === 1;
   const isMultiTransaction = transactions.length > 1;
   const hasCustomContent =
     Array.isArray(message.custom_content) &&
-    message.custom_content.some((part) => part.type === "component" || part.type === "function_call");
+    message.custom_content.some((part) => part.type === 'component' || part.type === 'function_call');
 
   const handleEditChange = (field: keyof TransactionData, value: string | number) => {
     setEditedData((prev) => ({
       ...prev,
       [field]: value,
       user_id: prev.user_id ?? 1,
-      description: field === "description" ? (value as string) : prev.description,
-      transaction_date: field === "date" ? (value as string) : prev.transaction_date,
+      description: field === 'description' ? (value as string) : prev.description,
+      transaction_date: field === 'date' ? (value as string) : prev.transaction_date,
     }));
   };
 
@@ -173,16 +198,13 @@ export const MessageItem = ({
     }
   };
 
-  // Xử lý xác nhận danh mục
   const handleCategoryConfirm = async (confirmed: boolean, transactionData?: TransactionData) => {
     if (confirmed) {
       setIsCategoryConfirmed(true);
       if (transactionData) {
         setPendingTransaction(transactionData);
-        // Lưu pendingTransaction vào localStorage để duy trì sau refresh
         localStorage.setItem(`pendingTransaction_${message.id}`, JSON.stringify(transactionData));
       } else {
-        // Chỉ gọi onConfirm khi KHÔNG có transactionData (chỉ tạo category), để thêm confirmedIds
         await onConfirm?.(message);
       }
     } else {
@@ -192,14 +214,12 @@ export const MessageItem = ({
     }
   };
 
-  // Xử lý xác nhận giao dịch
   const handleTransactionConfirm = async (transactionData: TransactionData) => {
     if (onConfirm) {
       setIsLoading(true);
       try {
         await onConfirm(message, transactionData);
         setIsTransactionConfirmed(true);
-        // Xóa pendingTransaction khỏi localStorage sau khi xác nhận thành công
         localStorage.removeItem(`pendingTransaction_${message.id}`);
       } finally {
         setIsLoading(false);
@@ -208,8 +228,8 @@ export const MessageItem = ({
   };
 
   return (
-    <div className={`flex w-full mb-3 ${message.role === "user" ? "justify-end" : "justify-start"}`}>
-      {message.role === "assistant" && (
+    <div className={`flex w-full mb-3 ${message.role === 'user' ? 'justify-end' : 'justify-start'}`}>
+      {message.role === 'assistant' && (
         <div className="flex-shrink-0 w-8 h-8 bg-gradient-to-r from-teal-500 to-cyan-500 rounded-full flex items-center justify-center">
           <Bot className="w-5 h-5 text-white" />
         </div>
@@ -221,13 +241,12 @@ export const MessageItem = ({
           min-w-[120px]
           rounded-2xl px-4 py-3
           break-words
-          ${message.role === "user"
-            ? "bg-gradient-to-r from-teal-500 to-cyan-500 text-white rounded-br-none"
-            : "bg-white text-slate-700 border border-slate-200 rounded-bl-none"}
-          ${hasCustomContent ? "!min-w-[300px]" : ""}
+          ${message.role === 'user'
+            ? 'bg-gradient-to-r from-teal-500 to-cyan-500 text-white rounded-br-none'
+            : 'bg-white text-slate-700 border border-slate-200 rounded-bl-none'}
+          ${hasCustomContent ? '!min-w-[300px]' : ''}
         `}
       >
-        {/* Nội dung hiển thị */}
         {!isTransaction && !hasCustomContent && message.content && (
           <div className="mt-2">
             <MessageRenderer content={message.content} />
@@ -256,7 +275,7 @@ export const MessageItem = ({
                 )}
                 {isMultiTransaction && message.structured && isTransactionStructuredData(message.structured) && (
                   <MultiTransactionConfirmationForm
-                    groupName={message.structured.group_name || ""}
+                    groupName={message.structured.group_name || ''}
                     transactionDate={message.structured.transaction_date || new Date().toISOString()}
                     transactions={transactions}
                     totalAmount={message.structured.total_amount || 0}
@@ -270,7 +289,6 @@ export const MessageItem = ({
           </div>
         )}
 
-        {/* Hiển thị CategoryConfirmationForm - LUÔN HIỂN THỊ KHI CÓ DANH MỤC MỚI */}
         {message.structured && isSuggestNewCategory(message.structured) && (
           <div className="mt-2">
             <CategoryConfirmationForm
@@ -284,12 +302,11 @@ export const MessageItem = ({
           </div>
         )}
 
-        {/* Hiển thị SingleTransactionConfirmationForm - HIỂN THỊ KHI CÓ GIAO DỊCH CHỜ */}
         {pendingTransaction && (
           <div className="mt-2">
             <SingleTransactionConfirmationForm
               transactionData={pendingTransaction}
-              isConfirmed={isTransactionConfirmed || confirmedIds.includes(message.id)} // CẬP NHẬT isConfirmed
+              isConfirmed={isTransactionConfirmed || confirmedIds.includes(message.id)}
               onConfirm={() => handleTransactionConfirm(pendingTransaction)}
               onEdit={() => {
                 setEditedData(pendingTransaction);
@@ -298,11 +315,10 @@ export const MessageItem = ({
             />
           </div>
         )}
-        
 
         {message.structured &&
           hasImageUrl(message.structured) &&
-          typeof message.structured.image_url === "string" && (
+          typeof message.structured.image_url === 'string' && (
             <BackgroundImageConfirmForm imageUrl={message.structured.image_url} />
           )}
 
@@ -313,15 +329,15 @@ export const MessageItem = ({
         ))}
 
         <div
-          className={`text-xs mt-2 opacity-70 ${message.role === "user" ? "text-teal-100" : "text-slate-500"}`}
+          className={`text-xs mt-2 opacity-70 ${message.role === 'user' ? 'text-teal-100' : 'text-slate-500'}`}
         >
-          {new Date(message.timestamp).toLocaleTimeString("vi-VN", {
-            hour: "2-digit",
-            minute: "2-digit",
+          {new Date(message.timestamp).toLocaleTimeString('vi-VN', {
+            hour: '2-digit',
+            minute: '2-digit',
           })}
         </div>
       </div>
-      {message.role === "user" && (
+      {message.role === 'user' && (
         <div className="flex-shrink-0 w-8 h-8 bg-slate-300 rounded-full flex items-center justify-center ml-2">
           <User className="w-5 h-5 text-slate-600" />
         </div>

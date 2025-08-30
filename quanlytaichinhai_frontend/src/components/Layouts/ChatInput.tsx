@@ -10,6 +10,7 @@ interface ChatInputProps {
   isSidebarRightOpen: boolean
   pathname: string
   centered?: boolean // Thêm prop mới để xác định vị trí
+  
 }
 
 // Định nghĩa interface cho SpeechRecognition
@@ -136,26 +137,32 @@ export const ChatInput = ({ pathname, centered = false }: ChatInputProps) => {
     }
   }
 
-  // Xử lý bàn phím ảo trên mobile
   useEffect(() => {
     const handleFocus = () => {
       if (inputRef.current && window.innerWidth < 768) {
         setTimeout(() => {
-          inputRef.current?.scrollIntoView({ behavior: "smooth", block: "end" })
-        }, 300) // Đợi bàn phím ảo xuất hiện
+          // Cuộn container chính thay vì input
+          const container = document.querySelector('.message-container');
+          if (container) {
+            container.scrollTo({
+              top: container.scrollHeight,
+              behavior: 'smooth',
+            });
+          }
+        }, 300); // Đợi bàn phím ảo xuất hiện
       }
-    }
+    };
 
-    const inputElement = inputRef.current
+    const inputElement = inputRef.current;
     if (inputElement) {
-      inputElement.addEventListener("focus", handleFocus)
+      inputElement.addEventListener('focus', handleFocus);
     }
 
     return () => {
       if (inputElement) {
-        inputElement.removeEventListener("focus", handleFocus)
+        inputElement.removeEventListener('focus', handleFocus);
       }
-    }
+    };
   }, []);
 
   return (

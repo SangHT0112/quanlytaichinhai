@@ -1,29 +1,35 @@
 // contexts/ChatContext.tsx
 'use client';
 
-import { createContext, useContext, useState, ReactNode } from 'react';
+import { createContext, useContext, ReactNode } from 'react';
 
 interface ChatContextType {
-  isInitialState: boolean;
-  setIsInitialState: (value: boolean) => void;
+  handleSendMessage: (message: string, imageData?: FormData) => void;
+  handleQuickAction: (action: string) => void;
 }
 
 const ChatContext = createContext<ChatContextType | undefined>(undefined);
 
-export function ChatProvider({ children }: { children: ReactNode }) {
-  const [isInitialState, setIsInitialState] = useState(true);
-
+export const ChatProvider = ({
+  children,
+  handleSendMessage,
+  handleQuickAction,
+}: {
+  children: ReactNode;
+  handleSendMessage: (message: string, imageData?: FormData) => void;
+  handleQuickAction: (action: string) => void;
+}) => {
   return (
-    <ChatContext.Provider value={{ isInitialState, setIsInitialState }}>
+    <ChatContext.Provider value={{ handleSendMessage, handleQuickAction }}>
       {children}
     </ChatContext.Provider>
   );
-}
+};
 
-export function useChat() {
+export const useChat = () => {
   const context = useContext(ChatContext);
   if (!context) {
     throw new Error('useChat must be used within a ChatProvider');
   }
   return context;
-}
+};
