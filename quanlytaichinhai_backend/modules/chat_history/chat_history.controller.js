@@ -103,7 +103,7 @@ export const getChatHistoryByDate = async (userId, date, limit = 50) => {
          user_input
        FROM chat_histories
        WHERE user_id = ? AND timestamp BETWEEN ? AND ?
-       ORDER BY timestamp DESC
+       ORDER BY timestamp ASC
        LIMIT ?`,
       [userId, startOfDay, endOfDay, limit]
     );
@@ -130,5 +130,18 @@ export const getChatHistoryByDate = async (userId, date, limit = 50) => {
   } catch (error) {
     console.error("Lỗi khi lấy lịch sử chat theo ngày:", error);
     return [];
+  }
+};
+
+export const getTodayHistory = async (req, res) => {
+  const { user_id, limit } = req.query;
+  if (!user_id) return res.status(400).json({ error: "Thiếu user_id" });
+
+  try {
+    const history = await getTodayChatHistory(user_id, parseInt(limit) || 50);
+    res.json(history);
+  } catch (error) {
+    console.error("Lỗi controller getTodayHistory:", error);
+    res.status(500).json({ error: "Lỗi khi lấy lịch sử chat hôm nay" });
   }
 };

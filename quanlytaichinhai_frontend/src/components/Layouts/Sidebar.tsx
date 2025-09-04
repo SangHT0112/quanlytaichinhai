@@ -17,6 +17,7 @@ import {
   DropdownMenuContent,
   DropdownMenuItem,
 } from "@/components/ui/dropdown-menu";
+import { useState } from "react";
 
 const menuItems = [
   { icon: Plus, label: "Thêm giao dịch", href: "/", emoji: "➕" },
@@ -36,15 +37,47 @@ export default function Sidebar({
   setIsSidebarOpen: (value: boolean) => void;
   user: { username: string; role: string } | null;
 }) {
+  const [isManuallyClosed, setIsManuallyClosed] = useState(false); // Trạng thái theo dõi đóng thủ công
+
   const handleLinkClick = (href: string) => {
     localStorage.setItem("redirectAfterLogin", href);
+  };
+
+  const isDesktop = typeof window !== "undefined" && window.innerWidth >= 768;
+
+  const handleMouseEnter = () => {
+    if (!isSidebarOpen && isDesktop && isManuallyClosed) {
+      setIsSidebarOpen(true);
+    }
+  };
+
+  const handleMouseLeave = () => {
+    if (isSidebarOpen && isDesktop && isManuallyClosed) {
+      setTimeout(() => {
+        setIsSidebarOpen(false);
+      }, 300); // Đóng sau 300ms
+    }
+  };
+
+  const handleToggle = (e: React.MouseEvent) => {
+    e.stopPropagation(); // Ngăn sự kiện chuột lan truyền lên <aside>
+    if (isSidebarOpen && isManuallyClosed) {
+      // Nếu đang mở do hover, nhấn toggle sẽ mở cố định
+      setIsSidebarOpen(true);
+      setIsManuallyClosed(false); // Vô hiệu hóa hover
+    } else {
+      // Nếu không ở trạng thái hover, toggle bình thường
+      setIsSidebarOpen(!isSidebarOpen);
+      setIsManuallyClosed(isSidebarOpen); // Cập nhật trạng thái đóng thủ công
+    }
   };
 
   return (
     <>
       {/* Nút toggle khi sidebar đóng */}
       <button
-        onClick={() => setIsSidebarOpen(true)}
+        onClick={handleToggle}
+        onMouseEnter={(e) => e.stopPropagation()} // Ngăn sự kiện hover của <aside>
         className={`fixed top-4 left-2 p-2 bg-white/90 hover:bg-white text-gray-800 rounded-md shadow-md transition-all duration-200 ease-in-out z-50 ${
           isSidebarOpen ? "hidden" : "block"
         }`}
@@ -58,8 +91,10 @@ export default function Sidebar({
         className={`fixed inset-y-0 left-0 z-40 p-4 transition-all duration-300 ease-in-out h-full flex flex-col ${
           isSidebarOpen
             ? "w-60 bg-gradient-to-b from-slate-800 to-slate-900 shadow-xl"
-            : "w-12 bg-transparent shadow-none hidden"
+            : "w-12 bg-transparent shadow-none"
         }`}
+        onMouseEnter={handleMouseEnter}
+        onMouseLeave={handleMouseLeave}
       >
         {/* Header */}
         <div
@@ -67,6 +102,15 @@ export default function Sidebar({
             isSidebarOpen ? "" : "hidden"
           }`}
         >
+           <button
+            onClick={handleToggle}
+            className={`p-3 bg-gray-100 hover:bg-gray-200 text-gray-800 rounded-md shadow-md transition-all duration-200 ease-in-out ${
+              isSidebarOpen && !isManuallyClosed ? "border-2 border-green-500" : ""
+            }`} // Viền xanh chỉ khi mở cố định
+            aria-label={isSidebarOpen ? "Close sidebar" : "Open sidebar"}
+          >
+            <Menu className="w-5 h-5" />
+          </button>
           <h2
             className={`text-xl font-bold bg-gradient-to-r from-cyan-300 to-teal-300 bg-clip-text text-transparent transition-opacity duration-300 ${
               isSidebarOpen ? "opacity-100" : "opacity-0 pointer-events-none"
@@ -74,13 +118,7 @@ export default function Sidebar({
           >
             AI Finance
           </h2>
-          <button
-            onClick={() => setIsSidebarOpen(!isSidebarOpen)}
-            className="p-3 bg-gray-100 hover:bg-gray-200 text-gray-800 rounded-md shadow-md transition-all duration-200 ease-in-out"
-            aria-label={isSidebarOpen ? "Close sidebar" : "Open sidebar"}
-          >
-            <Menu className="w-5 h-5" />
-          </button>
+         
         </div>
 
         {/* Menu items */}
@@ -108,59 +146,58 @@ export default function Sidebar({
           </nav>
         </div>
 
-      {/* Version + User Greeting + nút Admin nằm trên */}
-      <div
-        className={`absolute bottom-4 left-4 right-4 flex flex-col space-y-2 pt-4 border-t border-slate-700/50 transition-opacity duration-300 ${
-          isSidebarOpen ? "opacity-100" : "opacity-0 pointer-events-none"
-        }`}
-      >
-        {user && (
-          <>
-            {/* Nút Trang Admin nằm trên */}
-            {user.role === "admin" && (
-              <Link href="/admin" onClick={() => handleLinkClick("/admin")}>
-                <button className="bg-teal-600 hover:bg-teal-700 text-white font-semibold py-2 px-4 rounded-md transition-colors whitespace-nowrap w-full">
-                  Trang Admin
-                </button>
-              </Link>
-            )}
+        {/* Version + User Greeting + nút Admin nằm trên */}
+        <div
+          className={`absolute bottom-4 left-4 right-4 flex flex-col space-y-2 pt-4 border-t border-slate-700/50 transition-opacity duration-300 ${
+            isSidebarOpen ? "opacity-100" : "opacity-0 pointer-events-none"
+          }`}
+        >
+          {user && (
+            <>
+              {/* Nút Trang Admin nằm trên */}
+              {user.role === "admin" && (
+                <Link href="/admin" onClick={() => handleLinkClick("/admin")}>
+                  <button className="bg-teal-600 hover:bg-teal-700 text-white font-semibold py-2 px-4 rounded-md transition-colors whitespace-nowrap w-full">
+                    Trang Admin
+                  </button>
+                </Link>
+              )}
 
-            {/* Greeting user nằm dưới */}
-            <DropdownMenu>
-              <DropdownMenuTrigger asChild>
-                <div className="flex items-center space-x-3 px-3 py-2 rounded-lg bg-teal-100 hover:bg-teal-200 transition-colors cursor-pointer max-w-full">
-                  <div className="w-4 h-4 bg-gradient-to-r from-teal-500 to-cyan-500 rounded-full flex items-center justify-center">
-                    <User className="w-4 h-4 text-white" />
+              {/* Greeting user nằm dưới */}
+              <DropdownMenu>
+                <DropdownMenuTrigger asChild>
+                  <div className="flex items-center space-x-3 px-3 py-2 rounded-lg bg-teal-100 hover:bg-teal-200 transition-colors cursor-pointer max-w-full">
+                    <div className="w-4 h-4 bg-gradient-to-r from-teal-500 to-cyan-500 rounded-full flex items-center justify-center">
+                      <User className="w-4 h-4 text-white" />
+                    </div>
+                    <span className="text-sm font-medium text-teal-800 truncate">
+                      Xin chào {user.username}
+                    </span>
                   </div>
-                  <span className="text-sm font-medium text-teal-800 truncate">
-                    Xin chào {user.username}
-                  </span>
-                </div>
-              </DropdownMenuTrigger>
-              <DropdownMenuContent
-                align="start"
-                className="bg-white border border-teal-200 mb-1"
-                side="top"
-              >
-                <DropdownMenuItem className="hover:bg-teal-50">
-                  <Link href="/profile">Sửa thông tin</Link>
-                </DropdownMenuItem>
-                <DropdownMenuItem
-                  className="hover:bg-teal-50"
-                  onClick={() => {
-                    localStorage.removeItem("user");
-                    localStorage.removeItem("token");
-                    window.location.href = "/login";
-                  }}
+                </DropdownMenuTrigger>
+                <DropdownMenuContent
+                  align="start"
+                  className="bg-white border border-teal-200 mb-1"
+                  side="top"
                 >
-                  Đăng xuất
-                </DropdownMenuItem>
-              </DropdownMenuContent>
-            </DropdownMenu>
-          </>
-        )}
-      </div>
-
+                  <DropdownMenuItem className="hover:bg-teal-50">
+                    <Link href="/profile">Sửa thông tin</Link>
+                  </DropdownMenuItem>
+                  <DropdownMenuItem
+                    className="hover:bg-teal-50"
+                    onClick={() => {
+                      localStorage.removeItem("user");
+                      localStorage.removeItem("token");
+                      window.location.href = "/login";
+                    }}
+                  >
+                    Đăng xuất
+                  </DropdownMenuItem>
+                </DropdownMenuContent>
+              </DropdownMenu>
+            </>
+          )}
+        </div>
       </aside>
     </>
   );

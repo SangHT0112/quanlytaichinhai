@@ -73,7 +73,7 @@ export const getChatHistory = async (userId, limit = 20) => {
          user_input
        FROM chat_histories
        WHERE user_id = ?
-       ORDER BY timestamp DESC
+       ORDER BY timestamp ASC
        LIMIT ?`,
       [userId, limit]
     );
@@ -129,7 +129,7 @@ export const getChatHistoryByDate = async (userId, date, limit = 50) => {
          user_input
        FROM chat_histories
        WHERE user_id = ? AND timestamp BETWEEN ? AND ?
-       ORDER BY timestamp DESC
+       ORDER BY timestamp ASC
        LIMIT ?`,
       [userId, startOfDay, endOfDay, limit]
     );

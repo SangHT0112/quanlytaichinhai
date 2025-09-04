@@ -17,7 +17,7 @@ interface ChatMessageResponse {
 
 export const saveChatHistory = async (userId: number, messages: ChatMessage[]): Promise<boolean> => {
   try {
-    console.log('Saving chat history:', { userId, messages }); // Debug
+    // console.log('Saving chat history:', { userId, messages }); // Debug
     const response = await axiosInstance.post('/chat-history', {
       user_id: userId,
       messages: messages.map(msg => ({
@@ -32,7 +32,7 @@ export const saveChatHistory = async (userId: number, messages: ChatMessage[]): 
         user_input: msg.user_input,
       })),
     });
-    console.log('Save chat history response:', response.data); // Debug
+    // console.log('Save chat history response:', response.data); // Debug
     return response.data.success;
   } catch (error) {
     console.error('Lỗi khi lưu lịch sử chat:', error);
@@ -46,11 +46,11 @@ export const getChatHistory = async (
   date?: string
 ): Promise<ChatMessage[]> => {
   try {
-    console.log('Fetching chat history:', { userId, limit, date }); // Debug
+    // console.log('Fetching chat history:', { userId, limit, date }); // Debug
     const response = await axiosInstance.get<ChatMessageResponse[]>('/chat-history', {
       params: { user_id: userId, limit, date },
     });
-    console.log('Chat history response:', response.data); // Debug
+    // console.log('Chat history response:', response.data); // Debug
 
     return response.data.map((msg: ChatMessageResponse): ChatMessage => ({
       ...msg,
@@ -69,11 +69,11 @@ export const getChatHistory = async (
 
 export const clearChatHistory = async (userId: number): Promise<boolean> => {
   try {
-    console.log('Clearing chat history for user:', userId); // Debug
+    // console.log('Clearing chat history for user:', userId); // Debug
     const response = await axiosInstance.delete('/chat-history', {
       data: { user_id: userId },
     });
-    console.log('Clear chat history response:', response.data); // Debug
+    // console.log('Clear chat history response:', response.data); // Debug
     return response.data.success;
   } catch (error) {
     console.error('Lỗi khi xóa lịch sử chat:', error);

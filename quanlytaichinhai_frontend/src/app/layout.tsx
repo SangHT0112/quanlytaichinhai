@@ -9,6 +9,7 @@ import RightSidebar from "@/components/Layouts/SidebarRight";
 import { TransactionProvider } from "@/contexts/TransactionContext";
 import OnlineStatus from "@/components/OnlineStatus";
 import { ChatInput } from "@/components/Layouts/ChatInput";
+import GuideButton from "@/components/Guide/GuideButton";
 export default function RootLayout({ children }: { children: ReactNode }) {
   type UserType = {
     user_id: number;
@@ -102,6 +103,10 @@ export default function RootLayout({ children }: { children: ReactNode }) {
                   </div>
                 </div>
               </div>
+
+              <GuideButton
+                label="Hướng dẫn sử dụng"
+              />
 
               <RightSidebar
                 isSidebarOpen={isSidebarRightOpen}

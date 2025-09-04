@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
-import { History } from "lucide-react";
+import { Menu } from "lucide-react";
 import { useTransaction } from "@/contexts/TransactionContext";
 import dayjs from "dayjs";
 import relativeTime from "dayjs/plugin/relativeTime";
@@ -43,6 +43,40 @@ export default function RightSidebar({
   const { transactionGroups, selectedGroupTransactions, fetchGroupTransactions, loadMoreTransactionGroups, refreshTransactionGroups, error, loading } = useTransaction();
   const transactionsContainerRef = useRef<HTMLDivElement>(null);
   const [selectedGroupId, setSelectedGroupId] = useState<number | null>(null);
+  const [isManuallyClosed, setIsManuallyClosed] = useState(false); // Trạng thái theo dõi đóng thủ công
+
+  // Kiểm tra xem có phải desktop không
+  const isDesktop = typeof window !== "undefined" && window.innerWidth >= 768;
+
+  // Hàm xử lý khi rê chuột vào sidebar
+  const handleMouseEnter = () => {
+    if (!isSidebarOpen && isDesktop && isManuallyClosed) {
+      setIsSidebarOpen(true);
+    }
+  };
+
+  // Hàm xử lý khi chuột rời khỏi sidebar
+  const handleMouseLeave = () => {
+    if (isSidebarOpen && isDesktop && isManuallyClosed) {
+      setTimeout(() => {
+        setIsSidebarOpen(false);
+      }, 300); // Đóng sau 300ms
+    }
+  };
+
+  // Xử lý khi nhấn nút toggle
+  const handleToggle = (e: React.MouseEvent) => {
+    e.stopPropagation(); // Ngăn sự kiện chuột lan truyền lên <aside>
+    if (isSidebarOpen && isManuallyClosed) {
+      // Nếu đang mở do hover, nhấn toggle sẽ mở cố định
+      setIsSidebarOpen(true);
+      setIsManuallyClosed(false); // Vô hiệu hóa hover
+    } else {
+      // Nếu không ở trạng thái hover, toggle bình thường
+      setIsSidebarOpen(!isSidebarOpen);
+      setIsManuallyClosed(isSidebarOpen); // Cập nhật trạng thái đóng thủ công
+    }
+  };
 
   // Scroll to top when opening sidebar
   useEffect(() => {
@@ -74,11 +108,13 @@ export default function RightSidebar({
 
   return (
     <aside
-      className={`fixed inset-y-0 right-0 z-50 p-4 transition-all duration-300 ease-in-out h-full flex flex-col ${
+      className={`fixed inset-y-0 right-0 z-20 p-4 transition-all duration-300 ease-in-out h-full flex flex-col ${
         isSidebarOpen
           ? "w-75 bg-gradient-to-b from-slate-800 to-slate-900 shadow-xl"
           : "w-12 bg-transparent shadow-none"
       }`}
+      onMouseEnter={handleMouseEnter}
+      onMouseLeave={handleMouseLeave}
     >
       {/* Header */}
       <div
@@ -86,13 +122,6 @@ export default function RightSidebar({
           isSidebarOpen ? "" : "hidden"
         }`}
       >
-        <Button
-          onClick={() => setIsSidebarOpen(!isSidebarOpen)}
-          className="p-2 bg-gray-100 hover:bg-gray-200 text-gray-800 rounded-md shadow transition-all duration-200 ease-in-out"
-          aria-label={isSidebarOpen ? "Close sidebar" : "Open sidebar"}
-        >
-          <History className="w-5 h-5" />
-        </Button>
         <h2
           className={`text-xl font-bold bg-gradient-to-r from-cyan-300 to-teal-300 bg-clip-text text-transparent transition-opacity duration-300 ${
             isSidebarOpen ? "opacity-100" : "opacity-0 pointer-events-none"
@@ -100,16 +129,26 @@ export default function RightSidebar({
         >
           {title}
         </h2>
+        <Button
+          onClick={handleToggle}
+          className={`p-2 bg-gray-100 hover:bg-gray-200 text-gray-800 rounded-md shadow transition-all duration-200 ease-in-out ${
+            isSidebarOpen && !isManuallyClosed ? "border-2 border-green-500" : ""
+          }`} // Viền xanh chỉ khi mở cố định
+          aria-label={isSidebarOpen ? "Close sidebar" : "Open sidebar"}
+        >
+          <Menu className="w-5 h-5" />
+        </Button>
       </div>
 
       {/* Toggle button when closed */}
       {!isSidebarOpen && (
         <button
-          onClick={() => setIsSidebarOpen(true)}
+          onClick={handleToggle}
+          onMouseEnter={(e) => e.stopPropagation()} // Ngăn sự kiện hover của <aside>
           className="absolute top-4 right-2 p-2 bg-white/90 hover:bg-white text-gray-800 rounded-md shadow-md transition-all duration-200 ease-in-out z-10"
           aria-label="Open sidebar"
         >
-          <History className="w-5 h-5" />
+          <Menu className="w-5 h-5" />
         </button>
       )}
 

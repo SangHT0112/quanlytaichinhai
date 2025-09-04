@@ -13,6 +13,11 @@ import { convertStructuredToCustomContent } from '@/utils/convertStructured';
 import { FinancialSummary } from "@/types/financial";
 import { fetchOverview } from '@/api/overviewApi';
 import ErrorBoundary from '@/components/ErrorBoundary';
+// Helper để lấy ngày hôm nay dạng YYYY-MM-DD
+const getTodayDate = (): string => {
+  const today = new Date();
+  return today.toISOString().split("T")[0]; // => "2025-09-01"
+};
 
 interface ExtendedWindow extends Window {
   sendChatMessage: (message: string, imageData?: FormData) => void;
@@ -328,7 +333,6 @@ export default function ChatAI() {
     }
   };
 
-  // Load chat history from backend
   useEffect(() => {
     const user = localStorage.getItem('user');
     if (!user) {
@@ -341,40 +345,43 @@ export default function ChatAI() {
       try {
         setIsLoading(true);
         setError(null);
-        const today = new Date().toDateString();
-        console.log('Fetching chat history for today:', { userId: currentUser?.user_id, date: today });
-        let history = await getChatHistory(currentUser?.user_id, 50, today);
 
-        if (!history.length) {
-          console.log('No messages for today, fetching all history');
-          history = await getChatHistory(currentUser?.user_id, 50);
-        }
+        const today = new Date().toISOString().split("T")[0];
+        console.log("Fetching chat history for today:", { userId: currentUser?.user_id, date: today });
 
-        console.log('Fetched history:', history);
+        const history = await getChatHistory(currentUser?.user_id, 50, today);
+
+        console.log("Fetched history:", history);
+
         const uniqueHistory: ChatMessage[] = Array.from(
-          new Map(history.map((msg: ChatMessage) => [msg.id, {
-            ...msg,
-            role: msg.role ?? MessageRole.USER,
-            timestamp: msg.timestamp,
-          }])).values()
-        ); // Không đảo ngược thứ tự để tránh nhảy giao diện
+          new Map(
+            history.map((msg: ChatMessage) => [
+              msg.id,
+              {
+                ...msg,
+                role: msg.role ?? MessageRole.USER,
+                timestamp: msg.timestamp,
+              },
+            ])
+          ).values()
+        );
 
         setMessages(uniqueHistory);
-        if (!uniqueHistory.length) {
-          setError('Không tìm thấy lịch sử chat.');
-        }
+
       } catch (err) {
-        console.error('⚠️ Lỗi khi lấy lịch sử chat:', err);
-        setError('Lỗi khi tải lịch sử chat. Vui lòng thử lại.');
+        console.error("⚠️ Lỗi khi lấy lịch sử chat:", err);
+        setError("Lỗi khi tải lịch sử chat. Vui lòng thử lại.");
       } finally {
         setIsLoading(false);
       }
     };
 
+
     if (currentUser?.user_id) {
       fetchHistory();
     }
   }, [router, currentUser?.user_id]);
+
 
   // Load confirmedIds and custom background
   useEffect(() => {

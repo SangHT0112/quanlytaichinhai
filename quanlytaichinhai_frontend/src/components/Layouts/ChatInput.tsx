@@ -1,173 +1,182 @@
-"use client"
+"use client";
 
-import { useEffect, useState, useRef, type ChangeEvent } from "react"
-import { useRouter } from "next/navigation"
-import Image from "next/image"
-import { X, Send, Mic } from "lucide-react"
+import { useEffect, useState, useRef, type ChangeEvent, Dispatch, SetStateAction } from "react";
+import { useRouter } from "next/navigation";
+import Image from "next/image";
+import { X, Send, Mic } from "lucide-react";
 
 interface ChatInputProps {
-  isSidebarOpen: boolean
-  isSidebarRightOpen: boolean
-  pathname: string
-  centered?: boolean // Thêm prop mới để xác định vị trí
-  
+  isSidebarOpen: boolean;
+  isSidebarRightOpen: boolean;
+  pathname: string;
+  centered?: boolean;
+  onSendMessage?: (message: string, formData?: FormData) => void; // Optional prop for custom message handling
+  inputValue?: string; // Optional prop for controlled input
+  setInputValue?: Dispatch<SetStateAction<string>>; // Optional prop to set input value
 }
 
 // Định nghĩa interface cho SpeechRecognition
 interface SpeechRecognition extends EventTarget {
-  lang: string
-  interimResults: boolean
-  maxAlternatives: number
-  onstart: (() => void) | null
-  onend: (() => void) | null
-  onresult: ((event: SpeechRecognitionEvent) => void) | null
-  onerror: ((event: SpeechRecognitionErrorEvent) => void) | null
-  start: () => void
+  lang: string;
+  interimResults: boolean;
+  maxAlternatives: number;
+  onstart: (() => void) | null;
+  onend: (() => void) | null;
+  onresult: ((event: SpeechRecognitionEvent) => void) | null;
+  onerror: ((event: SpeechRecognitionErrorEvent) => void) | null;
+  start: () => void;
 }
 
 // Định nghĩa interface cho SpeechRecognitionEvent
 interface SpeechRecognitionEvent extends Event {
-  resultIndex: number
-  results: SpeechRecognitionResultList
+  resultIndex: number;
+  results: SpeechRecognitionResultList;
 }
 
 // Định nghĩa interface cho SpeechRecognitionErrorEvent
 interface SpeechRecognitionErrorEvent extends Event {
-  error: string
+  error: string;
 }
 
-// Định nghĩa interface cho window với sendChatMessage và SpeechRecognition
+// Định nghĩa interface cho window với sendChatMessage
 interface CustomWindow extends Window {
-  sendChatMessage?: (message: string, formData?: FormData) => void
-  SpeechRecognition?: new () => SpeechRecognition
-  webkitSpeechRecognition?: new () => SpeechRecognition
+  sendChatMessage?: (message: string, formData?: FormData) => void;
+  SpeechRecognition?: new () => SpeechRecognition;
+  webkitSpeechRecognition?: new () => SpeechRecognition;
 }
 
-declare let window: CustomWindow
+declare let window: CustomWindow;
 
-export const ChatInput = ({ pathname, centered = false }: ChatInputProps) => {
-  const [chatInput, setChatInput] = useState("")
-  const [isNavigating, setIsNavigating] = useState(false)
-  const [selectedImage, setSelectedImage] = useState<File | null>(null)
-  const [isRecording, setIsRecording] = useState(false)
-  const fileInputRef = useRef<HTMLInputElement>(null)
-  const inputRef = useRef<HTMLInputElement>(null)
-  const router = useRouter()
+export const ChatInput = ({
+  isSidebarOpen,
+  isSidebarRightOpen,
+  pathname,
+  centered = false,
+  onSendMessage,
+  inputValue,
+  setInputValue,
+}: ChatInputProps) => {
+  const [chatInput, setChatInput] = useState(inputValue || "");
+  const [isNavigating, setIsNavigating] = useState(false);
+  const [selectedImage, setSelectedImage] = useState<File | null>(null);
+  const [isRecording, setIsRecording] = useState(false);
+  const fileInputRef = useRef<HTMLInputElement>(null);
+  const inputRef = useRef<HTMLInputElement>(null);
+  const router = useRouter();
+
+  // Sync internal state with external inputValue
+  useEffect(() => {
+    if (inputValue !== undefined) {
+      setChatInput(inputValue);
+    }
+  }, [inputValue]);
 
   // Xử lý khi chọn ảnh
   const handleImageChange = (e: ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0]
+    const file = e.target.files?.[0];
     if (file && file.type.startsWith("image/")) {
-      setSelectedImage(file)
+      setSelectedImage(file);
     } else {
-      alert("Vui lòng chọn một file hình ảnh hợp lệ (jpg, png, ...).")
+      alert("Vui lòng chọn một file hình ảnh hợp lệ (jpg, png, ...).");
     }
-  }
+  };
 
   // Xóa ảnh đã chọn
   const removeImage = () => {
-    setSelectedImage(null)
+    setSelectedImage(null);
     if (fileInputRef.current) {
-      fileInputRef.current.value = ""
+      fileInputRef.current.value = "";
     }
-  }
+  };
 
   // Voice chat
   const handleVoiceInput = () => {
-    const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition
+    const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
     if (!SpeechRecognition) {
-      alert("Trình duyệt của bạn không hỗ trợ tính năng nhận diện giọng nói.")
-      return
+      alert("Trình duyệt của bạn không hỗ trợ tính năng nhận diện giọng nói.");
+      return;
     }
 
-    const recognition = new SpeechRecognition()
-    recognition.lang = "vi-VN"
-    recognition.interimResults = false
-    recognition.maxAlternatives = 1
+    const recognition = new SpeechRecognition();
+    recognition.lang = "vi-VN";
+    recognition.interimResults = false;
+    recognition.maxAlternatives = 1;
 
-    recognition.onstart = () => setIsRecording(true)
-    recognition.onend = () => setIsRecording(false)
+    recognition.onstart = () => setIsRecording(true);
+    recognition.onend = () => setIsRecording(false);
 
     recognition.onresult = (event: SpeechRecognitionEvent) => {
-      const transcript = event.results[0][0].transcript
-      setChatInput((prev) => prev + (prev ? " " : "") + transcript)
-    }
+      const transcript = event.results[0][0].transcript;
+      const newInput = chatInput + (chatInput ? " " : "") + transcript;
+      setChatInput(newInput);
+      if (setInputValue) {
+        setInputValue(newInput);
+      }
+    };
 
     recognition.onerror = (event: SpeechRecognitionErrorEvent) => {
-      console.error("Lỗi ghi âm:", event.error)
-      alert("Không thể ghi âm: " + event.error)
-      setIsRecording(false)
-    }
+      console.error("Lỗi ghi âm:", event.error);
+      alert("Không thể ghi âm: " + event.error);
+      setIsRecording(false);
+    };
 
-    recognition.start()
-  }
+    recognition.start();
+  };
 
   // Xử lý gửi tin nhắn hoặc hình ảnh
   const handleSend = () => {
-    if (!chatInput.trim() && !selectedImage) return
+    if (!chatInput.trim() && !selectedImage) return;
 
-    setIsNavigating(true)
+    setIsNavigating(true);
 
-    // Gửi tin nhắn hoặc hình ảnh
+    // Prepare formData if an image is selected
+    let formData: FormData | undefined;
     if (selectedImage) {
-      const formData = new FormData()
-      formData.append("image", selectedImage)
+      formData = new FormData();
+      formData.append("image", selectedImage);
       if (chatInput.trim()) {
-        formData.append("message", chatInput)
+        formData.append("message", chatInput);
       }
-      window.sendChatMessage?.(chatInput, formData)
+    }
+
+    // Use onSendMessage if provided, otherwise fall back to window.sendChatMessage
+    if (onSendMessage) {
+      onSendMessage(chatInput, formData);
     } else {
-      localStorage.setItem("pendingChatMessage", chatInput)
-      window.sendChatMessage?.(chatInput)
+      if (selectedImage) {
+        window.sendChatMessage?.(chatInput, formData);
+      } else {
+        localStorage.setItem("pendingChatMessage", chatInput);
+        window.sendChatMessage?.(chatInput);
+      }
     }
 
     // Reset trạng thái
-    setChatInput("")
-    setSelectedImage(null)
-    if (fileInputRef.current) fileInputRef.current.value = ""
+    setChatInput("");
+    if (setInputValue) {
+      setInputValue("");
+    }
+    setSelectedImage(null);
+    if (fileInputRef.current) fileInputRef.current.value = "";
 
     // Chuyển hướng nếu không ở trang chính
     if (pathname !== "/") {
       setTimeout(() => {
-        router.replace("/")
-        setIsNavigating(false)
-      }, 700)
+        router.replace("/");
+        setIsNavigating(false);
+      }, 700);
     } else {
-      setIsNavigating(false)
+      setIsNavigating(false);
     }
-  }
-
-  useEffect(() => {
-    const handleFocus = () => {
-      if (inputRef.current && window.innerWidth < 768) {
-        setTimeout(() => {
-          // Cuộn container chính thay vì input
-          const container = document.querySelector('.message-container');
-          if (container) {
-            container.scrollTo({
-              top: container.scrollHeight,
-              behavior: 'smooth',
-            });
-          }
-        }, 300); // Đợi bàn phím ảo xuất hiện
-      }
-    };
-
-    const inputElement = inputRef.current;
-    if (inputElement) {
-      inputElement.addEventListener('focus', handleFocus);
-    }
-
-    return () => {
-      if (inputElement) {
-        inputElement.removeEventListener('focus', handleFocus);
-      }
-    };
-  }, []);
+  };
 
   return (
-    <div className={`w-full ${centered ? 'flex flex-col items-center justify-center' : ''}`}>
-      <div className={`relative bg-gradient-to-r from-white via-white to-slate-50/80 backdrop-blur-xl border-2 border-teal-200/60 rounded-2xl px-4 py-3 shadow-2xl shadow-teal-500/10 ring-1 ring-teal-100/50 hover:shadow-2xl hover:shadow-teal-500/20 transition-all duration-300 hover:border-teal-300/70 ${centered ? 'max-w-2xl w-full' : ''}`}>
+    <div className={`w-full ${centered ? "flex flex-col items-center justify-center" : ""}`}>
+      <div
+        className={`relative bg-gradient-to-r from-white via-white to-slate-50/80 backdrop-blur-xl border-2 border-teal-200/60 rounded-2xl px-4 py-3 shadow-2xl shadow-teal-500/10 ring-1 ring-teal-100/50 hover:shadow-2xl hover:shadow-teal-500/20 transition-all duration-300 hover:border-teal-300/70 ${
+          centered ? "max-w-2xl w-full" : ""
+        }`}
+      >
         {/* Subtle glow effect */}
         <div className="absolute inset-0 bg-gradient-to-r from-teal-50/30 to-cyan-50/30 rounded-2xl -z-10"></div>
 
@@ -231,22 +240,27 @@ export const ChatInput = ({ pathname, centered = false }: ChatInputProps) => {
             type="text"
             ref={inputRef}
             value={chatInput}
-            onChange={(e) => setChatInput(e.target.value)}
+            onChange={(e) => {
+              setChatInput(e.target.value);
+              if (setInputValue) {
+                setInputValue(e.target.value);
+              }
+            }}
             onKeyDown={(e) => {
               if (e.key === "Enter" && (chatInput.trim() || selectedImage)) {
-                e.preventDefault()
-                handleSend()
+                e.preventDefault();
+                handleSend();
               }
             }}
             onPaste={(e) => {
-              const items = e.clipboardData?.items
+              const items = e.clipboardData?.items;
               if (items) {
                 for (let i = 0; i < items.length; i++) {
-                  const item = items[i]
+                  const item = items[i];
                   if (item.type.startsWith("image/")) {
-                    const file = item.getAsFile()
+                    const file = item.getAsFile();
                     if (file) {
-                      setSelectedImage(file) // set ảnh vào state
+                      setSelectedImage(file);
                     }
                   }
                 }
@@ -267,4 +281,4 @@ export const ChatInput = ({ pathname, centered = false }: ChatInputProps) => {
       </div>
     </div>
   );
-}
+};
