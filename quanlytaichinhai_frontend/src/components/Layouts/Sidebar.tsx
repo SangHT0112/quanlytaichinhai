@@ -90,7 +90,7 @@ export default function Sidebar({
       <aside
         className={`fixed inset-y-0 left-0 z-40 p-4 transition-all duration-300 ease-in-out h-full flex flex-col ${
           isSidebarOpen
-            ? "w-60 bg-gradient-to-b from-slate-800 to-slate-900 shadow-xl"
+            ? "w-75 bg-gradient-to-b from-slate-800 to-slate-900 shadow-xl"
             : "w-12 bg-transparent shadow-none"
         }`}
         onMouseEnter={handleMouseEnter}

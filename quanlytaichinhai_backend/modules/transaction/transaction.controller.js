@@ -58,7 +58,6 @@ export const getGroupTransactionHistory = async (req, res) => {
       return res.status(400).json({ message: "Thiếu user_id" });
     }
 
-    console.log("Fetching groups with params:", { userId, limit, offset, dateFilter }); // Debug params
     const groups = await getTransactionGroupsByUserId(userId, limit, offset, dateFilter);
     res.json(groups);
   } catch (err) {

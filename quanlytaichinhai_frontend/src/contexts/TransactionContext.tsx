@@ -52,7 +52,6 @@ interface TransactionContextType {
   setTransactionGroups: (groups: TransactionGroup[]) => void;
   error: string | null;
   loading: boolean;
-  balance: number;
 }
 
 export const TransactionContext = createContext<TransactionContextType>({
@@ -65,7 +64,6 @@ export const TransactionContext = createContext<TransactionContextType>({
   setTransactionGroups: () => {},
   error: null,
   loading: false,
-  balance: 0,
 });
 
 interface Props {
@@ -114,7 +112,7 @@ export const TransactionProvider = ({ children, user }: Props) => {
       setLoading(true);
       setError(null);
 
-      console.log("Refreshing groups with offset: 0");
+      // console.log("Refreshing groups with offset: 0");
       const res = await axiosInstance.get<ApiTransactionGroupResponse[]>("/transactions/groups", {
         params: {
           user_id: user.user_id,
@@ -211,7 +209,6 @@ export const TransactionProvider = ({ children, user }: Props) => {
         setTransactionGroups,
         error,
         loading,
-        balance: transactionGroups.reduce((sum, g) => sum + g.total_amount, 0),
       }}
     >
       {children}

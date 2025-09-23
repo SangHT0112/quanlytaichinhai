@@ -20,7 +20,7 @@ export const fetchWithFailover = async (body) => {
       });
 
       if (response.ok) {
-        console.log(`✅ API call succeeded with key ${i + 1}`);
+        // console.log(`✅ API call succeeded with key ${i + 1}`);
         return await response.json();
       } else {
         const errorText = await response.text();

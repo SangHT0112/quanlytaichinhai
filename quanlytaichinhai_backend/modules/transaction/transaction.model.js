@@ -97,12 +97,19 @@ export const createTransactionGroup = async (groupData) => {
 }
 
 // lấy các giao dịch trong 1 thời gian yêu cầu
-export const getTransactionGroupsByUserId = async (userId, limit = null, offset = 0, dateFilter = null) => {
+// lấy các giao dịch trong 1 thời gian yêu cầu
+export const getTransactionGroupsByUserId = async (
+  userId,
+  limit = null,
+  offset = 0,
+  dateFilter = null
+) => {
   let query = `
     SELECT 
       tg.group_id,
       tg.group_name,
       tg.transaction_date,
+      tg.created_at,    -- thêm trường này
       COUNT(t.transaction_id) AS transaction_count,
       COALESCE(SUM(
         CASE 
@@ -116,7 +123,7 @@ export const getTransactionGroupsByUserId = async (userId, limit = null, offset 
     WHERE tg.user_id = ?
   `;
 
-  const params = [Number(userId)]; // Convert userId to number
+  const params = [Number(userId)];
 
   // Lọc theo ngày
   if (dateFilter === "today") {
@@ -129,20 +136,21 @@ export const getTransactionGroupsByUserId = async (userId, limit = null, offset 
   }
 
   query += `
-    GROUP BY tg.group_id, tg.group_name, tg.transaction_date
+    GROUP BY tg.group_id, tg.group_name, tg.transaction_date, tg.created_at
     ORDER BY tg.transaction_date DESC
   `;
 
-  // Thêm LIMIT và OFFSET trực tiếp vào query
+  // thêm LIMIT/OFFSET chắc chắn
   if (limit && Number.isInteger(Number(limit))) {
-    query += ` LIMIT ${Number(limit)} OFFSET ${Number(offset)}`;
+    query += ` LIMIT ? OFFSET ?`;
+    params.push(Number(limit), Number(offset));
   }
 
-  // console.log("Executing query:", query, "with params:", params); // Debug query
+  // console.log("Executing query:", query, "with params:", params); // Debug
   const [rows] = await db.execute(query, params);
-  // console.log("Returned rows:", rows); // Debug returned data
   return rows;
 };
+
 
 //lấy các chi tiết giao dịch trong 1 nhóm yêu cầu
 export const getTransactionsByGroupId = async (groupId) => {

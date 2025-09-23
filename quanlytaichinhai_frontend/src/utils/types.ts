@@ -65,6 +65,12 @@ export type StructuredData =
       layout?: 'inline' | 'block';
     }
     | {
+      response_type: 'confirm_priority';
+      temp_plans: PlanData[];
+      priority_options: string[];
+      message: string;
+    }
+    | {
       response_type: 'suggest_new_category';
       message: string;
       suggest_new_category: {
@@ -145,6 +151,44 @@ export type QuickAction = {
   text: string;
   emoji: string;
   shortcut?: string;
+};
+
+export type PlanData = {
+  id: string;
+  user_id: string;
+  name: string;
+  description?: string | null;
+  target_amount: number;
+  current_amount: number;
+  monthly_contribution: number;
+  time_to_goal: number;
+  priority: string;
+  category: string;
+  breakdown?: Record<string, any>;
+  ai_analysis?: {
+    feasibility_score: number;
+    risk_level: string;
+    recommendations: Array<{
+      type: string;
+      title: string;
+      description?: string | null;
+      impact?: string | null;
+      priority: string;
+    }>;
+    milestones: Array<{
+      amount: number;
+      timeframe: string;
+      description?: string | null;
+    }>;
+    monthly_breakdown: {
+      current_savings: number;
+      optimized_savings: number;
+      with_investment: number;
+    };
+    challenges: string[];
+    tips: string[];
+  };
+  created_at: string;
 };
 
 // Export const

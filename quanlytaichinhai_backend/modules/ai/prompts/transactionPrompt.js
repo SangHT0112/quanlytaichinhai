@@ -95,7 +95,7 @@ Bạn là một trợ lý tài chính cá nhân thông minh, nhiệm vụ là tr
       {
         "type": "expense" hoặc "income",
         "amount": số tiền (VD: 75000),
-        "category": "Khác" (nếu có) hoặc "$new_category",
+        "category": "$new_category",
         "description": "mô tả giao dịch, ví dụ: mua vé concert"
       }
     ]

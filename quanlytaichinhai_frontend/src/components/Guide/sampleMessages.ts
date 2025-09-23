@@ -6,13 +6,13 @@ export const sampleMessageSequences: Record<string, ChatMessage[]> = {
   "Thêm giao dịch thủ công qua chat": [
     {
       id: uuidv4(),
-      content: "Hôm nay tôi chi 50000 cho ăn uống",
+      content: "Hôm nay tôi chi 50k cho ăn uống",
       role: MessageRole.USER,
       timestamp: new Date(),
     },
     {
       id: uuidv4(),
-      content: "✅ Giao dịch chi 50,000 VND cho ăn uống đã được ghi nhận (mô phỏng trong hướng dẫn).",
+      content: "Hôm nay tôi chi 50000 cho ăn uống",
       role: MessageRole.ASSISTANT,
       timestamp: new Date(),
       structured: {
@@ -23,21 +23,21 @@ export const sampleMessageSequences: Record<string, ChatMessage[]> = {
   "Thêm nhiều giao dịch cùng lúc": [
     {
       id: uuidv4(),
-      content: "Thêm chi 50000 ăn uống, 20000 xăng xe, thu 1000000 lương",
+      content: "Thêm chi 50k ăn uống, 20k xăng xe, thu 1 triệu lương",
       role: MessageRole.USER,
       timestamp: new Date(),
     },
     {
       id: uuidv4(),
       content:
-        "✅ Đã ghi nhận (mô phỏng trong hướng dẫn):\n- Chi 50,000 VND (ăn uống)\n- Chi 20,000 VND (xăng xe)\n- Thu 1,000,000 VND (lương)",
+        "Chi 50k (ăn uống)\n- Chi 20k (xăng xe)\n- Thu 1 triệu (lương)",
       role: MessageRole.ASSISTANT,
       timestamp: new Date(),
       structured: {
         transactions: [
-          { type: "expense", category: "ăn uống", amount: 50000 },
-          { type: "expense", category: "xăng xe", amount: 20000 },
-          { type: "income", category: "lương", amount: 1000000 },
+          { type: "expense", category: "ăn uống", amount: 50000, description: "ăn uống" },
+          { type: "expense", category: "xăng xe", amount: 20000, description: "xăng" },
+          { type: "income", category: "lương", amount: 1000000, description: "lương" },
         ],
       },
     },

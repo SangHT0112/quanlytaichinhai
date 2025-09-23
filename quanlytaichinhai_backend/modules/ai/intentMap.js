@@ -8,6 +8,7 @@ import { generateExplainPrompt } from './prompts/sqlPrompts/generateExplainPromp
 import { generateSQLPrompt } from './prompts/sqlPrompts/generateSQLPrompt.js';
 import { generateForecastSQLPrompt } from './prompts/sqlPrompts/generateForecastSQLPrompt.js';
 import { generateImagePrompt } from './prompts/generateImagePrompt.js';
+import { generatePlanningPrompt } from './prompts/generatePlanningPrompt.js';
 import { generateCreateCategoryPrompt } from './prompts/generateCreateCategoryPrompt.js';
 import db from '../../config/db.js';
 import path from 'path'
@@ -272,6 +273,79 @@ export const intentMap = {
         structured: { error: 'Yêu cầu không hợp lệ' },
       };
     },
+  },
+  planning: {
+    generatePrompt: generatePlanningPrompt,
+    isJsonResponse: true,
+    processResponse: async (aiText, { user_input, now, user_id }) => {
+      const parsed = parseJsonFromText(aiText, { fallback: null });
+      if (!parsed || !parsed.plans || !Array.isArray(parsed.plans)) {
+        return {
+          raw: 'Không thể phân tích dữ liệu kế hoạch.',
+          structured: {
+            error: 'JSON không hợp lệ hoặc thiếu plans',
+          },
+        };
+      }
+
+      // Chuẩn bị dữ liệu kế hoạch tạm thời để gửi cho người dùng xác nhận
+      const tempPlans = parsed.plans.map(plan => ({
+        id: plan.id || `plan_${Date.now()}_${Math.random().toString(36).slice(2)}`,
+        user_id: user_id,
+        name: plan.name || user_input || 'Kế hoạch không tên',
+        description: plan.description ?? null,
+        target_amount: Number(plan.target_amount) ?? 0,
+        current_amount: Number(plan.current_amount) ?? 0,
+        monthly_contribution: Number(plan.monthly_contribution) ?? 0,
+        time_to_goal: Number(plan.time_to_goal) ?? 0,
+        priority: plan.priority || 'medium', // Mức ưu tiên mặc định
+        category: plan.category || 'Tiết kiệm',
+        breakdown: plan.breakdown ?? {},
+        ai_analysis: {
+          feasibility_score: Number(plan.ai_analysis?.feasibility_score) ?? 80,
+          risk_level: plan.ai_analysis?.risk_level || 'medium',
+          recommendations: Array.isArray(plan.ai_analysis?.recommendations)
+            ? plan.ai_analysis.recommendations.map(rec => ({
+                type: rec.type ?? 'unknown',
+                title: rec.title ?? 'Gợi ý không tên',
+                description: rec.description ?? null,
+                impact: rec.impact ?? null,
+                priority: rec.priority ?? 'medium'
+              }))
+            : [],
+          milestones: Array.isArray(plan.ai_analysis?.milestones)
+            ? plan.ai_analysis.milestones.map(m => ({
+                amount: Number(m.amount) ?? 0,
+                timeframe: m.timeframe ?? 'Không xác định',
+                description: m.description ?? null
+              }))
+            : [],
+          monthly_breakdown: {
+            current_savings: Number(plan.ai_analysis?.monthly_breakdown?.current_savings) ?? 0,
+            optimized_savings: Number(plan.ai_analysis?.monthly_breakdown?.optimized_savings) ?? 0,
+            with_investment: Number(plan.ai_analysis?.monthly_breakdown?.with_investment) ?? 0
+          },
+          challenges: Array.isArray(plan.ai_analysis?.challenges)
+            ? plan.ai_analysis.challenges.map(c => c ?? 'Không xác định')
+            : [],
+          tips: Array.isArray(plan.ai_analysis?.tips)
+            ? plan.ai_analysis.tips.map(t => t ?? 'Không xác định')
+            : []
+        },
+        created_at: now
+      }));
+
+      // Trả về phản hồi yêu cầu xác nhận mức ưu tiên
+      return {
+        raw: 'Vui lòng chọn mức ưu tiên cho kế hoạch: cao, trung bình, hoặc thấp.',
+        structured: {
+          response_type: 'confirm_priority',
+          temp_plans: tempPlans, // Gửi danh sách kế hoạch tạm để frontend hiển thị
+          message: 'Vui lòng chọn mức ưu tiên cho các kế hoạch được đề xuất.',
+          priority_options: ['high', 'medium', 'low'],
+        },
+      };
+    }
   },
   natural: {
     generatePrompt: generateNaturalPrompt,

@@ -8,6 +8,7 @@ import path from 'path'
 import { fileURLToPath } from 'url';
 import { sendToBamlGemini } from "./sendToBamlGemini.js"
 import {intentMap} from "./intentMap.js"
+import { saveSavingsPlan } from "../savings_plans/savings_plans.model.js";
 // Định nghĩa __dirname
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 
@@ -23,14 +24,11 @@ const GEMINI_API_KEYS = [
 
 
 export const handleChat = async (req, res) => {
-  const { user_id, message: user_input = "", history = [] } = req.body;
+  const { user_id, message: user_input = "", history = [], response_type } = req.body;
   const now = new Date(Date.now() + 7 * 60 * 60 * 1000).toISOString().slice(0, 19).replace("T", " ");
 
-
-
-  if (GEMINI_API_KEYS.length === 0) {
-    console.error("❌ Không có khóa API Gemini hợp lệ.");
-    return res.status(500).json({ error: "Không có khóa API Gemini hợp lệ." });
+  if (!user_id || (!user_input && !response_type)) {
+    return res.status(400).json({ error: 'Thiếu user_id hoặc user_input/response_type' });
   }
 
   const historyText = history
@@ -52,13 +50,9 @@ export const handleChat = async (req, res) => {
 
     const rawIntent = classifyData.candidates?.[0]?.content?.parts?.[0]?.text?.trim().toLowerCase();
     const intent = Object.keys(intentMap).includes(rawIntent) ? rawIntent : "natural";
-    // console.log("Input:", user_input);
-    // console.log("Raw intent from Gemini:", rawIntent);
-    // console.log("Final intent:", intent);
 
     const { generatePrompt, isJsonResponse, processResponse } = intentMap[intent];
     const prompt = await generatePrompt({ user_input, now, user_id, historyText });
-    // console.log("Generated prompt:", prompt);
 
     const geminiData = await fetchWithFailover({
       contents: [
@@ -84,8 +78,11 @@ export const handleChat = async (req, res) => {
       historyText,
     });
 
-    // Không ghi đè intent, giữ intent gốc
-    return res.json({ intent, raw, structured });
+    return res.json({
+      intent,
+      raw,
+      structured,
+    });
   } catch (error) {
     console.error("❌ handleChat error:", error.message);
     return res.status(500).json({ error: `Lỗi xử lý AI: ${error.message}` });
@@ -104,14 +101,21 @@ export const confirmTransaction = async (req, res) => {
       ? user_corrected
       : [user_corrected || ai_suggested.transactions?.[0]];
 
-    if (!transactions.length) {
+    // Kiểm tra transactions
+    if (!Array.isArray(transactions) || transactions.length === 0) {
       return res.status(400).json({ error: "Không có giao dịch nào để lưu" });
     }
 
-    // 👉 Tính tổng tiền
-    const total_amount = transactions.reduce((sum, tx) => sum + Number(tx.amount || 0), 0);
+    // Kiểm tra từng transaction
+    const validTransactions = transactions.filter(tx => tx && typeof tx === 'object' && typeof tx.amount === 'number');
+    if (validTransactions.length === 0) {
+      return res.status(400).json({ error: "Dữ liệu giao dịch không hợp lệ hoặc thiếu amount" });
+    }
 
-    // 👉 Lấy thông tin group
+    // Tính tổng tiền
+    const total_amount = validTransactions.reduce((sum, tx) => sum + Number(tx.amount), 0);
+
+    // Lấy thông tin group
     const groupData = {
       user_id,
       group_name: ai_suggested.group_name || user_input,
@@ -121,13 +125,10 @@ export const confirmTransaction = async (req, res) => {
 
     let group_id = null;
     if (confirmed) {
-      // 👉 Lưu group trước
       group_id = await createTransactionGroup(groupData);
     }
 
-    for (const tx of transactions) {
-      if (!tx) continue;
-
+    for (const tx of validTransactions) {
       const category_id = await getCategoryIdByKeyword(tx.category);
       if (!category_id) {
         return res.status(400).json({
@@ -163,8 +164,6 @@ export const confirmTransaction = async (req, res) => {
   }
 };
 
-
-
 export const processDocument = async (req, res) => {
   try {
     const file = req.file
@@ -191,3 +190,52 @@ export const processDocument = async (req, res) => {
     return res.status(500).json({ error: "Lỗi xử lý AI" })
   }
 }
+
+
+// Xác nhận mức ưu tiên
+// Xác nhận mức ưu tiên
+export const confirmPriority = async (req, res) => {
+  const { user_id, selected_priority, temp_plans } = req.body;
+
+  if (!user_id || !selected_priority || !temp_plans) {
+    return res.status(400).json({ error: 'Thiếu dữ liệu' });
+  }
+
+  if (!['high', 'medium', 'low'].includes(selected_priority)) {
+    return res.status(400).json({ error: 'Mức ưu tiên không hợp lệ' });
+  }
+
+  try {
+    const structuredPlans = temp_plans.map(plan => ({
+      ...plan,
+      priority: selected_priority,
+    }));
+    console.log('temp_plans:', temp_plans);
+    console.log('structuredPlans:', structuredPlans);
+    const results = await Promise.all(
+      structuredPlans.map(async (plan) => {
+        const success = await saveSavingsPlan(user_id, plan);
+        return { plan_id: plan.id, success };
+      })
+    );
+
+    const failed = results.filter((r) => !r.success);
+    if (failed.length > 0) {
+      console.error("Lỗi khi lưu một số kế hoạch:", failed);
+      return res.status(500).json({
+        error: 'Lỗi khi lưu một số kế hoạch',
+        details: failed.map((f) => `Plan ${f.plan_id} failed`),
+      });
+    }
+
+    return res.json({
+      success: true,
+      raw: `Kế hoạch đã được lưu với mức ưu tiên: ${selected_priority}.`,
+      structured: { plans: structuredPlans },
+      redirectPath: '/financial_plan',
+    });
+  } catch (err) {
+    console.error("❌ confirmPriority error:", err.message);
+    return res.status(500).json({ error: 'Lỗi khi xác nhận mức ưu tiên' });
+  }
+};

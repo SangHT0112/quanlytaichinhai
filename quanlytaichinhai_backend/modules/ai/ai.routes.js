@@ -2,7 +2,7 @@ import express from 'express'
 import multer from 'multer'
 import path from 'path'
 import fs from 'fs'
-import { handleChat, confirmTransaction, processDocument } from './ai.controller.js'
+import { handleChat, confirmTransaction, confirmPriority, processDocument } from './ai.controller.js'
 
 const router = express.Router()
 
@@ -24,6 +24,7 @@ const upload = multer({ storage })
 
 router.post('/chat', handleChat)
 router.post('/confirm', confirmTransaction)
+router.post('/confirm-priority', confirmPriority)
 router.post('/process-document', upload.single('image'), processDocument)
 
 export default router

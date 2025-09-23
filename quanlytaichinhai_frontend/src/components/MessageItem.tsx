@@ -1,7 +1,7 @@
 'use client';
 import { useState, useEffect } from 'react';
 import { Bot, User } from 'lucide-react';
-import type { ChatMessage, StructuredData, TransactionData } from '../utils/types';
+import type { ChatMessage, StructuredData, TransactionData, PlanData } from '../utils/types';
 import { MessageRenderer } from './MessageRenderer';
 import SingleTransactionConfirmationForm from './transaction-form/SingleTransactionConfirmationForm';
 import MultiTransactionConfirmationForm from './transaction-form/MultiTransactionConfirmationForm';
@@ -9,6 +9,35 @@ import TransactionEditForm from './transaction-form/TransactionEditForm';
 import { renderCustomContent } from './hooks/renderCustomContent';
 import BackgroundImageConfirmForm from './transaction-form/ComfirmImage';
 import CategoryConfirmationForm from './transaction-form/CategoryConfirmationForm';
+import { PriorityForm } from './transaction-form/priority-form';
+import axiosInstance from '@/config/axios';
+
+import { useRouter } from 'next/navigation'; // Nếu dùng Next.js
+const isConfirmPriority = (
+  data: StructuredData | undefined,
+): data is Extract<StructuredData, { response_type: 'confirm_priority' }> => {
+  if (!data) return false;
+  let parsedData = data;
+  if (typeof data === 'string') {
+    try {
+      parsedData = JSON.parse(data);
+    } catch (e) {
+      console.error('Lỗi parse structured data for priority:', e, { data });
+      return false;
+    }
+  }
+  return (
+    typeof parsedData === 'object' &&
+    'response_type' in parsedData &&
+    parsedData.response_type === 'confirm_priority' &&
+    'temp_plans' in parsedData &&
+    Array.isArray(parsedData.temp_plans) &&
+    'priority_options' in parsedData &&
+    Array.isArray(parsedData.priority_options) &&
+    'message' in parsedData &&
+    typeof parsedData.message === 'string'
+  );
+};
 
 const isTransactionStructuredData = (
   data: StructuredData,
@@ -26,7 +55,6 @@ const isTransactionStructuredData = (
   total_amount?: number;
   transaction_date?: string;
 } => {
-  // Xử lý trường hợp data là chuỗi JSON
   let parsedData = data;
   if (typeof data === 'string') {
     try {
@@ -36,9 +64,8 @@ const isTransactionStructuredData = (
       return false;
     }
   }
-  // Xử lý trường hợp parsedData là { message: string }
   if (parsedData && typeof parsedData === 'object' && 'message' in parsedData && !('type' in parsedData)) {
-    return false; // Không phải dữ liệu giao dịch
+    return false;
   }
   return !('type' in parsedData) || parsedData.type !== 'component';
 };
@@ -62,7 +89,9 @@ const isSuggestNewCategory = (
   );
 };
 
-function hasImageUrl(data: StructuredData): data is {
+const hasImageUrl = (
+  data: StructuredData,
+): data is {
   transactions?: Array<{
     type: 'expense' | 'income';
     amount: number;
@@ -76,7 +105,7 @@ function hasImageUrl(data: StructuredData): data is {
   total_amount?: number;
   transaction_date?: string;
   image_url?: string;
-} {
+} => {
   let parsedData = data;
   if (typeof data === 'string') {
     try {
@@ -87,7 +116,7 @@ function hasImageUrl(data: StructuredData): data is {
     }
   }
   return 'image_url' in parsedData;
-}
+};
 
 export const MessageItem = ({
   message,
@@ -103,6 +132,7 @@ export const MessageItem = ({
   const [isEditing, setIsEditing] = useState(false);
   const [editingIndex, setEditingIndex] = useState(0);
   const [isLoading, setIsLoading] = useState(false);
+  const [isPriorityConfirmed, setIsPriorityConfirmed] = useState(confirmedIds.includes(message.id));
   const groupTransactionDate = (message.structured as { transaction_date?: string })?.transaction_date;
 
   const [pendingTransaction, setPendingTransaction] = useState<TransactionData | null>(null);
@@ -226,6 +256,44 @@ export const MessageItem = ({
       }
     }
   };
+  const handlePriorityConfirm = async (priority: string) => {
+    if (isLoading) {
+      console.log('Request already in progress, ignoring duplicate request');
+      return; // Ngăn gửi lại nếu đang xử lý
+    }
+    console.log('Priority sent to server:', priority);
+    if (!message.structured || !isConfirmPriority(message.structured)) {
+      console.error('Invalid structured data for priority confirmation');
+      return;
+    }
+    setIsLoading(true);
+    try {
+      const response = await axiosInstance.post('/ai/confirm-priority', {
+        user_id: message.user_id ?? 1,
+        selected_priority: priority,
+        temp_plans: message.structured.temp_plans,
+      });
+
+      if (!response.data.success) {
+        throw new Error('Lỗi khi xác nhận mức ưu tiên');
+      }
+
+      setIsPriorityConfirmed(true);
+      if (onConfirm) {
+        await onConfirm(message);
+      }
+
+      // Kiểm tra và chuyển hướng nếu có redirectPath
+      if (response.data.redirectPath) {
+        const router = useRouter();
+        router.push(response.data.redirectPath); // Chuyển hướng đến /financial_plan
+      }
+    } catch (error) {
+      console.error('Lỗi khi gửi xác nhận ưu tiên:', error);
+    } finally {
+      setIsLoading(false);
+    }
+  };
 
   return (
     <div className={`flex w-full mb-3 ${message.role === 'user' ? 'justify-end' : 'justify-start'}`}>
@@ -250,6 +318,15 @@ export const MessageItem = ({
         {!isTransaction && !hasCustomContent && message.content && (
           <div className="mt-2">
             <MessageRenderer content={message.content} />
+          </div>
+        )}
+
+        {message.structured && isConfirmPriority(message.structured) && !isPriorityConfirmed && (
+          <div className="mt-2">
+            <PriorityForm
+              onPrioritySelect={handlePriorityConfirm}
+              plans={message.structured.temp_plans as PlanData[]}
+            />
           </div>
         )}
 

@@ -1,180 +1,167 @@
-"use client"
+// financial_plan/page.tsx
+"use client";
 
-import { useState } from "react"
-import { Lightbulb, Target, PiggyBank, ChevronDown, ChevronUp } from "lucide-react"
-import { Progress } from "@/components/ui/progress"
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
+import { useState, useEffect } from "react";
+import { toast } from "react-hot-toast";
+import jsPDF from "jspdf";
+import axiosInstance from "@/config/axios";
+import { SavingsPlan } from "./utils/interfaces";
+import { format, calculateProgress } from "./utils/financialUtils";
+import PlanSelector from "./components/PlanSelector";
+import PlanHeader from "./components/PlanHeader";
+import PlanProgress from "./components/PlanProgress";
+import ForecastChart from "./components/ForecastChart";
+import TabNavigation from "./components/TabNavigation";
+import OverviewTab from "./components/OverviewTab";
+import AnalysisTab from "./components/AnalysisTab";
+import MilestonesTab from "./components/MilestonesTab";
+import TipsTab from "./components/TipsTab";
+import { Card, CardContent } from "@/components/ui/card";
+import { Button } from "@/components/ui/button";
 
-// Sample financial data for AI-driven monthly plan
-const financialData = {
-  monthlyPlan: {
-    income: 12000000,
-    savingsTarget: 4000000,
-    categories: [
-      { name: "Ăn uống", planned: 2000000, actual: 1200000 },
-      { name: "Vui chơi", planned: 500000, actual: 1200000 },
-      { name: "Tiền trọ", planned: 1000000, actual: 1000000 },
-      { name: "Di chuyển", planned: 800000, actual: 500000 },
-      { name: "Mua sắm", planned: 700000, actual: 1000000 },
-      { name: "Hóa đơn", planned: 1000000, actual: 800000 },
-      { name: "Khác", planned: 500000, actual: 1200000 },
-    ],
-  },
-  aiSpendingAdvice: [
-    { category: "Ăn uống", amount: 1800000, reason: "Giảm 200k so với tháng trước để tăng tiết kiệm." },
-    { category: "Vui chơi", amount: 400000, reason: "Hạn chế chi tiêu giải trí để ưu tiên mục tiêu tiết kiệm." },
-    { category: "Tiền trọ", amount: 1000000, reason: "Giữ nguyên chi phí cố định." },
-    { category: "Di chuyển", amount: 700000, reason: "Sử dụng phương tiện công cộng để tiết kiệm." },
-    { category: "Mua sắm", amount: 600000, reason: "Hạn chế mua sắm không cần thiết." },
-    { category: "Hóa đơn", amount: 900000, reason: "Dự trù tăng nhẹ do hóa đơn điện mùa nóng." },
-    { category: "Khác", amount: 400000, reason: "Dự phòng cho chi phí phát sinh." },
-  ],
-}
+export default function MultiSavingsPlan() {
+  const [savingsPlans, setSavingsPlans] = useState<SavingsPlan[]>([]);
+  const [selectedPlanId, setSelectedPlanId] = useState<string>("");
+  const [scenario, setScenario] = useState<"best" | "worst">("best");
+  const [activeTab, setActiveTab] = useState<"overview" | "analysis" | "milestones" | "tips">("overview");
+  const [loading, setLoading] = useState<boolean>(true);
 
-export default function MonthlySpendingPlan() {
-  const [expandedCategory, setExpandedCategory] = useState<string | null>(null)
+  const userStr = localStorage.getItem("user");
+  const user = userStr ? JSON.parse(userStr) : null;
 
-  const format = (n: number) =>
-    new Intl.NumberFormat("vi-VN", {
-      style: "currency",
-      currency: "VND",
-      minimumFractionDigits: 0,
-    }).format(n)
+  useEffect(() => {
+    const fetchPlans = async () => {
+      try {
+        if (!userStr) {
+          toast.error("Không tìm thấy thông tin user");
+          setLoading(false);
+          return;
+        }
+        const user = JSON.parse(userStr);
+        const userId = user.user_id;
+        const response = await axiosInstance.get(`/savings-plans?user_id=${userId}`);
+        const data: SavingsPlan[] = response.data;
+        if (data.length > 0) {
+          setSavingsPlans(data);
+          setSelectedPlanId(data[0].id);
+        }
+        setLoading(false);
+      } catch (error) {
+        console.error("Lỗi khi lấy kế hoạch tiết kiệm:", error);
+        toast.error("Không thể tải kế hoạch tiết kiệm");
+        setLoading(false);
+      }
+    };
 
-  const calculateCompletion = (planned: number, actual: number) => {
-    if (planned === 0) return 0
-    return Math.min((actual / planned) * 100, 100)
+    fetchPlans();
+  }, []);
+
+  const handleDeletePlan = async (planId: string) => {
+    if (!confirm(`Bạn có chắc muốn xóa kế hoạch này?`)) return;
+    try {
+      await axiosInstance.delete(`/savings-plans`, {
+        data: {
+          user_id: user.user_id,
+          plan_id: planId,
+        },
+      });
+      setSavingsPlans((prev) => prev.filter((plan) => plan.id !== planId));
+      toast.success("Xóa kế hoạch thành công!");
+    } catch (error) {
+      console.error("Lỗi khi xóa kế hoạch:", error);
+      toast.error("Không thể xóa kế hoạch");
+    }
+  };
+
+  const checkProgress = () => {
+    if (!selectedPlan) return;
+    const expected = selectedPlan.monthlyContribution * 12 * yearsRemaining;
+    if (selectedPlan.currentAmount < expected) {
+      toast.error(`Bạn đang chậm ${format(expected - selectedPlan.currentAmount)} so với kế hoạch!`);
+    } else {
+      toast.success("Bạn đang đi đúng hướng!");
+    }
+  };
+
+  const exportPDF = () => {
+    if (!selectedPlan) return;
+    const doc = new jsPDF();
+    doc.text(`Kế hoạch: ${selectedPlan.name}`, 10, 10);
+    doc.text(`Mục tiêu: ${format(selectedPlan.targetAmount)}`, 10, 20);
+    doc.text(`Hiện tại: ${format(selectedPlan.currentAmount)}`, 10, 30);
+    doc.save(`${selectedPlan.name}.pdf`);
+  };
+
+  const selectedPlan = savingsPlans.find((plan) => plan.id === selectedPlanId) || null;
+  const progress = selectedPlan ? calculateProgress(selectedPlan.currentAmount, selectedPlan.targetAmount) : 0;
+  const remainingAmount = selectedPlan ? selectedPlan.targetAmount - selectedPlan.currentAmount : 0;
+  const yearsRemaining = selectedPlan ? Math.floor(selectedPlan.timeToGoal / 12) : 0;
+  const monthsRemaining = selectedPlan ? selectedPlan.timeToGoal % 12 : 0;
+
+  if (loading) {
+    return <div className="text-center text-slate-50">Đang tải...</div>;
   }
 
-  const totalActual = financialData.monthlyPlan.categories.reduce((sum, cat) => sum + cat.actual, 0)
-  const savings = financialData.monthlyPlan.income - totalActual
+  if (!savingsPlans.length) {
+    return <div className="text-center text-slate-50">Không có kế hoạch tiết kiệm nào.</div>;
+  }
 
   return (
-    <div className="p-6 max-w-4xl mx-auto space-y-6">
-      {/* Header */}
-      <div className="text-center">
-        <h1 className="text-3xl font-bold text-white">Kế Hoạch Chi Tiêu Tháng Này</h1>
-        <p className="text-zinc-400 mt-2">Gợi ý từ AI để quản lý tài chính hiệu quả</p>
-      </div>
+    <div className="min-h-screen bg-slate-900 p-6 pb-20">
+      <div className="max-w-6xl mx-auto space-y-6">
+        <div className="text-center space-y-2">
+          <h1 className="text-4xl font-bold text-slate-50">Lập Kế Hoạch Tiết Kiệm</h1>
+          <p className="text-slate-300 text-lg">Quản lý tài chính thông minh với AI</p>
+        </div>
 
-      {/* Overview Card */}
-      <Card className="bg-zinc-900 border-zinc-800">
-        <CardHeader>
-          <CardTitle className="flex items-center gap-2 text-white">
-            <PiggyBank className="w-5 h-5 text-green-400" />
-            Tổng quan tài chính
-          </CardTitle>
-        </CardHeader>
-        <CardContent className="grid grid-cols-1 md:grid-cols-3 gap-4">
-          <div>
-            <p className="text-sm text-zinc-400">Thu nhập</p>
-            <p className="text-xl font-bold text-white">{format(financialData.monthlyPlan.income)}</p>
-          </div>
-          <div>
-            <p className="text-sm text-zinc-400">Chi tiêu</p>
-            <p className="text-xl font-bold text-white">{format(totalActual)}</p>
-          </div>
-          <div>
-            <p className="text-sm text-zinc-400">Tiết kiệm</p>
-            <p className="text-xl font-bold text-green-400">{format(savings)}</p>
-          </div>
-        </CardContent>
-      </Card>
+        <PlanSelector
+          savingsPlans={savingsPlans}
+          selectedPlanId={selectedPlanId}
+          setSelectedPlanId={setSelectedPlanId}
+        />
 
-      {/* Monthly Spending Plan */}
-      <Card className="bg-zinc-900 border-zinc-800">
-        <CardHeader>
-          <CardTitle className="flex items-center gap-2 text-white">
-            <Target className="w-5 h-5 text-blue-400" />
-            Phân bổ ngân sách tháng này
-          </CardTitle>
-        </CardHeader>
-        <CardContent className="space-y-4">
-          {financialData.monthlyPlan.categories.map((category) => {
-            const actual = category.actual
-            const planned = category.planned
-            const completion = calculateCompletion(planned, actual)
-            const isOver = actual > planned
-            const advice = financialData.aiSpendingAdvice.find((a) => a.category === category.name)
-
-            return (
-              <div key={category.name} className="space-y-2">
-                <div
-                  className="flex justify-between items-center cursor-pointer"
-                  onClick={() => setExpandedCategory(expandedCategory === category.name ? null : category.name)}
+        {selectedPlan && (
+          <Card className="bg-slate-800 border-slate-600">
+            <CardContent className="space-y-6 p-6">
+              <PlanHeader
+                selectedPlan={selectedPlan}
+                checkProgress={checkProgress}
+                exportPDF={exportPDF}
+                handleDeletePlan={handleDeletePlan}
+              />
+              <div className="flex gap-2 mb-4">
+                <Button
+                  onClick={() => setScenario("best")}
+                  className={scenario === "best" ? "bg-blue-600" : "bg-slate-700"}
                 >
-                  <div className="flex items-center gap-2">
-                    <span className="font-medium text-white">{category.name}</span>
-                    <span className="text-sm text-zinc-400">({format(planned)})</span>
-                  </div>
-                  <div className="flex items-center gap-2">
-                    <span className={`text-sm ${isOver ? "text-red-400" : "text-green-400"}`}>
-                      {format(actual)}
-                    </span>
-                    {expandedCategory === category.name ? (
-                      <ChevronUp className="w-4 h-4 text-zinc-400" />
-                    ) : (
-                      <ChevronDown className="w-4 h-4 text-zinc-400" />
-                    )}
-                  </div>
-                </div>
-
-                {expandedCategory === category.name && (
-                  <div className="ml-4 p-3 bg-zinc-800/50 rounded-lg space-y-2">
-                    <div className="flex justify-between text-sm">
-                      <span className="text-zinc-400">Kế hoạch:</span>
-                      <span className="text-white">{format(planned)}</span>
-                    </div>
-                    <div className="flex justify-between text-sm">
-                      <span className="text-zinc-400">Thực tế:</span>
-                      <span className={isOver ? "text-red-400" : "text-green-400"}>
-                        {format(actual)} ({actual >= planned ? "+" : ""}{format(actual - planned)})
-                      </span>
-                    </div>
-                    <Progress
-                      value={completion}
-                      className={`h-2 ${isOver ? "bg-red-900/50 [&>div]:bg-red-500" : "bg-green-900/50 [&>div]:bg-green-500"}`}
-                    />
-                    <div className="text-xs text-zinc-400">Hoàn thành: {completion.toFixed(1)}%</div>
-                    {advice && (
-                      <div className="flex items-start gap-2 text-sm text-blue-300 bg-blue-900/20 p-2 rounded">
-                        <Lightbulb className="w-4 h-4 mt-0.5" />
-                        <div>
-                          <p>Gợi ý AI: Chi {format(advice.amount)} cho {category.name}</p>
-                          <p className="text-xs text-blue-200">{advice.reason}</p>
-                        </div>
-                      </div>
-                    )}
-                  </div>
-                )}
+                  Best Case (7.5%)
+                </Button>
+                <Button
+                  onClick={() => setScenario("worst")}
+                  className={scenario === "worst" ? "bg-blue-600" : "bg-slate-700"}
+                >
+                  Worst Case (3% + lạm phát)
+                </Button>
               </div>
-            )
-          })}
-        </CardContent>
-      </Card>
+              <PlanProgress
+                selectedPlan={selectedPlan}
+                progress={progress}
+                remainingAmount={remainingAmount}
+                yearsRemaining={yearsRemaining}
+                monthsRemaining={monthsRemaining}
+              />
+              <ForecastChart selectedPlan={selectedPlan} scenario={scenario} />
+            </CardContent>
+          </Card>
+        )}
 
-      {/* AI Spending Advice */}
-      <Card className="bg-zinc-900 border-zinc-800">
-        <CardHeader>
-          <CardTitle className="flex items-center gap-2 text-white">
-            <Lightbulb className="w-5 h-5 text-yellow-400" />
-            Gợi ý chi tiêu từ AI
-          </CardTitle>
-        </CardHeader>
-        <CardContent className="space-y-3">
-          {financialData.aiSpendingAdvice.map((advice, i) => (
-            <div key={i} className="flex items-start gap-2 text-sm text-white">
-              <Lightbulb className="w-4 h-4 text-yellow-400 mt-1" />
-              <div>
-                <p>
-                  <strong>{advice.category}</strong>: Chi khoảng {format(advice.amount)}/tháng
-                </p>
-                <p className="text-zinc-400">{advice.reason}</p>
-              </div>
-            </div>
-          ))}
-        </CardContent>
-      </Card>
+        <TabNavigation activeTab={activeTab} setActiveTab={setActiveTab} />
+
+        {selectedPlan && activeTab === "overview" && <OverviewTab selectedPlan={selectedPlan} />}
+        {selectedPlan && activeTab === "analysis" && <AnalysisTab selectedPlan={selectedPlan} />}
+        {selectedPlan && activeTab === "milestones" && <MilestonesTab selectedPlan={selectedPlan} />}
+        {selectedPlan && activeTab === "tips" && <TipsTab selectedPlan={selectedPlan} />}
+      </div>
     </div>
-  )
+  );
 }

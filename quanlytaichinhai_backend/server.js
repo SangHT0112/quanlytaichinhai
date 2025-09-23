@@ -8,11 +8,12 @@ import { Server } from 'socket.io';
 // Import routes
 import authRoutes from "./modules/auth/auth.routes.js"
 import overviewRoutes from "./modules/overview/overview.routes.js"
-import transactionRoutes from "./modules/transaction/transaction.routes.js"
+import transactionRoutes from './modules/transaction/transaction.routes.js';
 import statisticalRoutes from "./modules/statistical/statistical.routes.js"
 import chatHistoryRoutes from "./modules/chat_history/chat_history.routes.js"
 import quickActionsRoutes from "./modules/quickactions/quickactions.routes.js";
 import categoryRoutes from "./modules/category/category.routes.js";
+import savingsPlansRoutes from "./modules/savings_plans/savings_plans.routes.js";
 import aiRoutes from './modules/ai/ai.routes.js';
 import userRoutes from "./modules/users/user.routes.js";
 import db from './config/db.js';
@@ -43,6 +44,7 @@ app.use("/api/chat-history", chatHistoryRoutes)
 app.use("/api/quickactions", quickActionsRoutes);
 app.use("/api/users", userRoutes);
 app.use("/api/category", categoryRoutes);
+app.use("/api/savings-plans", savingsPlansRoutes);
 app.use('/api/ai', aiRoutes);
 app.use("/public", express.static(path.join(process.cwd(), "public")));
 

@@ -76,18 +76,19 @@ export default function RootLayout({ children }: { children: ReactNode }) {
                 setIsSidebarOpen={setIsSidebarOpen}
               />
 
-              <div
+             <div
                 className={`flex flex-col flex-1 transition-all duration-300 ease-in-out w-full ${
                   isSidebarOpen && isSidebarRightOpen
-                    ? "md:ml-60 md:mr-60"
+                    ? "md:ml-[300px] md:mr-[300px]" // nếu 2 sidebar
                     : isSidebarOpen
-                    ? "md:ml-60"
+                    ? "md:ml-[300px]" // chỉ sidebar trái
                     : isSidebarRightOpen
-                    ? "md:mr-60"
+                    ? "md:mr-[300px]" // chỉ sidebar phải
                     : ""
                 }`}
               >
-                <main className="flex-1 w-full mx-auto px-4 pb-20">
+
+                <main className="flex-1 w-full mx-auto">
                   {children}
                 </main>
 
