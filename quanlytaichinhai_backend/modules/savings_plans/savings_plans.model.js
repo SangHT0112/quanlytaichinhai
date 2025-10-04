@@ -1,6 +1,6 @@
 // savings_plans.model.js
 import db from "../../config/db.js";
-
+import { fetchFinancialSummary } from "../overview/overview.model.js";
 export const getSavingsPlans = async (userId, limit = 50) => {
   if (!userId) {
     console.error("Thiếu userId");
@@ -298,3 +298,164 @@ export const deleteSavingsPlan = async (userId, planId) => {
     return false;
   }
 };
+
+export const updatePlansWithoutAI = async (userId) => {
+  if (!userId) {
+    console.error('Thiếu userId');
+    return false;
+  }
+
+  try {
+    await db.query('START TRANSACTION');
+
+    // Kiểm tra xem có phải cuối tháng không (ngày cuối của tháng hiện tại)
+    const currentDate = new Date();
+    const lastDayOfMonth = new Date(currentDate.getFullYear(), currentDate.getMonth() + 1, 0).getDate();
+    const isEndOfMonth = currentDate.getDate() === lastDayOfMonth;
+
+    if (!isEndOfMonth) {
+      // Không phải cuối tháng, skip update và commit transaction rỗng
+      await db.query('COMMIT');
+      console.log(`Bỏ qua cập nhật kế hoạch vì chưa cuối tháng cho user ${userId}`);
+      return true;
+    }
+
+    // Lấy dữ liệu tài chính
+    let financialData;
+    try {
+      financialData = await fetchFinancialSummary(userId);
+    } catch (error) {
+      console.error('Lỗi khi lấy dữ liệu tài chính:', error);
+      financialData = {
+        actual_balance: 0,
+        monthly_surplus: 0,
+        current_income: 0,
+        current_expense: 0
+      };
+    }
+
+    const plans = await getSavingsPlans(userId);
+    if (!plans.length) {
+      await db.query('COMMIT');
+      return true;
+    }
+
+    const priorityWeights = { high: 3, medium: 2, low: 1 };
+    const totalWeight = plans.reduce(
+      (sum, p) => sum + priorityWeights[p.priority],
+      0
+    );
+
+    // Tổng số dư hiện tại và monthly_surplus
+    const baseBalance = financialData.actual_balance || 0;
+    const surplus = financialData.monthly_surplus || 0;
+
+    for (const plan of plans) {
+      const weight = priorityWeights[plan.priority];
+      const ratio = weight / totalWeight;
+
+      // Số tiền hiện có trong plan
+      const currentAmount = Number(plan.current_amount || 0);
+      let newCurrentAmount = currentAmount;
+
+      // ===== LOGIC CHÍNH =====
+      if (currentAmount === 0 && !plan.initial_amount) {
+        // Nếu lần đầu tạo → chia actual_balance
+        const allocated = baseBalance * ratio;
+        newCurrentAmount = allocated;
+        // Lưu initial_amount để không dồn lại lần sau
+        await db.execute(
+          `UPDATE savings_plans SET initial_amount = ? WHERE id = ? AND user_id = ?`,
+          [allocated, plan.id, userId]
+        );
+      } else {
+        // Đã có tiền trong plan → chỉ cộng thêm surplus
+        newCurrentAmount = currentAmount + surplus * ratio;
+      }
+
+      // milestones
+      await db.execute(`DELETE FROM milestones WHERE plan_id = ?`, [plan.id]);
+      const milestoneSteps = [0.2, 0.4, 0.6, 0.8, 1];
+      const milestoneValues = milestoneSteps.map(step => [
+        plan.id,
+        plan.targetAmount * step,
+        `${Math.ceil((plan.targetAmount * step - newCurrentAmount) / plan.monthlyContribution)} tháng`,
+        `Đạt ${step * 100}% mục tiêu`
+      ]);
+      if (milestoneValues.length > 0) {
+        await db.query(
+          `INSERT INTO milestones (plan_id, amount, timeframe, description) VALUES ?`,
+          [milestoneValues]
+        );
+      }
+
+      // breakdowns
+      await db.execute(`DELETE FROM breakdowns WHERE plan_id = ?`, [plan.id]);
+      let breakdown = {};
+      if (plan.category === 'Phương tiện') {
+        breakdown = {
+          'Giá xe': plan.targetAmount * 0.85,
+          'Phí': plan.targetAmount * 0.05,
+          'Bảo hiểm': plan.targetAmount * 0.05,
+          'Dự phòng': plan.targetAmount * 0.05
+        };
+      } else if (plan.category === 'Bất động sản') {
+        breakdown = {
+          'Giá nhà': plan.targetAmount * 0.85,
+          'Phí': plan.targetAmount * 0.05,
+          'Nội thất': plan.targetAmount * 0.05,
+          'Dự phòng': plan.targetAmount * 0.05
+        };
+      } else if (plan.category === 'Du lịch') {
+        breakdown = {
+          'Chi phí chính': plan.targetAmount * 0.8,
+          'Dự phòng': plan.targetAmount * 0.2
+        };
+      } else if (plan.category === 'Quỹ khẩn cấp') {
+        breakdown = {
+          'Quỹ': plan.targetAmount * 1.0
+        };
+      }
+      const breakdownValues = Object.entries(breakdown).map(([item_key, amount]) => [
+        plan.id,
+        item_key,
+        Number(amount)
+      ]);
+      if (breakdownValues.length > 0) {
+        await db.query(
+          `INSERT INTO breakdowns (plan_id, item_key, amount) VALUES ?`,
+          [breakdownValues]
+        );
+      }
+
+      // update plan
+      await db.execute(
+        `UPDATE savings_plans SET current_amount = ?, updated_at = ? WHERE id = ? AND user_id = ?`,
+        [newCurrentAmount, currentDate, plan.id, userId]
+      );
+    }
+
+    await db.query('COMMIT');
+    console.log(`Đã cập nhật kế hoạch cho user ${userId}`);
+    return true;
+  } catch (error) {
+    await db.query('ROLLBACK');
+    console.error('Lỗi khi cập nhật kế hoạch:', error);
+    return false;
+  }
+};
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+

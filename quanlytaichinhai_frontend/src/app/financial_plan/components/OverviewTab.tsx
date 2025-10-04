@@ -19,7 +19,7 @@ export default function OverviewTab({ selectedPlan }: OverviewTabProps) {
 
   // Dữ liệu cho biểu đồ tròn
   const pieData = Object.entries(selectedPlan.breakdown)
-    .filter(([key, value]) => value && value > 0)
+    .filter(([, value]) => value && value > 0)
     .map(([key, value]) => ({
       name: labels[key] || key,
       value: value as number,

@@ -5,15 +5,15 @@ export const generatePlanningPrompt = async ({ user_input, historyText, now, use
   // Khởi tạo ngày hiện tại
   const currentDate = now instanceof Date ? now : new Date();
 
-  // Lấy dữ liệu tài chính từ fetchFinancialSummary
-  let financialData;
+  // Lấy dữ liệu tài chính
+  let financialData = { actual_balance: 0, current_income: 0, previous_income: 0, current_expense: 0, previous_expense: 0, monthly_surplus: 0, warnings: [] };
   try {
     financialData = await fetchFinancialSummary(user_id);
   } catch (error) {
     console.error('Lỗi khi lấy dữ liệu tài chính:', error);
   }
 
-  // Lấy chi tiêu theo danh mục từ transactions
+  // Lấy chi tiêu theo danh mục (3 tháng gần đây)
   let spendingByCategory = {};
   try {
     const [rows] = await db.query(`
@@ -37,14 +37,14 @@ export const generatePlanningPrompt = async ({ user_input, historyText, now, use
     spendingByCategory = { 'Không xác định': { total: financialData.current_expense, percentage: 100, count: 0 } };
   }
 
-  // Lấy giao dịch lớn
+  // Lấy giao dịch lớn (ngưỡng giảm xuống 2 triệu cho thu nhập thấp)
   let largeTransactions = [];
   try {
     const [rows] = await db.query(`
       SELECT t.type, t.amount, c.name as category, t.description, t.transaction_date
       FROM transactions t
       JOIN categories c ON t.category_id = c.category_id
-      WHERE t.user_id = ? AND t.amount >= 10000000
+      WHERE t.user_id = ? AND t.amount >= 2000000
         AND t.transaction_date >= DATE_SUB(?, INTERVAL 6 MONTH)
       ORDER BY t.transaction_date DESC
       LIMIT 5
@@ -60,27 +60,7 @@ export const generatePlanningPrompt = async ({ user_input, historyText, now, use
     console.error('Lỗi khi lấy giao dịch lớn:', error);
   }
 
-  // Lấy nhóm giao dịch lớn
-  let largeTransactionGroups = [];
-  try {
-    const [rows] = await db.query(`
-      SELECT group_name, total_amount, transaction_date
-      FROM transaction_groups
-      WHERE user_id = ? AND total_amount >= 10000000
-        AND transaction_date >= DATE_SUB(?, INTERVAL 6 MONTH)
-      ORDER BY transaction_date DESC
-      LIMIT 5
-    `, [user_id, currentDate]);
-    largeTransactionGroups = rows.map(row => ({
-      group_name: row.group_name,
-      total_amount: Number(row.total_amount),
-      transaction_date: row.transaction_date
-    }));
-  } catch (error) {
-    console.error('Lỗi khi lấy nhóm giao dịch:', error);
-  }
-
-  // Lấy các kế hoạch tiết kiệm hiện tại từ bảng savings_plans
+  // Lấy kế hoạch tiết kiệm hiện tại
   let existingPlans = [];
   let hasExistingPlans = false;
   try {
@@ -121,10 +101,10 @@ export const generatePlanningPrompt = async ({ user_input, historyText, now, use
   } catch (error) {
     console.error('Lỗi khi lấy danh mục:', error);
     categories = [
-      { name: 'Tiết kiệm', type: 'savings', icon: null },
-      { name: 'Bất động sản', type: 'savings', icon: null },
-      { name: 'Phương tiện', type: 'savings', icon: null },
-      { name: 'Du lịch', type: 'savings', icon: null }
+      { name: 'Quỹ khẩn cấp', type: 'savings', icon: null },
+      { name: 'Du lịch', type: 'savings', icon: null },
+      { name: 'Mua sắm', type: 'savings', icon: null },
+      { name: 'Học tập', type: 'savings', icon: null }
     ];
   }
 
@@ -139,14 +119,13 @@ export const generatePlanningPrompt = async ({ user_input, historyText, now, use
     userInfo = rows[0] || { username: 'Không xác định', last_active_at: null };
   } catch (error) {
     console.error('Lỗi khi lấy thông tin người dùng:', error);
-    userInfo = { username: 'Không xác định', last_active_at: null };
   }
 
-  // Xác định current_amount dựa trên việc đã có kế hoạch hay chưa
+  // Xác định current_amount
   const currentAmountForNewPlan = hasExistingPlans ? 0 : financialData.actual_balance;
 
   return `
-Bạn là AI lập kế hoạch tài chính chuyên nghiệp, tạo JSON cho các kế hoạch tiết kiệm dựa trên input người dùng, dữ liệu tài chính cá nhân, và dữ liệu thị trường Việt Nam 2025 (ngày hiện tại: ${currentDate.toISOString().split('T')[0]}).
+Bạn là AI lập kế hoạch tài chính chuyên nghiệp, tạo JSON cho các kế hoạch tiết kiệm dựa trên input người dùng, dữ liệu tài chính cá nhân, và bối cảnh thị trường Việt Nam 2025 (ngày: ${currentDate.toISOString().split('T')[0]}).
 
 📌 Input:
 - Câu hỏi: "${user_input}"
@@ -155,73 +134,79 @@ Bạn là AI lập kế hoạch tài chính chuyên nghiệp, tạo JSON cho cá
   - Số dư thực tế: ${financialData.actual_balance} VND
   - Thu nhập tháng hiện tại: ${financialData.current_income} VND
   - Thu nhập tháng trước: ${financialData.previous_income} VND
-  - % thay đổi thu nhập: ${financialData.income_change_percentage}%
+  - % thay đổi thu nhập: ${financialData.income_change_percentage || 0}%
   - Chi tiêu tháng hiện tại: ${financialData.current_expense} VND
   - Chi tiêu tháng trước: ${financialData.previous_expense} VND
-  - % thay đổi chi tiêu: ${financialData.expense_change_percentage}%
+  - % thay đổi chi tiêu: ${financialData.expense_change_percentage || 0}%
   - Thặng dư hàng tháng: ${financialData.monthly_surplus} VND
   - Cảnh báo: ${JSON.stringify(financialData.warnings)}
-  - Chi tiêu theo danh mục (3 tháng gần đây): ${JSON.stringify(spendingByCategory)}
-  - Giao dịch lớn (6 tháng, ≥10 triệu): ${JSON.stringify(largeTransactions)}
-  - Nhóm giao dịch lớn (6 tháng, ≥10 triệu): ${JSON.stringify(largeTransactionGroups)}
+  - Chi tiêu theo danh mục (3 tháng): ${JSON.stringify(spendingByCategory)}
+  - Giao dịch lớn (6 tháng, ≥2 triệu): ${JSON.stringify(largeTransactions)}
   - Kế hoạch tiết kiệm hiện tại: ${JSON.stringify(existingPlans)}
   - Đã có kế hoạch tiết kiệm: ${hasExistingPlans}
   - Current amount cho kế hoạch mới: ${currentAmountForNewPlan} VND
   - Danh mục khả dụng: ${JSON.stringify(categories)}
-  - Thông tin người dùng:
-    - Tên người dùng: ${userInfo.username}
-    - Lần cuối hoạt động: ${userInfo.last_active_at || 'Không xác định'}
-- Dữ liệu thị trường (2025):
-  - Giá BĐS quận 7: 50-65 triệu/m² (70m² ~3.5-4.5 tỷ)
+  - Thông tin người dùng: ${userInfo.username}, lần cuối hoạt động: ${userInfo.last_active_at || 'Không xác định'}
+- Bối cảnh thị trường (2025):
   - Lãi suất tiết kiệm: 3-7.5%/năm
   - Lạm phát: 3.4-4.2%/năm
+  - Giá điện thoại: 5-20 triệu
+  - Chi phí du lịch nội địa: 5-15 triệu/người
+  - Chi phí học tập (khóa học): 2-10 triệu
 
 🔑 Nhiệm vụ:
-1. Trích xuất từ câu hỏi:
-   - Tên kế hoạch (e.g., "Mua căn hộ", "Du lịch Nhật Bản", "Mua xe hơi")
-   - Số tiền mục tiêu (e.g., "3.5 tỷ", "50 triệu", "800 triệu")
-   - Thời gian (e.g., "10 năm", "8 tháng", "5 năm")
-   - Danh mục (chọn từ danh mục khả dụng: ${JSON.stringify(categories.map(c => c.name))})
-   - Ưu tiên (suy ra: nhà=high, du lịch=medium, quỹ khẩn cấp=high, xe hơi=medium)
-2. Tính toán:
-   - Current amount: ${hasExistingPlans ? '0 VND (vì đã có kế hoạch khác)' : `${financialData.actual_balance} VND (kế hoạch đầu tiên)`}
-   - Monthly contribution: Dựa trên thặng dư hàng tháng (monthly_surplus). Nếu có kế hoạch hiện tại, cần tính toán phân bổ hợp lý.
-   - Time to goal: Nếu không có thời gian, tính: time_to_goal = ceil((target_amount - current_amount) / monthly_surplus).
-   - Milestones: Chia mục tiêu thành 3-5 cột mốc (20%, 40%, 60%, 80%, 100%) dựa trên target_amount.
-   - Feasibility score: Dựa trên tỷ lệ tổng monthly_contribution của tất cả kế hoạch / current_income:
-     - Dưới 30% → 90-100
-     - 30-50% → 80-90
-     - Trên 50% → dưới 80
-     - Giảm 5 điểm nếu income_change_percentage < -10%; giảm thêm 5 điểm nếu expense_change_percentage > 10%.
-     - Giảm 10 điểm nếu existingPlans có kế hoạch tương tự (name hoặc category trùng).
-   - Risk level: Dựa trên thời gian (dài hạn > 5 năm=medium, ngắn hạn ≤ 5 năm=low). Nếu income_change_percentage < -20%, tăng lên "high".
-3. Tạo gợi ý AI:
-   - Recommendations: 2-4 gợi ý (tăng tiết kiệm, đầu tư, thời điểm mua, phương án thay thế). 
-     - Nếu income_change_percentage < 0, thêm gợi ý ổn định thu nhập.
-     - Nếu spendingByCategory có danh mục chi tiêu cao (>30%), gợi ý cắt giảm danh mục đó.
-     - Nếu existingPlans không rỗng, gợi ý điều chỉnh kế hoạch hiện có hoặc ưu tiên kế hoạch.
-   - Challenges: 2-3 rủi ro (lạm phát, giá BĐS/xe tăng, thu nhập không ổn định). 
-     - Bao gồm warnings nếu có.
-     - Nếu largeTransactions hoặc largeTransactionGroups có chi tiêu lớn, thêm rủi ro "Chi tiêu bất thường".
-     - Nếu existingPlans có nhiều kế hoạch, thêm rủi ro "Phân tán nguồn lực".
-   - Tips: 2-4 lời khuyên (chuyển khoản tự động, theo dõi thị trường). 
-     - Nếu expense_change_percentage > 10% hoặc spendingByCategory có danh mục chi cao, thêm lời khuyên cắt giảm chi tiêu.
-     - Nếu existingPlans không rỗng, gợi ý ưu tiên kế hoạch quan trọng nhất hoặc điều chỉnh phân bổ.
-4. Breakdown chi phí:
-   - BĐS: 85% giá nhà, 5% phí, 5% nội thất, 5% dự phòng
-   - Du lịch: 80% chi phí chính, 20% dự phòng
+1. **Trích xuất từ câu hỏi**:
+   - Tên kế hoạch (e.g., "Quỹ khẩn cấp", "Mua điện thoại", "Du lịch Đà Lạt")
+   - Số tiền mục tiêu (e.g., "10 triệu", "50 triệu")
+   - Thời gian (e.g., "6 tháng", "2 năm")
+   - Danh mục (chọn từ: ${JSON.stringify(categories.map(c => c.name))})
+   - Ưu tiên (suy ra: quỹ khẩn cấp=high, học tập=high, du lịch=medium, mua sắm=low)
+
+2. **Tính toán**:
+   - Current amount: ${hasExistingPlans ? '0 VND (đã có kế hoạch khác)' : `${financialData.actual_balance} VND`}
+   - Monthly contribution: Tối đa 20% current_income nếu monthly_surplus < 3 triệu, tối đa 50% nếu monthly_surplus ≥ 3 triệu.
+   - Time to goal: Nếu không có thời gian, tính: time_to_goal = ceil((target_amount - current_amount) / monthly_contribution).
+   - Milestones: 3 cột mốc (25%, 50%, 100%) dựa trên target_amount.
+   - Feasibility score:
+     - Dưới 15% current_income: 90-100
+     - 15-25% current_income: 80-90
+     - Trên 25% current_income: dưới 80
+     - Giảm 5 điểm nếu monthly_surplus < 2 triệu; giảm 5 điểm nếu expense_change_percentage > 15%.
+     - Giảm 10 điểm nếu existingPlans có kế hoạch tương tự (category trùng).
+   - Risk level: Dài hạn (>3 năm)=medium, ngắn hạn (≤3 năm)=low. Nếu monthly_surplus < 1 triệu hoặc income_change_percentage < -15%, risk_level = "high".
+
+3. **Tạo gợi ý AI**:
+   - Recommendations (2-3 gợi ý):
+     - Nếu monthly_surplus < 2 triệu, gợi ý tăng thu nhập (freelance, bán hàng online).
+     - Nếu spendingByCategory có danh mục >40% current_income, gợi ý cắt giảm danh mục đó.
+     - Nếu existingPlans không rỗng, gợi ý ưu tiên hoặc điều chỉnh kế hoạch hiện có.
+     - Gợi ý tiết kiệm nhỏ (1-2 triệu/tháng) hoặc quỹ khẩn cấp nếu chưa có.
+   - Challenges (2-3 rủi ro):
+     - Lạm phát 3.4-4.2%/năm.
+     - Thu nhập không ổn định nếu income_change_percentage < -10%.
+     - Chi tiêu cao nếu spendingByCategory có danh mục >40%.
+     - Nếu existingPlans > 1, thêm rủi ro "Phân tán nguồn lực".
+   - Tips (2-3 lời khuyên):
+     - Thiết lập chuyển khoản tự động để tiết kiệm.
+     - Theo dõi chi tiêu hàng tuần.
+     - Nếu expense_change_percentage > 15%, gợi ý cắt giảm chi tiêu không cần thiết.
+     - Nếu chưa có quỹ khẩn cấp, khuyên ưu tiên tiết kiệm 6-12 tháng chi tiêu.
+
+4. **Breakdown chi phí**:
    - Quỹ khẩn cấp: 100% mục tiêu
-   - Phương tiện: 85% giá xe, 5% phí, 5% bảo hiểm, 5% dự phòng
+   - Du lịch: 80% chi phí chính, 20% dự phòng
+   - Mua sắm: 90% giá sản phẩm, 10% dự phòng
+   - Học tập: 85% học phí, 15% tài liệu/dự phòng
 
 📄 Output JSON:
-{ 
+{
   "plans": [
     {
       "id": string,
       "name": string,
       "description": string,
       "target_amount": number,
-      "current_amount": number, // = ${currentAmountForNewPlan}
+      "current_amount": number,
       "monthly_contribution": number,
       "time_to_goal": number,
       "priority": "high" | "medium" | "low",
@@ -241,106 +226,69 @@ Bạn là AI lập kế hoạch tài chính chuyên nghiệp, tạo JSON cho cá
 }
 
 Ví dụ:
-Câu hỏi: "Lập kế hoạch tiết kiệm 800 triệu mua xe hơi trong 5 năm"
+Câu hỏi: "Lập kế hoạch tiết kiệm 10 triệu cho quỹ khẩn cấp trong 1 năm"
 Output: {
   "plans": [
     {
       "id": "plan_${Date.now()}_${Math.random().toString(36).slice(2)}",
-      "name": "Mua xe hơi",
-      "description": "Xe sedan 5 chỗ, giá khoảng 800 triệu tại TP.HCM",
-      "target_amount": 800000000,
+      "name": "Quỹ khẩn cấp",
+      "description": "Tiết kiệm quỹ khẩn cấp cho 6 tháng chi tiêu",
+      "target_amount": 10000000,
       "current_amount": ${currentAmountForNewPlan},
-      "monthly_contribution": ${Math.min(financialData.monthly_surplus || 4000000, 10000000)},
-      "time_to_goal": 60,
-      "priority": "medium",
-      "category": "Phương tiện",
-      "breakdown": {
-        "Giá xe": 680000000,
-        "Phí": 40000000,
-        "Bảo hiểm": 40000000,
-        "Dự phòng": 40000000
-      },
+      "monthly_contribution": ${Math.min(financialData.monthly_surplus || 1000000, financialData.current_income * 0.2)},
+      "time_to_goal": 12,
+      "priority": "high",
+      "category": "Quỹ khẩn cấp",
+      "breakdown": { "Quỹ khẩn cấp": 10000000 },
       "ai_analysis": {
-        "feasibility_score": ${Math.min(90, 90 - (financialData.income_change_percentage < -10 ? 5 : 0) - (financialData.expense_change_percentage > 10 ? 5 : 0) - (existingPlans.some(plan => plan.category === 'Phương tiện') ? 10 : 0))},
-        "risk_level": "${financialData.income_change_percentage < -20 ? 'high' : 'low'}",
+        "feasibility_score": ${Math.min(95, 95 - (financialData.monthly_surplus < 2000000 ? 5 : 0) - (financialData.expense_change_percentage > 15 ? 5 : 0) - (existingPlans.some(plan => plan.category === 'Quỹ khẩn cấp') ? 10 : 0))},
+        "risk_level": "${financialData.monthly_surplus < 1000000 || financialData.income_change_percentage < -15 ? 'high' : 'low'}",
         "recommendations": [
           {
-            "type": "optimization",
-            "title": "Tăng tiết kiệm",
-            "description": "Tăng lên 12 triệu/tháng để rút ngắn thời gian",
-            "impact": "Tiết kiệm thời gian",
+            "type": "savings",
+            "title": "Tiết kiệm cố định",
+            "description": "Chuyển tự động 1 triệu/tháng vào tài khoản tiết kiệm",
+            "impact": "Đạt mục tiêu đúng hạn",
             "priority": "high"
           },
           {
-            "type": "investment",
-            "title": "Đầu tư quỹ trái phiếu",
-            "description": "Đầu tư 20% vào quỹ trái phiếu 6%/năm",
-            "impact": "Tăng tốc 15%",
-            "priority": "medium"
-          }
-          ${financialData.income_change_percentage < 0 ? `,
-          {
-            "type": "income",
-            "title": "Ổn định thu nhập",
-            "description": "Tìm cách tăng thu nhập qua công việc phụ hoặc đầu tư nhỏ",
-            "impact": "Giảm rủi ro tài chính",
-            "priority": "high"
-          }` : ''},
-          ${Object.values(spendingByCategory).some(cat => cat.percentage > 30) ? `,
-          {
             "type": "expense",
             "title": "Cắt giảm chi tiêu",
-            "description": "Giảm chi tiêu ở danh mục ${Object.entries(spendingByCategory).find(([_, cat]) => cat.percentage > 30)?.[0] || 'cao nhất'}",
-            "impact": "Tăng thặng dư hàng tháng",
+            "description": "Giảm chi tiêu ăn uống từ 5 triệu xuống 4 triệu/tháng",
+            "impact": "Tăng thặng dư 1 triệu/tháng",
             "priority": "high"
-          }` : ''},
-          ${existingPlans.length > 0 ? `,
+          },
+          ${financialData.monthly_surplus < 2000000 ? `
           {
-            "type": "adjustment",
-            "title": "Điều chỉnh kế hoạch hiện có",
-            "description": "Xem xét điều chỉnh phân bổ với kế hoạch ${existingPlans[0]?.name || 'hiện có'} để tối ưu hóa",
-            "impact": "Tối ưu hóa thặng dư",
+            "type": "income",
+            "title": "Tăng thu nhập",
+            "description": "Tìm công việc phụ như giao hàng, bán hàng online",
+            "impact": "Tăng thặng dư 1-2 triệu/tháng",
             "priority": "medium"
           }` : ''}
         ].filter(Boolean),
         "milestones": [
-          {
-            "amount": 400000000,
-            "timeframe": "2 năm",
-            "description": "Đạt 50% mục tiêu"
-          },
-          {
-            "amount": 600000000,
-            "timeframe": "3.5 năm",
-            "description": "Đạt 75% mục tiêu"
-          },
-          {
-            "amount": 800000000,
-            "timeframe": "5 năm",
-            "description": "Hoàn thành mục tiêu"
-          }
+          { "amount": 2500000, "timeframe": "3 tháng", "description": "Đạt 25% mục tiêu" },
+          { "amount": 5000000, "timeframe": "6 tháng", "description": "Đạt 50% mục tiêu" },
+          { "amount": 10000000, "timeframe": "12 tháng", "description": "Hoàn thành mục tiêu" }
         ],
         "monthly_breakdown": {
-          "current_savings": ${Math.min(financialData.monthly_surplus || 4000000, 10000000)},
-          "optimized_savings": ${Math.min((financialData.monthly_surplus || 4000000) * 1.2, 12000000)},
-          "with_investment": ${Math.min((financialData.monthly_surplus || 4000000) * 1.3, 13000000)}
+          "current_savings": ${Math.min(financialData.monthly_surplus || 1000000, financialData.current_income * 0.2)},
+          "optimized_savings": ${Math.min((financialData.monthly_surplus || 1000000) * 1.2, financialData.current_income * 0.25)},
+          "with_investment": ${Math.min((financialData.monthly_surplus || 1000000) * 1.3, financialData.current_income * 0.3)}
         },
         "challenges": [
-          "Giá xe có thể tăng do lạm phát 3-4%/năm",
-          "Cần duy trì thu nhập ổn định",
-          ${financialData.income_change_percentage < -10 ? '"Thu nhập giảm đáng kể so với tháng trước",' : ''}
-          ${largeTransactions.some(tx => tx.type === 'expense') || largeTransactionGroups.length > 0 ? '"Có chi tiêu lớn bất thường trong 6 tháng qua",' : ''}
-          ${existingPlans.length > 0 ? '"Cần phân bổ nguồn lực cho nhiều kế hoạch tiết kiệm",' : ''}
-          ${financialData.warnings.length > 0 ? JSON.stringify(financialData.warnings[0]) : ''}
-        ].filter(Boolean).filter(item => item !== ''),
+          "Lạm phát 3.4-4.2% có thể làm giảm giá trị tiết kiệm",
+          ${financialData.monthly_surplus < 1000000 ? '"Thặng dư hàng tháng thấp, khó duy trì tiết kiệm",' : ''}
+          ${Object.values(spendingByCategory).some(cat => cat.percentage > 40) ? `"Chi tiêu ${Object.entries(spendingByCategory).find(([_, cat]) => cat.percentage > 40)?.[0]} chiếm hơn 40% thu nhập",` : ''}
+          ${existingPlans.length > 1 ? '"Phân tán nguồn lực cho nhiều kế hoạch",' : ''}
+        ].filter(Boolean),
         "tips": [
-          "So sánh giá từ các đại lý",
-          "Ưu tiên mua xe vào cuối năm để được ưu đãi",
-          "Giữ quỹ dự phòng riêng cho bảo dưỡng",
-          ${financialData.expense_change_percentage > 10 ? '"Xem xét cắt giảm chi tiêu không cần thiết",' : ''}
-          ${existingPlans.length > 0 ? '"Ưu tiên kế hoạch có độ ưu tiên cao nhất và điều chỉnh phân bổ hợp lý",' : ''}
-          "Thiết lập chuyển khoản tự động để duy trì kỷ luật tiết kiệm"
-        ].filter(Boolean).filter(item => item !== '')
+          "Thiết lập chuyển khoản tự động 1 triệu/tháng",
+          "Theo dõi chi tiêu hàng tuần qua ứng dụng",
+          ${financialData.expense_change_percentage > 15 ? '"Cắt giảm chi tiêu không cần thiết như ăn ngoài, giải trí",' : ''}
+          "Ưu tiên quỹ khẩn cấp trước các mục tiêu khác"
+        ].filter(Boolean)
       }
     }
   ]

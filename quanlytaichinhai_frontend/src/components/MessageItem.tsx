@@ -3,6 +3,7 @@ import { useState, useEffect } from 'react';
 import { Bot, User } from 'lucide-react';
 import type { ChatMessage, StructuredData, TransactionData, PlanData } from '../utils/types';
 import { MessageRenderer } from './MessageRenderer';
+import { MessageContentPart } from '../utils/types';
 import SingleTransactionConfirmationForm from './transaction-form/SingleTransactionConfirmationForm';
 import MultiTransactionConfirmationForm from './transaction-form/MultiTransactionConfirmationForm';
 import TransactionEditForm from './transaction-form/TransactionEditForm';
@@ -129,6 +130,7 @@ export const MessageItem = ({
   confirmedIds?: string[];
   onSaveEdit?: (messageId: string, editedData: TransactionData, editingIndex: number) => Promise<void>;
 }) => {
+  const router = useRouter();
   const [isEditing, setIsEditing] = useState(false);
   const [editingIndex, setEditingIndex] = useState(0);
   const [isLoading, setIsLoading] = useState(false);
@@ -138,6 +140,18 @@ export const MessageItem = ({
   const [pendingTransaction, setPendingTransaction] = useState<TransactionData | null>(null);
   const [isCategoryConfirmed, setIsCategoryConfirmed] = useState(confirmedIds.includes(message.id));
   const [isTransactionConfirmed, setIsTransactionConfirmed] = useState(confirmedIds.includes(message.id));
+  const isComponentStructured = (data: StructuredData | undefined) => {
+  if (!data) return false;
+  let parsedData = data;
+  if (typeof data === 'string') {
+    try {
+      parsedData = JSON.parse(data);
+    } catch {
+      return false;
+    }
+  }
+  return typeof parsedData === 'object' && 'type' in parsedData && parsedData.type === 'component';
+};
 
   useEffect(() => {
     const storedPending = localStorage.getItem(`pendingTransaction_${message.id}`);
@@ -285,7 +299,6 @@ export const MessageItem = ({
 
       // Kiểm tra và chuyển hướng nếu có redirectPath
       if (response.data.redirectPath) {
-        const router = useRouter();
         router.push(response.data.redirectPath); // Chuyển hướng đến /financial_plan
       }
     } catch (error) {
@@ -315,12 +328,21 @@ export const MessageItem = ({
           ${hasCustomContent ? '!min-w-[300px]' : ''}
         `}
       >
-        {!isTransaction && !hasCustomContent && message.content && (
+        {/* Block mới: Render component structured với cast */}
+        {message.structured && isComponentStructured(message.structured) && (
+          <div className="mt-2">
+            {renderCustomContent(message.structured as MessageContentPart)}
+          </div>
+        )}
+
+        {/* Fallback text content - cập nhật điều kiện để tránh overlap */}
+        {!isTransaction && !hasCustomContent && !isComponentStructured(message.structured) && message.content && (
           <div className="mt-2">
             <MessageRenderer content={message.content} />
           </div>
         )}
 
+        {/* Các block cũ giữ nguyên */}
         {message.structured && isConfirmPriority(message.structured) && !isPriorityConfirmed && (
           <div className="mt-2">
             <PriorityForm

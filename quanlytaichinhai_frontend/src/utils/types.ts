@@ -31,6 +31,7 @@ export type MessageContentPart =
   | { 
       type: 'component';
       name: AllowedComponents;
+      introText?: string;
       props?: Record<string, unknown>;
       layout?: 'inline' | 'block';
     }
@@ -164,7 +165,7 @@ export type PlanData = {
   time_to_goal: number;
   priority: string;
   category: string;
-  breakdown?: Record<string, any>;
+  breakdown?: Record<string, number>;
   ai_analysis?: {
     feasibility_score: number;
     risk_level: string;

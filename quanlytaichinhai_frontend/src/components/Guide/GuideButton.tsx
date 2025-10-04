@@ -3,7 +3,7 @@
 import { useState, useRef, useEffect } from "react";
 import { HelpCircle, X } from "lucide-react";
 import { MessageItem } from "@/components/MessageItem";
-import { ChatMessage, MessageRole } from "@/utils/types";
+import { ChatMessage } from "@/utils/types";
 import { sampleMessageSequences } from "./sampleMessages";
 
 interface GuideButtonProps {
@@ -178,7 +178,7 @@ export default function GuideButton({
     <>
       <button
         onClick={handleButtonClick}
-        className={`fixed top-5 right-80 z-50 p-3 rounded-full bg-gradient-to-r from-indigo-500 to-purple-500 text-white shadow-lg hover:scale-110 transition-transform group ${
+        className={`fixed top-5 right-80 z-55 p-3 rounded-full bg-gradient-to-r from-indigo-500 to-purple-500 text-white shadow-lg hover:scale-110 transition-transform group ${
           isModalOpen ? "border-2 border-green-500" : ""
         }`}
         aria-label={label}

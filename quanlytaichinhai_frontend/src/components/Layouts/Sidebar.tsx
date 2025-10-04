@@ -78,7 +78,7 @@ export default function Sidebar({
       <button
         onClick={handleToggle}
         onMouseEnter={(e) => e.stopPropagation()} // Ngăn sự kiện hover của <aside>
-        className={`fixed top-4 left-2 p-2 bg-white/90 hover:bg-white text-gray-800 rounded-md shadow-md transition-all duration-200 ease-in-out z-50 ${
+        className={`fixed top-4 left-2 z-50 p-2 bg-white/90 hover:bg-white text-gray-800 rounded-md shadow-md transition-all duration-200 ease-in-out z-50 ${
           isSidebarOpen ? "hidden" : "block"
         }`}
         aria-label="Open sidebar"

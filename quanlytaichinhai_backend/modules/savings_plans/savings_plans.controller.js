@@ -1,5 +1,5 @@
 // savings_plans.controller.js
-import { getSavingsPlans, saveSavingsPlan, deleteSavingsPlan } from "./savings_plans.model.js";
+import { getSavingsPlans, saveSavingsPlan, deleteSavingsPlan, updatePlansWithoutAI } from "./savings_plans.model.js";
 
 export const getPlans = async (req, res) => {
   const { user_id, limit } = req.query;
@@ -54,5 +54,37 @@ export const deletePlan = async (req, res) => {
   } catch (error) {
     console.error("Lỗi khi xóa kế hoạch:", error);
     res.status(500).json({ error: "Lỗi khi xóa kế hoạch" });
+  }
+};
+
+export const updatePlansOnLoad = async (req, res) => {
+  const { user_id } = req.query;
+  if (!user_id) {
+    return res.status(400).json({ error: 'Thiếu user_id' });
+  }
+
+  try {
+    // Cập nhật các trường không cần AI
+    const success = await updatePlansWithoutAI(user_id);
+    if (!success) {
+      return res.status(500).json({ error: 'Lỗi khi cập nhật kế hoạch' });
+    }
+
+    // Lấy danh sách kế hoạch mới nhất
+    const plans = await getSavingsPlans(user_id);
+    // Thêm progress_percentage vào mỗi kế hoạch
+    const updatedPlans = plans.map(plan => ({
+      ...plan,
+      progressPercentage: ((plan.currentAmount / plan.targetAmount) * 100).toFixed(1)
+    }));
+
+    res.json({
+      success: true,
+      message: 'Đã cập nhật kế hoạch khi vào trang',
+      plans: updatedPlans
+    });
+  } catch (error) {
+    console.error('Lỗi khi cập nhật kế hoạch on load:', error);
+    res.status(500).json({ error: 'Lỗi khi cập nhật kế hoạch' });
   }
 };

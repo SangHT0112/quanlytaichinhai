@@ -25,9 +25,15 @@ export default function MultiSavingsPlan() {
   const [scenario, setScenario] = useState<"best" | "worst">("best");
   const [activeTab, setActiveTab] = useState<"overview" | "analysis" | "milestones" | "tips">("overview");
   const [loading, setLoading] = useState<boolean>(true);
+  const [userStr, setUserStr] = useState<string | null>(null);
 
-  const userStr = localStorage.getItem("user");
-  const user = userStr ? JSON.parse(userStr) : null;
+  // Load userStr from localStorage only on client-side
+  useEffect(() => {
+    if (typeof window !== 'undefined') {
+      const storedUser = localStorage.getItem("user");
+      setUserStr(storedUser);
+    }
+  }, []);
 
   useEffect(() => {
     const fetchPlans = async () => {
@@ -39,6 +45,11 @@ export default function MultiSavingsPlan() {
         }
         const user = JSON.parse(userStr);
         const userId = user.user_id;
+
+        // gọi update trước
+        //await axiosInstance.get(`/savings-plans/update-on-load?user_id=${userId}`);
+
+        // rồi mới lấy kế hoạch
         const response = await axiosInstance.get(`/savings-plans?user_id=${userId}`);
         const data: SavingsPlan[] = response.data;
         if (data.length > 0) {
@@ -53,15 +64,22 @@ export default function MultiSavingsPlan() {
       }
     };
 
-    fetchPlans();
-  }, []);
+    if (userStr) {
+      fetchPlans();
+    }
+  }, [userStr]);
+
 
   const handleDeletePlan = async (planId: string) => {
     if (!confirm(`Bạn có chắc muốn xóa kế hoạch này?`)) return;
     try {
+      if (!userStr) {
+        toast.error("Không tìm thấy thông tin user");
+        return;
+      }
       await axiosInstance.delete(`/savings-plans`, {
         data: {
-          user_id: user.user_id,
+          user_id: JSON.parse(userStr).user_id,
           plan_id: planId,
         },
       });

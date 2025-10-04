@@ -2,7 +2,7 @@ import db from '../../config/db.js';
 
 //Load dữ liệu tổng quát về số dư, lương/ chi tiêu tháng này
 export async function fetchFinancialSummary(userId) {
-  // 1. Tính số dư thực tế
+  // 1. Tính số dư thực tế (tổng thu - chi từ tất cả giao dịch)
   const [balanceRows] = await db.query(
     `SELECT SUM(CASE WHEN type = 'income' THEN amount ELSE -amount END) as balance
      FROM transactions WHERE user_id = ?`,
@@ -17,7 +17,7 @@ export async function fetchFinancialSummary(userId) {
   const prevMonth = currentMonth === 1 ? 12 : currentMonth - 1;
   const prevYear = currentMonth === 1 ? currentYear - 1 : currentYear;
 
-  // 3. Query cải tiến (thêm so sánh chi tiêu)
+  // 3. Query cho current và previous month (giữ nguyên)
   const [summaryRows] = await db.query(`
      SELECT 
       /* Income */
@@ -48,21 +48,86 @@ export async function fetchFinancialSummary(userId) {
     ]
   );
 
-  // 4. Xử lý dữ liệu
+  // 4. Query mới: Thu nhập và chi tiêu trung bình 6 tháng gần nhất
+  let averageIncome = 0;
+  let averageExpense = 0;
+  let incomeVolatility = 0;
+  let expenseVolatility = 0;
+  try {
+    const [historyRows] = await db.query(`
+      SELECT 
+        SUM(CASE WHEN type = 'income' THEN monthly_amount ELSE 0 END) / GREATEST(COUNT(DISTINCT CASE WHEN type = 'income' THEN month END), 1) as avg_income,
+        SUM(CASE WHEN type = 'expense' THEN monthly_amount ELSE 0 END) / GREATEST(COUNT(DISTINCT CASE WHEN type = 'expense' THEN month END), 1) as avg_expense,
+        MAX(CASE WHEN type = 'income' THEN monthly_amount END) as max_income,
+        MIN(CASE WHEN type = 'income' THEN monthly_amount END) as min_income,
+        MAX(CASE WHEN type = 'expense' THEN monthly_amount END) as max_expense,
+        MIN(CASE WHEN type = 'expense' THEN monthly_amount END) as min_expense,
+        COUNT(DISTINCT CASE WHEN type = 'income' THEN month END) as income_months,
+        COUNT(DISTINCT CASE WHEN type = 'expense' THEN month END) as expense_months
+      FROM (
+        SELECT 
+          type,
+          DATE_FORMAT(transaction_date, '%Y-%m') as month,
+          SUM(amount) as monthly_amount
+        FROM transactions 
+        WHERE user_id = ? AND type IN ('income', 'expense') 
+          AND transaction_date >= DATE_SUB(?, INTERVAL 6 MONTH)
+          AND transaction_date IS NOT NULL
+        GROUP BY type, DATE_FORMAT(transaction_date, '%Y-%m')
+      ) as monthly_summary
+    `, [userId, now]);
+
+    const row = historyRows[0];
+    if (row.income_months > 0) {
+      averageIncome = parseFloat(row.avg_income || 0);
+      const maxInc = parseFloat(row.max_income || 0);
+      const minInc = parseFloat(row.min_income || 0);
+      if (averageIncome > 0) {
+        incomeVolatility = parseFloat((((maxInc - minInc) / averageIncome) * 100).toFixed(1));
+      }
+    }
+    if (row.expense_months > 0) {
+      averageExpense = parseFloat(row.avg_expense || 0);
+      const maxExp = parseFloat(row.max_expense || 0);
+      const minExp = parseFloat(row.min_expense || 0);
+      if (averageExpense > 0) {
+        expenseVolatility = parseFloat((((maxExp - minExp) / averageExpense) * 100).toFixed(1));
+      }
+    }
+  } catch (error) {
+    console.error('Lỗi khi tính lịch sử trung bình 6 tháng:', error);
+    // Fallback: dùng current làm average nếu lỗi
+    averageIncome = parseFloat(summaryRows[0].current_income);
+    averageExpense = parseFloat(summaryRows[0].current_expense);
+  }
+
+  // 5. Xử lý dữ liệu current/previous
   const income = parseFloat(summaryRows[0].current_income);
   const prevIncome = parseFloat(summaryRows[0].previous_income);
   const expense = parseFloat(summaryRows[0].current_expense);
   const prevExpense = parseFloat(summaryRows[0].previous_expense);
 
-  // 5. Tính % thay đổi
+  // 6. Tính % thay đổi (giữ nguyên)
   const calculateChange = (current, previous) => {
     if (current === 0 && previous === 0) return 0;
-    if (previous === 0) return current > 0 ? 100 : -100; // Trả về giá trị hợp lý thay vì Infinity
+    if (previous === 0) return current > 0 ? 100 : -100;
     if (current === 0) return -100;
     return ((current - previous) / previous * 100);
   };
 
-  // 6. Trả về kết quả
+  // 7. Tính surplus trung bình (dùng average để robust hơn)
+  const averageMonthlySurplus = averageIncome - averageExpense;
+
+  // 8. Warnings mở rộng (thêm về volatility)
+  const warnings = [
+    ...(income === 0 && expense === 0 ? ["Chưa có giao dịch nào trong tháng này"] : []),
+    ...(prevIncome === 0 && prevExpense === 0 ? ["Không có dữ liệu tháng trước để so sánh"] : []),
+    ...(incomeVolatility > 20 ? [`Thu nhập biến động cao (${incomeVolatility}%) - cần đa dạng hóa nguồn thu`] : []),
+    ...(expenseVolatility > 20 ? [`Chi tiêu biến động cao (${expenseVolatility}%) - theo dõi chặt chẽ hơn`] : []),
+    ...(averageMonthlySurplus < 0 ? ["Thặng dư trung bình âm - cần cắt giảm chi tiêu ngay"] : [])
+  ];
+
+  // 9. Trả về kết quả (thêm average và volatility)
   return {
     actual_balance: actualBalance,
     current_income: income,
@@ -71,12 +136,14 @@ export async function fetchFinancialSummary(userId) {
     current_expense: expense,
     previous_expense: prevExpense,
     expense_change_percentage: parseFloat(calculateChange(expense, prevExpense).toFixed(1)),
-    monthly_surplus: income - expense,
+    monthly_surplus: income - expense, // Giữ current surplus
+    average_income: averageIncome,
+    average_expense: averageExpense,
+    income_volatility: incomeVolatility,
+    expense_volatility: expenseVolatility,
+    average_monthly_surplus: averageMonthlySurplus,
     last_updated: new Date().toISOString(),
-    warnings: [
-      ...(income === 0 && expense === 0 ? ["Chưa có giao dịch nào trong tháng này"] : []),
-      ...(prevIncome === 0 && prevExpense === 0 ? ["Không có dữ liệu tháng trước để so sánh"] : [])
-    ]
+    warnings
   };
 }
 //Danh sách các danh mục chi tiêu cao nhất giả sử lấy 5 cái

@@ -1,58 +1,65 @@
-Bạn là bộ phân loại thông minh cho trợ lý tài chính.
+Nhiệm vụ: Phân tích câu hỏi người dùng và trả về chỉ một từ trong số sau:
 
-🎯 Nhiệm vụ: Phân tích câu hỏi người dùng và trả về một từ duy nhất trong số sau:
-followup, transaction, amount, component, sql_query, forecast, planning, generate_image, create_category, natural
+"followup" nếu người dùng hỏi về một thông tin đã đề cập trước đó (từ “vừa rồi”, “hồi nãy”, “thuộc gì”, “là bao nhiêu”, “giao dịch vừa xong”, “mới nhập”).
+"transaction" nếu người dùng đang nhập hoặc ghi nhận một giao dịch mới, như chi tiêu, mua sắm, ăn uống, thu nhập, lương, nạp tiền... (“tiêu”, “mua”, “trả tiền”, “nạp”, “chuyển khoản”, “nhận”, “lương”, “thu nhập”, “ghi chi tiêu”, “thêm giao dịch”); nếu không khớp danh mục, vẫn chọn transaction.
+"amount" nếu người dùng chỉ gửi một số tiền, như "35k", "2tr", "40 nghìn", sau khi đã nói đến hoạt động giao dịch trước đó (ví dụ: "Nay ăn bún bò", rồi sau đó gửi "35k").
+"component" nếu người dùng yêu cầu cho tôi xem một cái gì đó, xem biểu đồ, thống kê, tổng quan, phân tích, hoặc các phần hiển thị dữ liệu (“xem”, “biểu đồ”, “thống kê”, “tổng quan”, “phân tích”, “danh mục”, “chi tiêu tháng”, “giao dịch hôm nay”, “số dư”, “hạng mục”).
+"sql_query" nếu người dùng đang hỏi một câu dạng phân tích, thống kê, lọc, hoặc tìm kiếm tùy ý mà không gắn với sẵn một component cụ thể — ví dụ như "Tổng chi tiêu tháng 6", "Lần gần nhất tôi tiêu tiền là khi nào?", “tổng chi tiêu”, “lần gần nhất”, “chi tiêu nhiều nhất” (“Tổng”, “Lần”, “Bao nhiêu”, “Thống kê”, “Chi tiêu lớn nhất”, “Tôi đã tiêu...”).
+"forecast" nếu người dùng đang hỏi về dự đoán tương lai, tiết kiệm để đạt mục tiêu, ước lượng tài chính sắp tới — ví dụ: "Tôi cần tiết kiệm bao lâu để mua laptop?", "Nếu tôi tiêu như thế này thì 3 tháng nữa còn bao nhiêu tiền?" (“cần bao lâu”, “đủ tiền”, “bao nhiêu tháng nữa”, “dự đoán”, “ước lượng”, “nếu tôi tiêu như thế này”).
+"planning" nếu người dùng đang hỏi về lập/quản lý kế hoạch tài chính tổng thể, mua 1 thứ gì đó — ví dụ: "Lập kế hoạch tiết kiệm năm nay", "Kế hoạch mua nhà", "Quản lý ngân sách tháng này".
+"generate_image" nếu người dùng muốn đổi background, nền khác (“đổi background”, “nền khác”, “tạo ảnh”, “đổi hình nền đẹp hơn”).
+"create_category" nếu người dùng yêu cầu tạo danh mục mới (“thêm danh mục”, “tạo danh mục”, ví dụ: "Thêm danh mục Vé sự kiện").
+"natural" nếu người dùng chỉ đang trò chuyện tự nhiên, hỏi linh tinh hoặc không liên quan tài chính (“Bạn khỏe không?”, “Hôm nay trời thế nào?”, “Kể chuyện gì hay đi”).
 
-❌ Không giải thích, ❌ Không dấu chấm, ❌ Không viết hoa, ❌ Không JSON.
 
-Quy tắc ưu tiên
+📌 Chỉ trả về 1 từ duy nhất: followup, transaction, amount, component, sql_query, forecast, planning, generate_image, create_category hoặc natural
+❌ Không giải thích. ❌ Không thêm dấu chấm. ❌ Không viết hoa. ❌ Không format JSON.
 
-create_category > transaction > planning > forecast > sql_query > component > natural
+Quy tắc ưu tiên: create_category > transaction > planning > forecast > sql_query > component > natural
 
-Định nghĩa nhanh
+Một số ví dụ:
+Người dùng: "Tôi tiêu 100k mua đồ ăn"
+→ transaction
+Người dùng: "Cho tôi xem biểu đồ chi tiêu tháng này"
+→ component
+Người dùng: "Bạn khỏe không?"
+→ natural
+Người dùng: "Hồi nãy là bao nhiêu?"
+→ followup
+Người dùng: "Giao dịch vừa rồi thuộc danh mục gì?"
+→ followup
+Người dùng: "Vừa nãy tôi lãnh lương được bao nhiêu?"
+→ followup
+Người dùng: "Tổng chi tiêu tháng 6 là bao nhiêu?"
+→ sql_query
+Người dùng: "Cho tôi xem chi tiêu tuần này"
+→ component
+Người dùng: "Tôi vừa chuyển khoản 200k"
+→ transaction
+Người dùng: "Chi tiêu nhiều nhất của tôi là gì?"
+→ sql_query
+Người dùng: "Hôm nay trời thế nào?"
+→ natural
+Người dùng: "Nếu tôi tiêu như hiện tại thì 3 tháng nữa còn bao nhiêu?"
+→ forecast
+Người dùng: "Tôi cần tiết kiệm bao lâu để mua laptop 15 triệu?"
+→ forecast
+Người dùng: "Tôi muốn tiết kiệm 50 triệu thì mất bao lâu"
+→ forecast
+Người dùng: "35k nhá"
+→ amount
+Người dùng: "2tr"
+→ amount
+Người dùng: "40 nghìn đồng"
+→ amount
+Người dùng: "Tôi muốn đổi hình nền khác đẹp hơn"
+→ generate_image
+Người dùng: "Thêm danh mục Vé sự kiện"
+→ create_category
+Người dùng: "Lập kế hoạch tiết kiệm năm nay"
+→ planning
+Người dùng: "Kế hoạch mua xe máy thì sao?"
+→ planning
 
-followup: hỏi về thông tin trước đó (từ “vừa rồi”, “hồi nãy”, “thuộc gì”, “là bao nhiêu”).
-
-transaction: nhập giao dịch mới (“tiêu”, “mua”, “nạp”, “chuyển khoản”, “lương”, “thu nhập”); nếu không khớp danh mục, vẫn chọn transaction.
-
-amount: chỉ số tiền (“35k”, “2tr”, “40 nghìn”) sau câu giao dịch trước đó.
-
-component: yêu cầu xem dữ liệu, biểu đồ, thống kê (“xem”, “biểu đồ”, “thống kê”, “tổng quan”).
-
-sql_query: phân tích, lọc, thống kê tự do (“tổng chi tiêu”, “lần gần nhất”, “chi tiêu nhiều nhất”).
-
-forecast: dự đoán, tiết kiệm, ước lượng tương lai (“cần bao lâu”, “đủ tiền”, “bao nhiêu tháng nữa”).
-
-planning: lập/quản lý kế hoạch tài chính tổng thể (“lập kế hoạch”, “quản lý kế hoạch”, “chỉnh sửa kế hoạch”).
-
-generate_image: đổi hình nền, tạo ảnh (“đổi background”, “nền khác”).
-
-create_category: tạo danh mục mới (“thêm danh mục”, “tạo danh mục”).
-
-natural: trò chuyện tự nhiên không liên quan tài chính.
-
-Ví dụ
-
-“Tôi tiêu 100k mua đồ ăn” → transaction
-
-“35k” (sau giao dịch) → amount
-
-“Cho tôi xem biểu đồ chi tiêu” → component
-
-“Tổng chi tiêu tháng 6?” → sql_query
-
-“Tiết kiệm bao lâu để mua laptop?” → forecast
-
-“Lập kế hoạch tiết kiệm năm nay” → planning
-
-“Đổi hình nền đẹp hơn” → generate_image
-
-“Thêm danh mục Vé sự kiện” → create_category
-
-“Hồi nãy là bao nhiêu?” → followup
-
-“Hôm nay trời thế nào?” → natural
-
-Câu hỏi người dùng: “${user_input}”
-
+Câu hỏi người dùng: "${user_input}"
 👉 Trả lời:

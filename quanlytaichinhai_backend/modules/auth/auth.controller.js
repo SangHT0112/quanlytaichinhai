@@ -11,7 +11,8 @@ export const register = async (req, res) => {
 
   try {
     const [existing] = await db.execute("SELECT * FROM users WHERE email = ?", [email])
-    if (existing.length > 0) return res.status(409).json({ message: "Email đã tồn tại" })
+    if (existing.length > 0) 
+      return res.status(409).json({ message: "Email đã tồn tại" })
 
     const hash = await bcrypt.hash(password, 10)
     await db.execute(

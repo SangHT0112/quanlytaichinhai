@@ -10,7 +10,7 @@ interface ChatInputProps {
   isSidebarRightOpen: boolean;
   pathname: string;
   centered?: boolean;
-  onSendMessage?: (message: string, formData?: FormData) => void; // Optional prop for custom message handling
+  onSendMessage?: (message: string, formData?: FormData) => Promise<void>; // Optional prop for custom message handling
   inputValue?: string; // Optional prop for controlled input
   setInputValue?: Dispatch<SetStateAction<string>>; // Optional prop to set input value
 }
@@ -48,8 +48,6 @@ interface CustomWindow extends Window {
 declare let window: CustomWindow;
 
 export const ChatInput = ({
-  isSidebarOpen,
-  isSidebarRightOpen,
   pathname,
   centered = false,
   onSendMessage,
