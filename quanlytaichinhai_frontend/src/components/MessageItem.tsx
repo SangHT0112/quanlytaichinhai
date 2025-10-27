@@ -141,7 +141,7 @@ export const MessageItem = ({
 
   const [pendingTransaction, setPendingTransaction] = useState<TransactionData | null>(null);
   const [isCategoryConfirmed, setIsCategoryConfirmed] = useState(confirmedIds.includes(message.id));
-  const [isTransactionConfirmed, setIsTransactionConfirmed] = useState(confirmedIds.includes(message.id));
+  // const [isTransactionConfirmed, setIsTransactionConfirmed] = useState(confirmedIds.includes(message.id));
   const isComponentStructured = (data: StructuredData | undefined) => {
   if (!data) return false;
   let parsedData = data;
@@ -271,7 +271,7 @@ export const MessageItem = ({
       setIsLoading(true);
       try {
         await onConfirm(message, transactionData);
-        setIsTransactionConfirmed(true);
+        // setIsTransactionConfirmed(true);
         setIsPendingConfirmed(true); // Cập nhật state cho pending
         localStorage.removeItem(`pendingTransaction_${message.id}`);
       } finally {

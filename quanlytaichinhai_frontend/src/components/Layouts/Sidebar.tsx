@@ -44,35 +44,25 @@ export default function Sidebar({
   const [recentChats, setRecentChats] = useState<
     { id: string; title: string; timestamp: string; href: string }[]
   >([]); // State cho recentChats (ban đầu rỗng)
-  const [isLoading, setIsLoading] = useState(false); // Thêm loading để UX tốt hơn
 
   // Lấy userId từ localStorage
   useEffect(() => {
-
     const storedUser = localStorage.getItem("user");
+      if (!storedUser) return;
 
-    if (!storedUser) {
-      console.log("❌ No user in localStorage → Skip fetch");
-      return;
-    }
+      let parsedUser;
+      try {
+        parsedUser = JSON.parse(storedUser);
+      } catch {
+        return;
+      }
 
-    let parsedUser;
-    try {
-      parsedUser = JSON.parse(storedUser);
-    } catch (parseError) {
-      return;
-    }
+      const userId = parsedUser.user_id;
 
-    const userId = parsedUser.user_id;
+      if (recentChats.length > 0) return;
 
- 
 
-    if (recentChats.length > 0) {
-      console.log("✅ Already have recentChats → Skip fetch");
-      return;
-    }
-
-    setIsLoading(true); // Bắt đầu loading
+    // setIsLoading(true); // Bắt đầu loading
 
     // Fetch TẤT CẢ history (limit 1000 để an toàn, nếu DB lớn thì update backend)
     getChatHistory(userId, 1000) // ✅ FIX: Tăng limit để fetch nhiều hơn
@@ -84,7 +74,6 @@ export default function Sidebar({
         if (userMessages.length === 0) {
           console.log("❌ No user messages → Set empty recentChats");
           setRecentChats([]);
-          setIsLoading(false);
           return;
         }
 
@@ -126,13 +115,11 @@ export default function Sidebar({
 
         console.log("Final dailyItems (all days):", dailyItems); // Check output
         setRecentChats(dailyItems);
-        setIsLoading(false);
         console.log("=== END DEBUG ===");
       })
       .catch((error) => {
         console.error("❌ Fetch error:", error); // Chi tiết lỗi (network, 4xx/5xx, etc.)
         setRecentChats([]); // Reset nếu lỗi
-        setIsLoading(false);
         console.log("=== END DEBUG (with error) ===");
       });
   }, []); // Chạy một lần khi mount

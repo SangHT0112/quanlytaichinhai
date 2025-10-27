@@ -18,17 +18,10 @@ const formatCurrency = (amount: number) => {
   }).format(amount)
 }
 
-const formatDate = (dateString: string) => {
-  return new Date(dateString).toLocaleDateString("vi-VN", {
-    year: "numeric",
-    month: "short",
-    day: "numeric",
-  })
-}
+
 
 export function ConfirmedMultiTransactionForm({
   groupName,
-  transactionDate,
   transactions,
   totalAmount,
 }: ConfirmedMultiTransactionFormProps) {

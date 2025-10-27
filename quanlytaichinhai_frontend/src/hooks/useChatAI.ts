@@ -11,6 +11,19 @@ import { MessageRole } from '@/utils/types';
 import { isSuggestNewCategoryStructured, isTransactionStructuredData } from '@/utils/typeGuards';
 import { Socket } from 'socket.io-client'; // Thêm import cho Socket
 import { toast } from 'react-toastify';
+
+// Define interface for socket message data to avoid 'any'
+interface SocketMessageData {
+  id?: string;
+  content: string;
+  role: MessageRole;
+  timestamp?: string;
+  structured?: unknown;
+  intent?: string;
+  imageUrl?: string;
+  user_input?: string;
+}
+
 export const useChatAI = () => {
   const router = useRouter();
   const messagesEndRef = useRef<HTMLDivElement>(null);
@@ -39,7 +52,7 @@ export const useChatAI = () => {
   useEffect(() => {
     if (!socket) return;
 
-    const handleReceiveMessage = (data: any) => {
+    const handleReceiveMessage = (data: SocketMessageData) => {
       console.log('Received message from socket:', data);
       const newMessage: ChatMessage = {
         id: data.id || uuidv4(), // Fallback nếu server không gửi id
@@ -66,8 +79,12 @@ export const useChatAI = () => {
       }
 
       // ✅ THÊM REDIRECT Ở ĐÂY: Tự động chuyển đến /financial_plan khi tạo kế hoạch thành công
+      // Define a specific type for plan_created structured data
+      interface PlanCreatedStructured {
+        response_type: 'plan_created';
+      }
       // Sử dụng type assertion để tránh TS error vì StructuredData không có response_type
-      const structuredData = newMessage.structured as any;
+      const structuredData = newMessage.structured as PlanCreatedStructured | undefined;
       if (newMessage.role === MessageRole.ASSISTANT && structuredData?.response_type === 'plan_created') {
         console.log('Redirecting to /financial_plan after planning confirmed');
         // Có thể delay 1s để user thấy message trước khi redirect
@@ -138,7 +155,7 @@ export const useChatAI = () => {
       socket.off('receive_message', handleReceiveMessage);
       socket.off('error');
     };
-  }, [socket, currentUser?.user_id]);
+  }, [socket, currentUser?.user_id, router, refreshTransactionGroups]);
 
   const sendToApi = useCallback(async (message: string, updatedMessages: ChatMessage[], imageData?: FormData) => {
     if (isApiProcessing.current) return;

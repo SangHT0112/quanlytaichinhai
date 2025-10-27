@@ -1,6 +1,5 @@
 'use client';
 import { useEffect } from 'react';
-import { useRouter } from 'next/navigation';
 import { useChatAI } from '@/hooks/useChatAI';
 import { useBackgroundManager } from '@/hooks/useBackgroundManager';
 import { useGlobalWindowFunctions } from '@/hooks/useGlobalWindowFunctions';
