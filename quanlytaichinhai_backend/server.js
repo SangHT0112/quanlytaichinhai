@@ -20,7 +20,6 @@ import savingsPlansRoutes from './modules/savings_plans/savings_plans.routes.js'
 import aiRoutes from './modules/ai/ai.routes.js';
 import userRoutes from './modules/users/user.routes.js';
 import db from './config/db.js';
-import sepayRoutes from './modules/sepay/sepay.route.js';  // Giữ import nếu cần, nhưng không dùng nếu webhook inline
 dotenv.config();
 const app = express();
 
