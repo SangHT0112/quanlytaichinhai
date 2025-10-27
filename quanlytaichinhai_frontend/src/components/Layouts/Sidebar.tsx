@@ -10,6 +10,8 @@ import {
   Menu,
   User,
   Shield,
+  MessageCircle, // Thêm icon cho chat
+  Clock, // Icon cho recent
 } from "lucide-react";
 import {
   DropdownMenu,
@@ -17,7 +19,8 @@ import {
   DropdownMenuContent,
   DropdownMenuItem,
 } from "@/components/ui/dropdown-menu";
-import { useState } from "react";
+import { useState, useEffect } from "react"; // Thêm useEffect
+import { getChatHistory } from "@/api/chatHistoryApi";
 
 const menuItems = [
   { icon: Plus, label: "Thêm giao dịch", href: "/", emoji: "➕" },
@@ -37,7 +40,102 @@ export default function Sidebar({
   setIsSidebarOpen: (value: boolean) => void;
   user: { username: string; role: string } | null;
 }) {
-  const [isManuallyClosed, setIsManuallyClosed] = useState(false); // Trạng thái theo dõi đóng thủ công
+  const [isManuallyClosed, setIsManuallyClosed] = useState(false);
+  const [recentChats, setRecentChats] = useState<
+    { id: string; title: string; timestamp: string; href: string }[]
+  >([]); // State cho recentChats (ban đầu rỗng)
+  const [isLoading, setIsLoading] = useState(false); // Thêm loading để UX tốt hơn
+
+  // Lấy userId từ localStorage
+  useEffect(() => {
+
+    const storedUser = localStorage.getItem("user");
+
+    if (!storedUser) {
+      console.log("❌ No user in localStorage → Skip fetch");
+      return;
+    }
+
+    let parsedUser;
+    try {
+      parsedUser = JSON.parse(storedUser);
+    } catch (parseError) {
+      return;
+    }
+
+    const userId = parsedUser.user_id;
+
+ 
+
+    if (recentChats.length > 0) {
+      console.log("✅ Already have recentChats → Skip fetch");
+      return;
+    }
+
+    setIsLoading(true); // Bắt đầu loading
+
+    // Fetch TẤT CẢ history (limit 1000 để an toàn, nếu DB lớn thì update backend)
+    getChatHistory(userId, 1000) // ✅ FIX: Tăng limit để fetch nhiều hơn
+      .then((messages) => {
+
+        // Lọc chỉ user messages
+        const userMessages = messages.filter((msg) => msg.role === "user");
+
+        if (userMessages.length === 0) {
+          console.log("❌ No user messages → Set empty recentChats");
+          setRecentChats([]);
+          setIsLoading(false);
+          return;
+        }
+
+        // Group theo ngày (YYYY-MM-DD) - TẤT CẢ messages
+        const groupedByDate = userMessages.reduce((acc, msg) => {
+          const dateKey = msg.timestamp.toISOString().split("T")[0]; // YYYY-MM-DD
+          if (!acc[dateKey]) {
+            acc[dateKey] = [];
+          }
+          acc[dateKey].push(msg);
+          return acc;
+        }, {} as Record<string, typeof userMessages>);
+
+        console.log("Grouped by date (all days):", groupedByDate); // Check tất cả groups
+
+        // Lấy TẤT CẢ ngày (sort theo date desc - mới nhất trước)
+        // Chỉ lấy 10 ngày gần nhất
+        const sortedDates = Object.keys(groupedByDate)
+          .sort((a, b) => new Date(b).getTime() - new Date(a).getTime())
+          .slice(0, 10);
+
+          // ✅ FIX: Bỏ .slice(0, 5) để hiển thị tất cả
+        console.log("Sorted dates (all):", sortedDates); // Check tất cả dates
+
+        // Tạo items cho MỖI NGÀY
+        const dailyItems = sortedDates.map((dateKey) => {
+          const dayMessages = groupedByDate[dateKey];
+          const firstMessage = dayMessages[0]; // Lấy tin nhắn đầu tiên làm title đại diện
+          const title = firstMessage.user_input || firstMessage.content || "Chat ngày " + dateKey;
+          const truncatedTitle = title.substring(0, 50) + (title.length > 50 ? "..." : "");
+          console.log(`Day ${dateKey}: title="${truncatedTitle}" (from: ${firstMessage.user_input || firstMessage.content?.substring(0, 20)})`);
+          return {
+            id: dateKey,
+            title: truncatedTitle,
+            timestamp: dateKey,
+            href: `/chat?date=${dateKey}`, // Sử dụng date làm param để load chat của ngày đó
+          };
+        });
+
+        console.log("Final dailyItems (all days):", dailyItems); // Check output
+        setRecentChats(dailyItems);
+        setIsLoading(false);
+        console.log("=== END DEBUG ===");
+      })
+      .catch((error) => {
+        console.error("❌ Fetch error:", error); // Chi tiết lỗi (network, 4xx/5xx, etc.)
+        setRecentChats([]); // Reset nếu lỗi
+        setIsLoading(false);
+        console.log("=== END DEBUG (with error) ===");
+      });
+  }, []); // Chạy một lần khi mount
 
   const handleLinkClick = (href: string) => {
     localStorage.setItem("redirectAfterLogin", href);
@@ -121,32 +219,75 @@ export default function Sidebar({
          
         </div>
 
-        {/* Menu items */}
+       {/* Bọc phần giữa (menu + recent chats) trong flex chia đôi */}
         <div
-          className={`flex-1 overflow-y-auto transition-opacity duration-300 ${
+          className={`flex-1 flex flex-col justify-between transition-opacity duration-300 ${
             isSidebarOpen ? "opacity-100" : "opacity-0 pointer-events-none"
           }`}
         >
-          <nav className="space-y-2 text-sm mt-4">
-            {menuItems.map((item, index) => {
-              if (item.adminOnly && user?.role !== "admin") return null;
-              return (
-                <Link
-                  key={index}
-                  href={item.href}
-                  onClick={() => handleLinkClick(item.href)}
-                >
-                  <div className="flex items-center space-x-3 px-4 py-3 rounded-lg text-slate-300 hover:text-white hover:bg-slate-700/50 transition-all duration-200 group cursor-pointer">
-                    <item.icon className="w-5 h-5 group-hover:text-cyan-400 transition-colors" />
-                    <span className="font-medium">{item.label}</span>
-                  </div>
-                </Link>
-              );
-            })}
-          </nav>
+          {/* Phần 1: Menu items */}
+          <div className="flex-1 overflow-y-auto pr-2">
+            <nav className="space-y-2 text-sm mt-4">
+              {menuItems.map((item, index) => {
+                if (item.adminOnly && user?.role !== "admin") return null;
+                return (
+                  <Link
+                    key={index}
+                    href={item.href}
+                    onClick={() => handleLinkClick(item.href)}
+                  >
+                    <div className="flex items-center space-x-3 px-4 py-3 rounded-lg text-slate-300 hover:text-white hover:bg-slate-700/50 transition-all duration-200 group cursor-pointer">
+                      <item.icon className="w-5 h-5 group-hover:text-cyan-400 transition-colors" />
+                      <span className="font-medium">{item.label}</span>
+                    </div>
+                  </Link>
+                );
+              })}
+            </nav>
+          </div>
+
+          {/* Divider giữa Menu và Recent Chats */}
+          <div className="border-t border-slate-700/50 my-3" />
+
+          {/* Phần 2: Recent Chats */}
+          <div className="flex-1 overflow-y-auto pr-2 max-h-[45%]">
+            <div className="space-y-3 text-sm">
+              <div className="flex items-center space-x-2 px-4 py-2 sticky top-0 bg-slate-900 z-10">
+                <MessageCircle className="w-4 h-4 text-slate-400" />
+                <h3 className="font-semibold text-slate-300">Lịch sử chat gần đây</h3>
+              </div>
+
+              <div className="space-y-2">
+                {recentChats.map((chat) => (
+                  <Link
+                    key={chat.id}
+                    href={chat.href}
+                    onClick={() => handleLinkClick(chat.href)}
+                    className="block"
+                  >
+                    <div className="flex items-start space-x-3 px-4 py-2 rounded-lg text-slate-400 hover:text-white hover:bg-slate-700/50 transition-all duration-200 group cursor-pointer">
+                      <Clock className="w-4 h-4 mt-1 flex-shrink-0 group-hover:text-cyan-400 transition-colors" />
+                      <div className="min-w-0 flex-1">
+                        <p className="font-medium truncate">{chat.title}</p>
+                        <p className="text-xs opacity-75 truncate">
+                          {new Date(chat.timestamp).toLocaleDateString("vi-VN")}
+                        </p>
+                      </div>
+                    </div>
+                  </Link>
+                ))}
+                {recentChats.length === 0 && (
+                  <p className="px-4 py-2 text-slate-500 text-xs italic">
+                    Chưa có lịch sử chat
+                  </p>
+                )}
+              </div>
+            </div>
+          </div>
         </div>
 
-        {/* Version + User Greeting + nút Admin nằm trên */}
+
+        {/* Version + User Greeting + nút Admin nằm trên (giữ nguyên, giờ ở cuối) */}
         <div
           className={`absolute bottom-4 left-4 right-4 flex flex-col space-y-2 pt-4 border-t border-slate-700/50 transition-opacity duration-300 ${
             isSidebarOpen ? "opacity-100" : "opacity-0 pointer-events-none"

@@ -111,11 +111,6 @@ export const getChatHistoryByDate = async (userId, date, limit = 50) => {
   }
 
   try {
-    const startOfDay = new Date(date);
-    startOfDay.setHours(0, 0, 0, 0);
-    const endOfDay = new Date(date);
-    endOfDay.setHours(23, 59, 59, 999);
-
     const [rows] = await db.execute(
       `SELECT 
          message_id as id,
@@ -128,18 +123,15 @@ export const getChatHistoryByDate = async (userId, date, limit = 50) => {
          intent,
          user_input
        FROM chat_histories
-       WHERE user_id = ? AND timestamp BETWEEN ? AND ?
+       WHERE user_id = ? AND DATE(timestamp) = ?
        ORDER BY timestamp ASC
        LIMIT ?`,
-      [userId, startOfDay, endOfDay, limit]
+      [userId, date, limit]
     );
 
     return rows.map(row => {
       try {
         let structured = row.structured ? JSON.parse(row.structured) : null;
-        if (structured && typeof structured === 'object' && 'message' in structured && !('type' in structured)) {
-          structured = { type: 'text', message: structured.message };
-        }
         return {
           ...row,
           timestamp: new Date(row.timestamp),
@@ -148,8 +140,7 @@ export const getChatHistoryByDate = async (userId, date, limit = 50) => {
           imageUrl: row.image_url || undefined,
           user_input: row.user_input || undefined,
         };
-      } catch (parseError) {
-        console.error('Lỗi khi parse structured/custom_content:', parseError, { structured: row.structured, custom_content: row.custom_content });
+      } catch {
         return { ...row, structured: null, custom_content: null, timestamp: new Date(row.timestamp) };
       }
     });
@@ -158,3 +149,4 @@ export const getChatHistoryByDate = async (userId, date, limit = 50) => {
     return [];
   }
 };
+

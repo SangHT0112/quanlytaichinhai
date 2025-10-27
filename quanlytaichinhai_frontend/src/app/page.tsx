@@ -1,11 +1,13 @@
 'use client';
 import { useEffect } from 'react';
+import { useRouter } from 'next/navigation';
 import { useChatAI } from '@/hooks/useChatAI';
 import { useBackgroundManager } from '@/hooks/useBackgroundManager';
 import { useGlobalWindowFunctions } from '@/hooks/useGlobalWindowFunctions';
 import { MessageList } from '@/components/MessageList';
 import { WelcomeScreen } from '@/components/WelcomeScreen';
 import QuickActions from '@/components/QuickActions';
+import { useSocket } from '@/app/layout'; // Import useSocket từ RootLayout (hoặc file layout.tsx nếu tách)
 
 export default function ChatAI() {
   
@@ -22,10 +24,21 @@ export default function ChatAI() {
     handleSaveEdit,
     handleQuickAction,
     currentUser,
+    initializeSocket, // Đảm bảo export từ useChatAI
   } = useChatAI();
+
+  const { socket } = useSocket(); // Lấy socket từ context
 
   useBackgroundManager();
   useGlobalWindowFunctions(handleSendMessage, setInputValue, inputValue);
+
+  // Set socket cho hook khi có
+  useEffect(() => {
+    if (socket && currentUser?.user_id && initializeSocket) {
+      console.log('Initializing socket in ChatAI:', socket.id);
+      initializeSocket(socket);
+    }
+  }, [socket, currentUser?.user_id, initializeSocket]);
 
   const hasMessages = messages.length > 0;
   useEffect(() => {
@@ -60,6 +73,7 @@ export default function ChatAI() {
         <>
           <div className="z-50 px-4 fixed bottom-0 left-0 right-0 pb-4 bg-transparent">
             <div className="w-full max-w-3xl mx-auto">
+              {/* Bỏ comment nếu cần ChatInput riêng cho chat page, nhưng layout đã có fixed ChatInput global */}
               {/* <ChatInput
                 isSidebarOpen={false}
                 isSidebarRightOpen={false}

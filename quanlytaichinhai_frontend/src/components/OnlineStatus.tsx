@@ -5,16 +5,16 @@ import { io, Socket } from "socket.io-client";
 
 type Props = {
   userId: number;
+  onSocketReady?: (socket: Socket) => void; // Thêm prop callback để expose socket
 };
 
-export default function OnlineStatus({ userId }: Props) {
+export default function OnlineStatus({ userId, onSocketReady }: Props) {
   const socketRef = useRef<Socket | null>(null);
   const keepAliveIntervalRef = useRef<number | null>(null);
 
   useEffect(() => {
     if (!userId) return;
 
-    // khởi tạo socket
     const socket = io(process.env.NEXT_PUBLIC_BACKEND_API_URL!, {
       withCredentials: true,
       transports: ["websocket", "polling"],
@@ -25,17 +25,16 @@ export default function OnlineStatus({ userId }: Props) {
     socket.on("connect", () => {
       console.log("Socket connected:", socket.id);
       socket.emit("user_online", userId);
+      onSocketReady?.(socket); // Gọi callback khi connect thành công
     });
 
-    // Nếu server broadcast status của người khác
     socket.on("user_status", (data: { userId: number; status: "online" | "offline" }) => {
-      // Bạn có thể dispatch vào context / redux / setState để update UI
       console.log("user_status received:", data);
-      // Ví dụ: window.dispatchEvent(new CustomEvent('user_status', { detail: data }));
+      // Dispatch event nếu cần update UI global
+      window.dispatchEvent(new CustomEvent('user_status', { detail: data }));
     });
 
-    // keep-alive: gửi mỗi 60s để update last_active_at
-    const intervalMs = 60_000; // 60 giây
+    const intervalMs = 60_000;
     keepAliveIntervalRef.current = window.setInterval(() => {
       if (socket && socket.connected) {
         socket.emit("keep_alive", { userId });
@@ -43,7 +42,6 @@ export default function OnlineStatus({ userId }: Props) {
     }, intervalMs);
 
     return () => {
-      // cleanup
       if (keepAliveIntervalRef.current) {
         clearInterval(keepAliveIntervalRef.current);
       }
@@ -52,7 +50,7 @@ export default function OnlineStatus({ userId }: Props) {
         socketRef.current = null;
       }
     };
-  }, [userId]);
+  }, [userId, onSocketReady]);
 
-  return null; // component chỉ để side-effect
+  return null;
 }

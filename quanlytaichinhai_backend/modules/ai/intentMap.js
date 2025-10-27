@@ -10,6 +10,7 @@ import { generateForecastSQLPrompt } from './prompts/sqlPrompts/generateForecast
 import { generateImagePrompt } from './prompts/generateImagePrompt.js';
 import { generatePlanningPrompt } from './prompts/generatePlanningPrompt.js';
 import { generateCreateCategoryPrompt } from './prompts/generateCreateCategoryPrompt.js';
+import { saveSavingsPlan } from '../savings_plans/savings_plans.model.js';
 import db from '../../config/db.js';
 import path from 'path'
 import fs from 'fs'
@@ -279,7 +280,7 @@ export const intentMap = {
     isJsonResponse: true,
     processResponse: async (aiText, { user_input, now, user_id }) => {
       const parsed = parseJsonFromText(aiText, { fallback: null });
-      if (!parsed || !parsed.plans || !Array.isArray(parsed.plans)) {
+      if (!parsed || !parsed.plans || !Array.isArray(parsed.plans) || parsed.plans.length === 0) {
         return {
           raw: 'Không thể phân tích dữ liệu kế hoạch.',
           structured: {
@@ -288,8 +289,9 @@ export const intentMap = {
         };
       }
 
-      // Chuẩn bị dữ liệu kế hoạch tạm thời để gửi cho người dùng xác nhận
-      const tempPlans = parsed.plans.map(plan => ({
+      // ✅ Giả sử chỉ 1 kế hoạch mỗi lần (lấy plans[0]), theo gợi ý user
+      const plan = parsed.plans[0]; // Chỉ xử lý plan đầu tiên
+      const planData = {
         id: plan.id || `plan_${Date.now()}_${Math.random().toString(36).slice(2)}`,
         user_id: user_id,
         name: plan.name || user_input || 'Kế hoạch không tên',
@@ -298,7 +300,7 @@ export const intentMap = {
         current_amount: Number(plan.current_amount) ?? 0,
         monthly_contribution: Number(plan.monthly_contribution) ?? 0,
         time_to_goal: Number(plan.time_to_goal) ?? 0,
-        priority: plan.priority || 'medium', // Mức ưu tiên mặc định
+        priority: plan.priority || 'medium', // Sử dụng priority do AI phân tích và chọn
         category: plan.category || 'Tiết kiệm',
         breakdown: plan.breakdown ?? {},
         ai_analysis: {
@@ -333,16 +335,23 @@ export const intentMap = {
             : []
         },
         created_at: now
-      }));
+      };
 
-      // Trả về phản hồi yêu cầu xác nhận mức ưu tiên
+      // ✅ Tích hợp gọi saveSavingsPlan cho single plan
+      const saveResult = await saveSavingsPlan(user_id, planData);
+      const saveStatus = saveResult ? 'thành công' : 'thất bại';
+
+      // Xây dựng thông báo phản hồi
+      const successMsg = `✅ Đã tạo và lưu kế hoạch tiết kiệm "${planData.name}" với mức ưu tiên do AI phân tích: ${planData.priority}.`;
+      const errorMsg = !saveResult ? ` ⚠️ Lỗi lưu kế hoạch: "${planData.name}".` : '';
+
       return {
-        raw: 'Vui lòng chọn mức ưu tiên cho kế hoạch: cao, trung bình, hoặc thấp.',
+        raw: `${successMsg}${errorMsg}`,
         structured: {
-          response_type: 'confirm_priority',
-          temp_plans: tempPlans, // Gửi danh sách kế hoạch tạm để frontend hiển thị
-          message: 'Vui lòng chọn mức ưu tiên cho các kế hoạch được đề xuất.',
-          priority_options: ['high', 'medium', 'low'],
+          response_type: 'plan_created',
+          plan: planData, // Trả về single plan để frontend xử lý (e.g., redirect hoặc hiển thị)
+          saved: saveResult,
+          message: `Kế hoạch đã được lưu và ưu tiên theo phân tích AI (${saveStatus}).`,
         },
       };
     }

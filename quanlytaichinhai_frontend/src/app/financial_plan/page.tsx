@@ -46,10 +46,17 @@ export default function MultiSavingsPlan() {
         const user = JSON.parse(userStr);
         const userId = user.user_id;
 
-        // gọi update trước
-        //await axiosInstance.get(`/savings-plans/update-on-load?user_id=${userId}`);
+        // Check cuối tháng ở frontend
+        const currentDate = new Date();
+        const lastDayOfMonth = new Date(currentDate.getFullYear(), currentDate.getMonth() + 1, 0).getDate();
+        const isEndOfMonth = currentDate.getDate() === lastDayOfMonth;
 
-        // rồi mới lấy kế hoạch
+        if (isEndOfMonth) {
+          // Chỉ gọi update nếu cuối tháng
+          await axiosInstance.get(`/savings-plans/update-on-load?user_id=${userId}`);
+        }
+
+        // Luôn fetch plans sau (nếu update thì đã fresh, không thì cũ)
         const response = await axiosInstance.get(`/savings-plans?user_id=${userId}`);
         const data: SavingsPlan[] = response.data;
         if (data.length > 0) {

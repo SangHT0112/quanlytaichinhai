@@ -1,10 +1,114 @@
 import { fetchFinancialSummary } from '../../overview/overview.model.js';
 import db from '../../../config/db.js';
+// Hàm detect goal từ user_input (simple regex, có thể nâng cấp bằng LLM)
+const detectGoalAndFetchPrice = async (user_input) => {
+  const lowerInput = user_input.toLowerCase();
+  let detected = { item: null, category: null, estimated_price: null };
+
+  // Regex patterns cho common goals (mở rộng dễ dàng)
+  const patterns = {
+    electronics: /(iphone|ipad|samsung|macbook|laptop)/i,
+    travel: /(du lịch|japan|nhật|đà lạt|phú quốc)/i,
+    vehicle: /(xe máy|wave|exciter|xe hơi)/i,
+    education: /(học|khóa học|đại học|thạc sĩ)/i,
+    real_estate: /(mua nhà|đất|chung cư)/i,
+    wedding: /(đám cưới|kết hôn)/i,
+    emergency: /quỹ khẩn cấp/i
+  };
+
+  for (const [cat, regex] of Object.entries(patterns)) {
+    if (regex.test(lowerInput)) {
+      detected.category = cat;
+      detected.item = lowerInput.match(regex)[0]; // Extract item name
+      break;
+    }
+  }
+
+  if (!detected.item) {
+    detected.category = 'general'; // Fallback
+    detected.item = 'mục tiêu chung';
+  }
+
+  // Fetch price dynamic (thay bằng API thật, e.g., Google Shopping)
+  try {
+    // Ví dụ: Query Google Shopping API (cần key, hoặc dùng scraper)
+    const query = `${detected.item} giá việt nam 2025`;
+    const response = await axios.get(`https://www.googleapis.com/customsearch/v1?key=YOUR_API_KEY&q=${encodeURIComponent(query)}&cx=YOUR_CX`); // Placeholder
+    // Parse response để lấy avg price (giả sử)
+    detected.estimated_price = Math.floor(Math.random() * 10000000 + 5000000); // Demo random, thay bằng real parse
+
+    // Fallback hardcode cho categories
+    const fallbacks = {
+      electronics: { min: 5000000, max: 50000000, avg: 20000000 },
+      travel: { min: 5000000, max: 30000000, avg: 15000000 },
+      vehicle: { min: 20000000, max: 50000000, avg: 30000000 }, // Xe máy ~30tr
+      education: { min: 2000000, max: 100000000, avg: 20000000 }, // Đại học ~20tr/năm
+      real_estate: { min: 1000000000, max: 5000000000, avg: 2000000000 }, // Nhà TP.HCM ~2 tỷ
+      wedding: { min: 50000000, max: 200000000, avg: 100000000 },
+      emergency: { min: 30000000, max: 60000000, avg: 45000000 }, // 6 tháng chi tiêu
+      general: { min: 10000000, max: 100000000, avg: 50000000 }
+    };
+    if (!detected.estimated_price) {
+      const fb = fallbacks[detected.category] || fallbacks.general;
+      detected.estimated_price = fb.avg;
+    }
+  } catch (error) {
+    console.error('Lỗi fetch price:', error);
+    // Fallback như trên
+    detected.estimated_price = 20000000; // Default
+  }
+
+  return detected;
+};
+
+// Hàm fetch market data dynamic (mẫu, bạn có thể customize với API cụ thể)
+const fetchMarketData = async () => {
+  try {
+    // Ví dụ: Fetch từ một API giả định hoặc scrape (thực tế dùng proxy nếu cần)
+    // const response = await axios.get('https://api.gia-ca-vn.com/market/2025'); // Thay bằng API thật
+    // return response.data;
+    
+    // Tạm hardcode với data 10/2025, cập nhật thủ công hàng tháng
+    return {
+      electronics: {
+        iphone17promax: {
+          base_price: 38000000, // 256GB trung bình
+          variants: { '256GB': 38000000, '512GB': 44490000, '1TB': 50990000 },
+          note: 'Giá chính hãng VN, có thể đội 4-8 triệu ở chợ đen'
+        }
+      },
+      travel: {
+        japan: {
+          flight_roundtrip: { min: 6000000, max: 13000000, avg: 10000000 }, // Từ HCM/HN đến Tokyo
+          accommodation: { per_night: 1000000, for_5days: 5000000 }, // Khách sạn 3 sao
+          food: { per_day: 800000, for_5days: 4000000 }, // Ăn uống trung bình
+          transport_local: { per_day: 1000000, for_5days: 5000000 }, // Di chuyển nội địa
+          total_estimate_5days: 20000000, // Tổng tự túc, chưa visa ~500k
+          note: 'Tăng 10-15% so 2024 do lạm phát; mùa cao điểm +20%'
+        }
+      },
+      general: {
+        inflation: 3.8, // %/năm 2025
+        savings_rate: { min: 3, max: 7.5 } // %/năm
+      }
+    };
+  } catch (error) {
+    console.error('Lỗi fetch market data:', error);
+    // Fallback hardcode cũ
+    return {
+      electronics: { iphone17promax: { base_price: 40000000 } },
+      travel: { japan: { total_estimate_5days: 25000000 } },
+      general: { inflation: 4, savings_rate: { min: 3, max: 7.5 } }
+    };
+  }
+};
+
 
 export const generatePlanningPrompt = async ({ user_input, historyText, now, user_id }) => {
   // Khởi tạo ngày hiện tại
   const currentDate = now instanceof Date ? now : new Date();
-
+  // Fetch market data
+  const marketData = await fetchMarketData();
   // Lấy dữ liệu tài chính
   let financialData = { actual_balance: 0, current_income: 0, previous_income: 0, current_expense: 0, previous_expense: 0, monthly_surplus: 0, warnings: [] };
   try {
@@ -123,10 +227,39 @@ export const generatePlanningPrompt = async ({ user_input, historyText, now, use
 
   // Xác định current_amount
   const currentAmountForNewPlan = hasExistingPlans ? 0 : financialData.actual_balance;
-
+  // Build market context string động
+  const marketContext = `
+    - Bối cảnh thị trường (10/2025):
+      - Lãi suất tiết kiệm: ${marketData.general.savings_rate.min}-${marketData.general.savings_rate.max}%/năm
+      - Lạm phát: ${marketData.general.inflation}%/năm
+      - Điện thoại (iPhone 17 Pro Max): ${marketData.electronics.iphone17promax.base_price} VND (256GB), biến thể: ${JSON.stringify(marketData.electronics.iphone17promax.variants)}; lưu ý: ${marketData.electronics.iphone17promax.note}
+      - Du lịch Nhật Bản (từ VN, 5-7 ngày tự túc): Vé khứ hồi ${marketData.travel.japan.flight_roundtrip.min}-${marketData.travel.japan.flight_roundtrip.max} VND (trung bình ${marketData.travel.japan.flight_roundtrip.avg}); Lưu trú ${marketData.travel.japan.accommodation.per_night} VND/đêm; Ăn uống ${marketData.travel.japan.food.per_day} VND/ngày; Di chuyển nội địa ${marketData.travel.japan.transport_local.per_day} VND/ngày; Tổng ước tính ${marketData.travel.japan.total_estimate_5days} VND; lưu ý: ${marketData.travel.japan.note}
+      - Chi phí du lịch nội địa: 5-15 triệu/người
+      - Chi phí học tập (khóa học): 2-10 triệu
+    `;
   return `
 Bạn là AI lập kế hoạch tài chính chuyên nghiệp, tạo JSON cho các kế hoạch tiết kiệm dựa trên input người dùng, dữ liệu tài chính cá nhân, và bối cảnh thị trường Việt Nam 2025 (ngày: ${currentDate.toISOString().split('T')[0]}).
 
+📌 Input:
+- Câu hỏi: "${user_input}"
+- Lịch sử hội thoại: "${historyText || 'Không có lịch sử'}"
+- Dữ liệu tài chính: [giữ nguyên phần này]
+${marketContext}
+- [Giữ nguyên các phần còn lại]
+
+🔑 Nhiệm vụ:
+1. **Trích xuất từ câu hỏi**: [Giữ nguyên, nhưng thêm: Nếu category liên quan đến sản phẩm cụ thể (e.g., iPhone), dùng giá từ market data để set target_amount mặc định nếu user không chỉ định.]
+
+2. **Tính toán**: [Giữ nguyên, nhưng thêm: Điều chỉnh target_amount dựa trên market data nếu phù hợp (e.g., iPhone 17 Pro Max → 38-45tr; du lịch Nhật → 20-30tr cho 5 ngày).]
+
+3. **Tạo gợi ý AI**: [Giữ nguyên, thêm: Trong recommendations, gợi ý so sánh giá (e.g., mua iPhone chính hãng để tránh đội giá).]
+
+4. **Breakdown chi phí** (dùng market data để phân bổ chính xác):
+   - Quỹ khẩn cấp: 100% mục tiêu
+   - Du lịch (e.g., Nhật Bản): 50% vé máy bay, 25% lưu trú, 15% ăn uống, 10% di chuyển/dự phòng
+   - Mua sắm (e.g., iPhone): 95% giá sản phẩm, 5% phụ kiện/dự phòng
+   - Học tập: 85% học phí, 15% tài liệu/dự phòng
+   - Nếu category khác, suy luận dựa trên market data (e.g., du lịch nội địa: 40% vé, 30% lưu trú, 30% ăn/di chuyển)
 📌 Input:
 - Câu hỏi: "${user_input}"
 - Lịch sử hội thoại: "${historyText || 'Không có lịch sử'}"

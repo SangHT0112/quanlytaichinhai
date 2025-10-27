@@ -8,7 +8,9 @@ import { saveChatHistory, getChatHistory } from '@/api/chatHistoryApi';
 import { useTransaction } from '@/contexts/TransactionContext';
 import { fetchOverview } from '@/api/overviewApi';
 import { MessageRole } from '@/utils/types';
-import { isConfirmPriorityStructured, isSuggestNewCategoryStructured, isTransactionStructuredData } from '@/utils/typeGuards';
+import { isSuggestNewCategoryStructured, isTransactionStructuredData } from '@/utils/typeGuards';
+import { Socket } from 'socket.io-client'; // Thêm import cho Socket
+import { toast } from 'react-toastify';
 export const useChatAI = () => {
   const router = useRouter();
   const messagesEndRef = useRef<HTMLDivElement>(null);
@@ -25,8 +27,118 @@ export const useChatAI = () => {
     : null;
   const { refreshTransactionGroups } = useTransaction();
 
-  // Các helper functions và type guards
+  // Thêm state cho socket
+  const [socket, setSocket] = useState<Socket | null>(null);
 
+  // Hàm để initialize socket từ component (gọi từ ChatAI)
+  const initializeSocket = useCallback((sock: Socket) => {
+    setSocket(sock);
+  }, []);
+
+  // Lắng nghe receive_message để đồng bộ tin nhắn real-time
+  useEffect(() => {
+    if (!socket) return;
+
+    const handleReceiveMessage = (data: any) => {
+      console.log('Received message from socket:', data);
+      const newMessage: ChatMessage = {
+        id: data.id || uuidv4(), // Fallback nếu server không gửi id
+        content: data.content,
+        role: data.role as MessageRole,
+        timestamp: data.timestamp ? new Date(data.timestamp) : new Date(),
+        structured: data.structured || undefined,
+        intent: data.intent || undefined,
+        imageUrl: data.imageUrl || undefined,
+        user_input: data.user_input || undefined,
+      };
+
+      // Append message (server emit cả user và AI message)
+      setMessages((prev) => [...prev, newMessage]);
+
+      // Lưu vào DB nếu cần (server đã lưu, nhưng để backup)
+      saveChatHistory(currentUser?.user_id || 0, [newMessage]).catch((err) => {
+        console.error('Error saving message:', err);
+      });
+
+      // Dừng loading sau khi nhận AI response (role ASSISTANT)
+      if (newMessage.role === MessageRole.ASSISTANT) {
+        setIsLoading(false);
+      }
+
+      // ✅ THÊM REDIRECT Ở ĐÂY: Tự động chuyển đến /financial_plan khi tạo kế hoạch thành công
+      // Sử dụng type assertion để tránh TS error vì StructuredData không có response_type
+      const structuredData = newMessage.structured as any;
+      if (newMessage.role === MessageRole.ASSISTANT && structuredData?.response_type === 'plan_created') {
+        console.log('Redirecting to /financial_plan after planning confirmed');
+        // Có thể delay 1s để user thấy message trước khi redirect
+        setTimeout(() => {
+          router.push('/financial_plan');
+        }, 1500); // Optional: Delay để UX mượt
+      }
+
+      // ✅ THÊM XỬ LÝ AUTO-CONFIRMED TRANSACTION: Nếu intent = 'auto_confirmed_transaction' hoặc 'transaction' với group_name 'Giao dịch tự động'
+      if (newMessage.intent === 'auto_confirmed_transaction' || 
+          (newMessage.intent === 'transaction')) {  // Điều kiện match message từ ngân hàng
+
+        // Hiển thị toast confirm (pop-up) - giữ nguyên
+        toast.success(newMessage.content, {
+          position: 'top-right',
+          autoClose: 5000,
+          toastId: newMessage.id,
+          onClick: () => {
+            console.log('Chi tiết giao dịch tự động:', newMessage.structured);
+            // Optional: Mở modal chi tiết hoặc navigate
+          },
+        });
+
+        // ✅ FIX MỚI: Tự động add ID vào confirmedIds để UI hiển thị confirmed view ngay
+        setConfirmedIds((prev) => {
+          const newConfirmedIds = [...prev, newMessage.id];
+          // Lưu localStorage với expiry 1 ngày (giữ nguyên logic cũ)
+          localStorage.setItem('confirmedIds', JSON.stringify({
+            user_id: currentUser?.user_id || 1,
+            ids: newConfirmedIds,
+            expiry: new Date(new Date().setDate(new Date().getDate() + 1)).toISOString(),
+          }));
+          return newConfirmedIds;
+        });
+
+        // Refresh transaction groups và overview (update UI số dư/list) - giữ nguyên
+        refreshTransactionGroups();
+        fetchOverview(currentUser?.user_id || 1).then((summary) => {
+          console.log('Updated financial summary after auto-confirm:', summary.actual_balance);
+          // Optional: Update global state số dư nếu có context
+        });
+
+        // Optional: Append một confirm message ngắn gọn nếu muốn (nhưng có thể skip để UI sạch)
+        // const autoConfirmMsg: ChatMessage = {
+        //   id: uuidv4(),
+        //   content: `✅ Giao dịch từ ngân hàng đã được tự động lưu. Số dư: ${summary.actual_balance.toLocaleString('vi-VN')} VND`,
+        //   role: MessageRole.ASSISTANT,
+        //   timestamp: new Date(),
+        // };
+        // setMessages((prev) => [...prev, autoConfirmMsg]);  // Hoặc emit socket nếu cần sync
+
+        // Không cần stop loading vì không liên quan
+      }
+    };
+
+    
+
+    socket.on('receive_message', handleReceiveMessage);
+ 
+    // Lắng nghe error từ socket
+    socket.on('error', (err: string) => {
+      console.error('Socket error:', err);
+      setError(err);
+      setIsLoading(false);
+    });
+
+    return () => {
+      socket.off('receive_message', handleReceiveMessage);
+      socket.off('error');
+    };
+  }, [socket, currentUser?.user_id]);
 
   const sendToApi = useCallback(async (message: string, updatedMessages: ChatMessage[], imageData?: FormData) => {
     if (isApiProcessing.current) return;
@@ -35,6 +147,7 @@ export const useChatAI = () => {
     try {
       let aiMessage: ChatMessage;
       if (imageData) {
+        // Xử lý image: Upload trước, lấy imageUrl, emit socket cho user message, append AI local
         console.log('Gửi yêu cầu xử lý tài liệu đến API:');
         try {
           await fetch('https://quanlytaichinhai-python.onrender.com/ping');
@@ -54,52 +167,45 @@ export const useChatAI = () => {
           id: uuidv4(),
           content: raw || 'Đã xử lý tài liệu.',
           structured,
-          imageUrl,
+          imageUrl, // imageUrl từ upload
           user_input: message,
           role: MessageRole.ASSISTANT,
           timestamp: new Date(),
           intent: intent || 'document',
         };
+
+        // Emit socket cho user message với imageUrl (server sẽ lưu và emit back user message)
+        if (socket && currentUser?.user_id) {
+          const clientId = uuidv4(); // Tạo id cho user message
+          socket.emit('send_message', {
+            userId: currentUser.user_id,
+            message: 'Đã gửi hình ảnh',
+            imageUrl,
+            clientId, // Để server dùng id này
+          });
+        }
+
+        // Append AI message local (vì image không qua socket AI)
+        setMessages((prev) => [...prev, aiMessage]);
+        saveChatHistory(currentUser?.user_id || 0, [aiMessage]);
       } else {
-        console.log('Gửi yêu cầu văn bản đến API:', { message });
-        const conversationHistory = updatedMessages.slice(-5).map((msg) => ({
-          role: msg.role,
-          content: msg.content,
-          structured: msg.structured ?? null,
-        }));
+        // Text: Emit socket, server xử lý AI và emit back cả user + AI
+        if (!socket || !currentUser?.user_id) {
+          throw new Error('Socket chưa kết nối hoặc không có user ID');
+        }
 
-        const res = await axiosInstance.post('/ai/chat', {
+        const clientId = uuidv4(); // Tạo id cho user message
+        socket.emit('send_message', {
+          userId: currentUser.user_id,
           message,
-          history: conversationHistory,
-          user_id: currentUser?.user_id,
+          imageUrl: null,
+          clientId, // Để server dùng id này cho user message
         });
 
-        console.log('Phản hồi từ API văn bản:', res.data);
-        const { intent, structured, raw } = res.data;
-
-        aiMessage = {
-          id: uuidv4(),
-          content: raw || '⚠️ Không nhận được phản hồi từ AI.',
-          structured,
-          user_input: message,
-          role: MessageRole.ASSISTANT,
-          timestamp: new Date(),
-          intent,
-        };
+        // Không append gì ở đây, chờ receive từ socket cho cả user và AI
       }
-
-      setMessages((prev) => {
-        const newMessages = [...prev, aiMessage];
-        saveChatHistory(currentUser.user_id, [aiMessage]).then((success) => {
-          console.log('Save chat history result:', success);
-          if (!success) {
-            setError('Lỗi khi lưu tin nhắn vào cơ sở dữ liệu.');
-          }
-        });
-        return newMessages;
-      });
     } catch (err: unknown) {
-      console.error('❌ API error:', err instanceof Error ? err.message : 'Unknown error');
+      console.error('❌ Socket/API error:', err instanceof Error ? err.message : 'Unknown error');
       const errorMsg: ChatMessage = {
         id: uuidv4(),
         content: `⚠️ Lỗi: ${err instanceof Error ? err.message : 'Không thể xử lý yêu cầu.'}`,
@@ -107,234 +213,202 @@ export const useChatAI = () => {
         timestamp: new Date(),
       };
       
-      setMessages((prev) => {
-        const newMessages = [...prev, errorMsg];
-        saveChatHistory(currentUser.user_id, [errorMsg]).then((success) => {
-          console.log('Save error message result:', success);
-          if (!success) {
-            setError('Lỗi khi lưu tin nhắn lỗi vào cơ sở dữ liệu.');
-          }
-        });
-        return newMessages;
-      });
+      setMessages((prev) => [...prev, errorMsg]);
+      saveChatHistory(currentUser?.user_id || 0, [errorMsg]);
     } finally {
-      setIsLoading(false);
       isApiProcessing.current = false;
+      // Không setIsLoading(false) ở đây, vì socket sẽ handle
     }
-  }, [currentUser?.user_id]);
+  }, [currentUser?.user_id, socket]);
 
   const handleSendMessage = useCallback(async (message: string, imageData?: FormData) => {
-    if (!message.trim() && !imageData) return;
+      if (!message.trim() && !imageData) return;
 
-    const userMessage: ChatMessage = {
-      id: uuidv4(),
-      content: message || (imageData ? 'Đã gửi hình ảnh' : ''),
-      role: MessageRole.USER,
-      timestamp: new Date(),
-      imageUrl: imageData ? URL.createObjectURL(imageData.get('image') as File) : undefined,
-    };
+      // Không append user message local nữa, chờ server emit back (để sync multi-tab)
+      // Nhưng cho UX instant, có thể append temp và replace sau, nhưng giữ đơn giản: chờ server
 
-    setMessages((prev) => {
-      const newMessages = [...prev, userMessage];
-      saveChatHistory(currentUser.user_id, [userMessage]);
-      return newMessages;
-    });
+      setInputValue('');
+      setIsLoading(true);
 
-    setInputValue('');
-    setIsLoading(true);
+      await sendToApi(message, messages, imageData); // Pass current messages
+    }, [sendToApi, messages]);
 
-    await sendToApi(message, [...messages, userMessage], imageData);
-  }, [sendToApi, currentUser?.user_id, messages]);
-
-  const handleConfirm = async (message: ChatMessage, correctedData?: TransactionData | TransactionData[]): Promise<void> => {
-    console.log('CONFIRM PAYLOAD:', {
+    const handleConfirm = async (message: ChatMessage, correctedData?: TransactionData | TransactionData[]): Promise<void> => {
+      console.log('CONFIRM PAYLOAD:', {
         user_id: currentUser?.user_id || 1,
         user_input: message.user_input || message.content,
         ai_suggested: message.structured,
         user_corrected: correctedData || null,
         confirmed: true,
-    });
+      });
 
-    try {
-        // Kiểm tra xác nhận ưu tiên bằng type guard
-        if (isConfirmPriorityStructured(message.structured)) {
-        console.log('Xử lý xác nhận ưu tiên');
-        
-        // Bây giờ TypeScript biết message.structured là { response_type: 'confirm_priority' }
-        const selectedPriority = message.structured.temp_plans?.[0]?.priority || 'medium';
-        
-        const response = await axiosInstance.post('/ai/confirm-priority', {
-            user_id: currentUser?.user_id || 1,
-            selected_priority: selectedPriority,
-            temp_plans: message.structured.temp_plans,
-        });
-
-        if (!response.data.success) {
-            throw new Error('Lỗi khi xác nhận ưu tiên');
-        }
-
-        setConfirmedIds((prev) => {
-            const newConfirmedIds = [...prev, message.id];
-            localStorage.setItem('confirmedIds', JSON.stringify({
-            user_id: currentUser?.user_id || 1,
-            ids: newConfirmedIds,
-            expiry: new Date(new Date().setDate(new Date().getDate() + 1)).toISOString(),
-            }));
-            return newConfirmedIds;
-        });
-
-        const confirmMsg: ChatMessage = {
-            id: uuidv4(),
-            content: `✅ Kế hoạch đã được xác nhận với mức ưu tiên: ${selectedPriority}.`,
-            role: MessageRole.ASSISTANT,
-            timestamp: new Date(),
-        };
-
-        setMessages((prev) => {
-            const newMessages = [...prev, confirmMsg];
-            saveChatHistory(currentUser.user_id, [confirmMsg]).then((success) => {
-            console.log('Save confirm message result:', success);
-            if (!success) {
-                setError('Lỗi khi lưu tin nhắn xác nhận vào cơ sở dữ liệu.');
-            }
-            });
-            return newMessages;
-        });
-
-        // Chuyển hướng nếu có redirectPath
-        if (response.data.redirectPath) {
-            router.push(response.data.redirectPath);
-        }
-
-        return;
-        }
-
+      try {
         if (isSuggestNewCategoryStructured(message.structured)) {
-        console.log('Xử lý xác nhận suggest_new_category');
+          console.log('Xử lý xác nhận suggest_new_category');
 
-        // Lấy dữ liệu transaction tạm
-        const temp = message.structured.temporary_transaction;
-        const ai_suggested = {
+          // Lấy dữ liệu transaction tạm
+          const temp = message.structured.temporary_transaction;
+          const ai_suggested = {
             group_name: temp?.group_name,
             transaction_date: temp?.transaction_date,
             user_id: temp?.user_id,
             transactions: temp?.transactions,
-        };
+          };
 
-        // Gửi về backend
-        await axiosInstance.post('/ai/confirm', {
+          // Gửi về backend
+          await axiosInstance.post('/ai/confirm', {
             user_id: currentUser?.user_id || 1,
             user_input: message.user_input || message.content,
             ai_suggested, // CHÚ Ý: dùng temporary_transaction thay vì cả structured
             user_corrected: correctedData || null,
             confirmed: true,
-        });
+          });
 
-        setConfirmedIds((prev) => {
+          setConfirmedIds((prev) => {
             const newConfirmedIds = [...prev, message.id];
             localStorage.setItem('confirmedIds', JSON.stringify({
-            user_id: currentUser?.user_id || 1,
-            ids: newConfirmedIds,
-            expiry: new Date(new Date().setDate(new Date().getDate() + 1)).toISOString(),
+              user_id: currentUser?.user_id || 1,
+              ids: newConfirmedIds,
+              expiry: new Date(new Date().setDate(new Date().getDate() + 1)).toISOString(),
             }));
             return newConfirmedIds;
-        });
+          });
 
-        const financialSummary: FinancialSummary = await fetchOverview(currentUser?.user_id || 1);
+          const financialSummary: FinancialSummary = await fetchOverview(currentUser?.user_id || 1);
 
-        const confirmMsg: ChatMessage = {
+          const confirmMsg: ChatMessage = {
             id: uuidv4(),
             content: correctedData
-            ? `✅ Giao dịch đã được lưu vào hệ thống. Số dư hiện tại: ${financialSummary.actual_balance.toLocaleString('vi-VN')} VND`
-            : `✅ Danh mục mới '${message.structured.suggest_new_category.name}' đã được xác nhận.`,
+              ? `✅ Giao dịch đã được lưu vào hệ thống. Số dư hiện tại: ${financialSummary.actual_balance.toLocaleString('vi-VN')} VND`
+              : `✅ Danh mục mới '${message.structured.suggest_new_category.name}' đã được xác nhận.`,
             role: MessageRole.ASSISTANT,
             timestamp: new Date(),
-        };
+            user_input: '', // Không có input từ user
+          };
 
-        setMessages((prev) => {
-            const newMessages = [...prev, confirmMsg];
-            saveChatHistory(currentUser.user_id, [confirmMsg]).then((success) => {
-            console.log('Save confirm message result:', success);
-            if (!success) {
-                setError('Lỗi khi lưu tin nhắn xác nhận vào cơ sở dữ liệu.');
-            }
+          // FIXED: Emit socket để sync (thay vì chỉ append local) - loại bỏ duplicate setMessages
+          if (socket && currentUser?.user_id) {
+            socket.emit('send_message', {
+              userId: currentUser.user_id,
+              message: confirmMsg.content, // Dùng content làm message
+              isSystem: true,
+              imageUrl: null,
+              clientId: confirmMsg.id, // Để server dùng ID này
             });
-            return newMessages;
-        });
+            // Không append local, chờ receive_message
+          } else {
+            // Fallback nếu !socket: append local như cũ
+            setMessages((prev) => {
+              const newMessages = [...prev, confirmMsg];
+              saveChatHistory(currentUser.user_id, [confirmMsg]).then((success) => {
+                console.log('Save confirm message result:', success);
+                if (!success) {
+                  setError('Lỗi khi lưu tin nhắn xác nhận vào cơ sở dữ liệu.');
+                }
+              });
+              return newMessages;
+            });
+          }
 
-        await refreshTransactionGroups();
-        return;
+          await refreshTransactionGroups();
+          return;
         }
-
 
         // Xử lý xác nhận giao dịch
         if (message.structured && isTransactionStructuredData(message.structured)) {
-        console.log('Xử lý xác nhận giao dịch');
-        await axiosInstance.post('/ai/confirm', {
+          console.log('Xử lý xác nhận giao dịch');
+          await axiosInstance.post('/ai/confirm', {
             user_id: currentUser?.user_id || 1,
             user_input: message.user_input || message.content,
             ai_suggested: message.structured,
             user_corrected: correctedData || null,
             confirmed: true,
-        });
+          });
 
-        setConfirmedIds((prev) => {
+          setConfirmedIds((prev) => {
             const newConfirmedIds = [...prev, message.id];
             localStorage.setItem('confirmedIds', JSON.stringify({
-            user_id: currentUser?.user_id || 1,
-            ids: newConfirmedIds,
-            expiry: new Date(new Date().setDate(new Date().getDate() + 1)).toISOString(),
+              user_id: currentUser?.user_id || 1,
+              ids: newConfirmedIds,
+              expiry: new Date(new Date().setDate(new Date().getDate() + 1)).toISOString(),
             }));
             return newConfirmedIds;
-        });
+          });
 
-        const financialSummary: FinancialSummary = await fetchOverview(currentUser?.user_id || 1);
+          const financialSummary: FinancialSummary = await fetchOverview(currentUser?.user_id || 1);
 
-        const confirmMsg: ChatMessage = {
+          const confirmMsg: ChatMessage = {
             id: uuidv4(),
             content: correctedData
-            ? `✅ Giao dịch đã được lưu vào hệ thống. Số dư hiện tại: ${financialSummary.actual_balance.toLocaleString('vi-VN')} VND`
-            : `✅ Danh mục đã được xác nhận.`,
+              ? `✅ Giao dịch đã được lưu vào hệ thống. Số dư hiện tại: ${financialSummary.actual_balance.toLocaleString('vi-VN')} VND`
+              : `✅ Danh mục đã được xác nhận.`,
             role: MessageRole.ASSISTANT,
             timestamp: new Date(),
-        };
+            user_input: '', // Không có input từ user
+          };
 
-        setMessages((prev) => {
-            const newMessages = [...prev, confirmMsg];
-            saveChatHistory(currentUser.user_id, [confirmMsg]).then((success) => {
-            console.log('Save confirm message result:', success);
-            if (!success) {
-                setError('Lỗi khi lưu tin nhắn xác nhận vào cơ sở dữ liệu.');
-            }
+          // FIXED: Emit socket để sync (thay vì chỉ append local)
+          if (socket && currentUser?.user_id) {
+            socket.emit('send_message', {
+              userId: currentUser.user_id,
+              message: confirmMsg.content, // Dùng content làm message
+              imageUrl: null,
+              isSystem: true,
+              clientId: confirmMsg.id, // Để server dùng ID này
             });
-            return newMessages;
-        });
+            // Không append local, chờ receive_message
+          } else {
+            // Fallback nếu !socket: append local như cũ
+            setMessages((prev) => {
+              const newMessages = [...prev, confirmMsg];
+              saveChatHistory(currentUser.user_id, [confirmMsg]).then((success) => {
+                console.log('Save confirm message result:', success);
+                if (!success) {
+                  setError('Lỗi khi lưu tin nhắn xác nhận vào cơ sở dữ liệu.');
+                }
+              });
+              return newMessages;
+            });
+          }
 
-        await refreshTransactionGroups();
+          await refreshTransactionGroups();
         } else {
-        console.warn('Dữ liệu structured không hợp lệ:', message.structured);
-        throw new Error('Dữ liệu không hợp lệ để xác nhận');
+          console.warn('Dữ liệu structured không hợp lệ:', message.structured);
+          throw new Error('Dữ liệu không hợp lệ để xác nhận');
         }
-    } catch (err: unknown) {
+      } catch (err: unknown) {
         console.error('❌ Xác nhận lỗi:', err instanceof Error ? err.message : 'Unknown error');
         const errorMsg: ChatMessage = {
-        id: uuidv4(),
-        content: '❌ Lỗi khi xác nhận.',
-        role: MessageRole.ASSISTANT,
-        timestamp: new Date(),
+          id: uuidv4(),
+          content: '❌ Lỗi khi xác nhận.',
+          role: MessageRole.ASSISTANT,
+          timestamp: new Date(),
+          user_input: '', // Không có input từ user
         };
 
-        setMessages((prev) => {
-        const newMessages = [...prev, errorMsg];
-        saveChatHistory(currentUser.user_id, [errorMsg]).then((success) => {
-            console.log('Save error message result:', success);
-            if (!success) {
-            setError('Lỗi khi lưu tin nhắn lỗi vào cơ sở dữ liệu.');
-            }
-        });
-        return newMessages;
-        });
-    }
+        // FIXED: Emit socket cho error message để sync
+        if (socket && currentUser?.user_id) {
+          socket.emit('send_message', {
+            userId: currentUser.user_id,
+            message: errorMsg.content,
+            imageUrl: null,
+            clientId: errorMsg.id,
+          });
+          // Không append local, chờ receive_message
+        } else {
+          // Fallback nếu !socket: append local như cũ
+          setMessages((prev) => {
+            const newMessages = [...prev, errorMsg];
+            saveChatHistory(currentUser.user_id, [errorMsg]).then((success) => {
+              console.log('Save error message result:', success);
+              if (!success) {
+                setError('Lỗi khi lưu tin nhắn lỗi vào cơ sở dữ liệu.');
+              }
+            });
+            return newMessages;
+          });
+        }
+      }
     };
 
 
@@ -471,6 +545,7 @@ export const useChatAI = () => {
     handleSaveEdit,
     handleQuickAction,
     currentUser,
+    initializeSocket
   };
 
 }

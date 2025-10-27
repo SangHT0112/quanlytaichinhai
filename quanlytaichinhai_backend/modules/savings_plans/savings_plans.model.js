@@ -102,7 +102,98 @@ export const getSavingsPlans = async (userId, limit = 50) => {
     return [];
   }
 };
+// Thêm hàm rebalance mới
+export const rebalancePlans = async (userId) => {
+  if (!userId) {
+    console.error('Thiếu userId cho rebalance');
+    return false;
+  }
 
+  try {
+    await db.query('START TRANSACTION');
+
+    // Lấy financial data
+    const financialData = await fetchFinancialSummary(userId);
+    const surplus = financialData.monthly_surplus || 0;
+    const income = financialData.current_income || 0;
+    if (surplus <= 0) {
+      console.log(`Surplus <=0, bỏ qua rebalance cho user ${userId}`);
+      await db.query('COMMIT');
+      return true;
+    }
+
+    // Lấy tất cả plans (không nested data, chỉ cần basic)
+    const [plansRows] = await db.execute(
+      `SELECT id, target_amount, current_amount, monthly_contribution, priority, category 
+       FROM savings_plans WHERE user_id = ?`,
+      [userId]
+    );
+    const plans = plansRows.map(p => ({
+      id: p.id,
+      targetAmount: Number(p.target_amount),
+      currentAmount: Number(p.current_amount),
+      priority: p.priority,
+      category: p.category
+    }));
+
+    if (!plans.length) {
+      await db.query('COMMIT');
+      return true;
+    }
+
+    // Tính weights (cơ bản + điều chỉnh theo category)
+    const getAdjustedWeight = (priority, category) => {
+      let weight = { high: 3, medium: 2, low: 1 }[priority] || 1;
+      if (category === 'Quỹ khẩn cấp') weight += 1;  // Max 4
+      else if (category === 'Phương tiện' && priority === 'high') weight += 0.5;  // 3.5
+      else if (category === 'Học tập' && priority === 'high') weight += 0.5;  // 3.5
+      else if (category === 'Mua sắm' && priority === 'low') weight -= 0.5;  // 0.5
+      // Du lịch/Bất động sản: Giữ nguyên
+      return Math.max(0.5, weight);  // Min 0.5 tránh 0
+    };
+
+    const weights = plans.map(p => getAdjustedWeight(p.priority, p.category));
+    const totalWeight = weights.reduce((sum, w) => sum + w, 0);
+
+    if (totalWeight <= 0) {
+      await db.query('COMMIT');
+      return true;
+    }
+
+    // Tính base contribution
+    const maxContribution = surplus < 3000000 ? income * 0.2 : income * 0.5;
+    let base = Math.min(surplus, maxContribution);
+    const lowSurplusLimit = surplus < 2000000 ? 1000000 : null;  // ≤1tr/plan nếu surplus<2tr
+
+    // Rebalance cho từng plan
+    const updateValues = plans.map((plan, index) => {
+      const ratio = weights[index] / totalWeight;
+      let newContribution = Math.round(base * ratio);
+      if (lowSurplusLimit && newContribution > lowSurplusLimit) newContribution = lowSurplusLimit;
+
+      const remaining = plan.targetAmount - plan.currentAmount;
+      const newTimeToGoal = Math.max(1, Math.ceil(remaining / Math.max(1, newContribution)));  // Tránh chia 0
+
+      return [newContribution, newTimeToGoal, plan.id];
+    });
+
+    // Batch update (hiệu quả hơn loop)
+    for (const [newContribution, newTimeToGoal, planId] of updateValues) {
+      await db.execute(
+        `UPDATE savings_plans SET monthly_contribution = ?, time_to_goal = ?, updated_at = NOW() WHERE id = ? AND user_id = ?`,
+        [newContribution, newTimeToGoal, planId, userId]
+      );
+    }
+
+    await db.query('COMMIT');
+    console.log(`Đã rebalance ${plans.length} kế hoạch cho user ${userId} (base: ${base.toLocaleString()} VND)`);
+    return true;
+  } catch (error) {
+    await db.query('ROLLBACK');
+    console.error('Lỗi rebalance plans:', error);
+    return false;
+  }
+};
 export const saveSavingsPlan = async (userId, plan) => {
   if (!userId || !plan) {
     console.error('Thiếu userId hoặc plan:', { userId, plan });
@@ -255,13 +346,23 @@ export const saveSavingsPlan = async (userId, plan) => {
     }
 
     await db.query('COMMIT');
-    console.log(`Đã lưu kế hoạch ${id} cho user ${userId}`);
+    // Rebalance tất cả plans (bao gồm new)
+    const rebalanceSuccess = await rebalancePlans(userId);
+    if (!rebalanceSuccess) {
+      console.error('Rebalance fail sau khi save plan mới');
+      // Optional: Rollback insert? Nhưng đã commit, chỉ log
+    }
+
+    console.log(`Đã lưu và rebalance kế hoạch cho user ${userId}`);
+    return true;
     return true;
   } catch (error) {
     await db.query('ROLLBACK');
     console.error(`Lỗi khi lưu kế hoạch ${id}:`, error);
     return false;
   }
+
+  
 };
 
 
@@ -308,18 +409,6 @@ export const updatePlansWithoutAI = async (userId) => {
   try {
     await db.query('START TRANSACTION');
 
-    // Kiểm tra xem có phải cuối tháng không (ngày cuối của tháng hiện tại)
-    const currentDate = new Date();
-    const lastDayOfMonth = new Date(currentDate.getFullYear(), currentDate.getMonth() + 1, 0).getDate();
-    const isEndOfMonth = currentDate.getDate() === lastDayOfMonth;
-
-    if (!isEndOfMonth) {
-      // Không phải cuối tháng, skip update và commit transaction rỗng
-      await db.query('COMMIT');
-      console.log(`Bỏ qua cập nhật kế hoạch vì chưa cuối tháng cho user ${userId}`);
-      return true;
-    }
-
     // Lấy dữ liệu tài chính
     let financialData;
     try {
@@ -347,8 +436,12 @@ export const updatePlansWithoutAI = async (userId) => {
     );
 
     // Tổng số dư hiện tại và monthly_surplus
-    const baseBalance = financialData.actual_balance || 0;
+    let baseBalance = financialData.actual_balance || 0;
     const surplus = financialData.monthly_surplus || 0;
+    const currentDate = new Date().toISOString().slice(0, 19).replace('T', ' '); // ✅ Fix: Define currentDate
+
+    // Track remaining balance for allocation (to avoid over-allocation)
+    let remainingBalance = baseBalance;
 
     for (const plan of plans) {
       const weight = priorityWeights[plan.priority];
@@ -358,30 +451,43 @@ export const updatePlansWithoutAI = async (userId) => {
       const currentAmount = Number(plan.current_amount || 0);
       let newCurrentAmount = currentAmount;
 
+      // Check if this is end-of-month update (only add surplus if last updated < current month)
+      const lastUpdated = new Date(plan.updated_at || 0);
+      const isNewMonth = lastUpdated.getMonth() < new Date().getMonth() || lastUpdated.getFullYear() < new Date().getFullYear();
+      const shouldAddSurplus = isNewMonth || plan.updated_at === null; // ✅ Fix: Chỉ add surplus nếu tháng mới
+
       // ===== LOGIC CHÍNH =====
-      if (currentAmount === 0 && !plan.initial_amount) {
-        // Nếu lần đầu tạo → chia actual_balance
-        const allocated = baseBalance * ratio;
+      if (currentAmount === 0 && plan.initial_amount === 0) {
+        // Nếu lần đầu tạo → chia actual_balance (cap at remaining)
+        const allocated = Math.min(remainingBalance * ratio, plan.target_amount); // ✅ Fix: Cap at target and remaining
         newCurrentAmount = allocated;
+        remainingBalance -= allocated; // Update remaining
         // Lưu initial_amount để không dồn lại lần sau
         await db.execute(
           `UPDATE savings_plans SET initial_amount = ? WHERE id = ? AND user_id = ?`,
           [allocated, plan.id, userId]
         );
-      } else {
-        // Đã có tiền trong plan → chỉ cộng thêm surplus
-        newCurrentAmount = currentAmount + surplus * ratio;
+      } 
+
+      // Luôn cộng surplus nếu end-month (cho cả new/existing)
+      if (shouldAddSurplus) {
+        const surplusAllocated = Math.min(surplus * ratio, plan.target_amount - newCurrentAmount); // ✅ Fix: Cap at target - current
+        newCurrentAmount += surplusAllocated;
       }
 
-      // milestones
+      // Cap final at target_amount
+      newCurrentAmount = Math.min(newCurrentAmount, plan.target_amount); // ✅ Fix: Không vượt target
+
+      // Milestones
       await db.execute(`DELETE FROM milestones WHERE plan_id = ?`, [plan.id]);
-      const milestoneSteps = [0.2, 0.4, 0.6, 0.8, 1];
-      const milestoneValues = milestoneSteps.map(step => [
-        plan.id,
-        plan.targetAmount * step,
-        `${Math.ceil((plan.targetAmount * step - newCurrentAmount) / plan.monthlyContribution)} tháng`,
-        `Đạt ${step * 100}% mục tiêu`
-      ]);
+      const milestoneSteps = [0.25, 0.5, 0.75, 1]; // ✅ Suggest: 25/50/75/100% thay 20/40/...
+      const milestoneValues = milestoneSteps.map(step => {
+        const amount = plan.target_amount * step;
+        const remaining = Math.max(0, amount - newCurrentAmount);
+        const months = plan.monthly_contribution > 0 ? Math.ceil(remaining / plan.monthly_contribution) : 0; // ✅ Fix: ceil cho accuracy
+        const timeframe = months > 0 ? `${months} tháng` : 'Hoàn thành';
+        return [plan.id, amount, timeframe, `Đạt ${step * 100}% mục tiêu`];
+      });
       if (milestoneValues.length > 0) {
         await db.query(
           `INSERT INTO milestones (plan_id, amount, timeframe, description) VALUES ?`,
@@ -389,32 +495,42 @@ export const updatePlansWithoutAI = async (userId) => {
         );
       }
 
-      // breakdowns
+      // Breakdowns (thêm default)
       await db.execute(`DELETE FROM breakdowns WHERE plan_id = ?`, [plan.id]);
       let breakdown = {};
-      if (plan.category === 'Phương tiện') {
-        breakdown = {
-          'Giá xe': plan.targetAmount * 0.85,
-          'Phí': plan.targetAmount * 0.05,
-          'Bảo hiểm': plan.targetAmount * 0.05,
-          'Dự phòng': plan.targetAmount * 0.05
-        };
-      } else if (plan.category === 'Bất động sản') {
-        breakdown = {
-          'Giá nhà': plan.targetAmount * 0.85,
-          'Phí': plan.targetAmount * 0.05,
-          'Nội thất': plan.targetAmount * 0.05,
-          'Dự phòng': plan.targetAmount * 0.05
-        };
-      } else if (plan.category === 'Du lịch') {
-        breakdown = {
-          'Chi phí chính': plan.targetAmount * 0.8,
-          'Dự phòng': plan.targetAmount * 0.2
-        };
-      } else if (plan.category === 'Quỹ khẩn cấp') {
-        breakdown = {
-          'Quỹ': plan.targetAmount * 1.0
-        };
+      switch (plan.category) { // ✅ Fix: Switch cho clean
+        case 'Phương tiện':
+          breakdown = {
+            'Giá xe': plan.target_amount * 0.85,
+            'Phí': plan.target_amount * 0.05,
+            'Bảo hiểm': plan.target_amount * 0.05,
+            'Dự phòng': plan.target_amount * 0.05
+          };
+          break;
+        case 'Bất động sản':
+          breakdown = {
+            'Giá nhà': plan.target_amount * 0.85,
+            'Phí': plan.target_amount * 0.05,
+            'Nội thất': plan.target_amount * 0.05,
+            'Dự phòng': plan.target_amount * 0.05
+          };
+          break;
+        case 'Du lịch':
+          breakdown = {
+            'Chi phí chính': plan.target_amount * 0.8,
+            'Dự phòng': plan.target_amount * 0.2
+          };
+          break;
+        case 'Quỹ khẩn cấp':
+          breakdown = {
+            'Quỹ': plan.target_amount * 1.0
+          };
+          break;
+        default: // ✅ Fix: Default cho category lạ
+          breakdown = {
+            'Chính': plan.target_amount * 0.9,
+            'Dự phòng': plan.target_amount * 0.1
+          };
       }
       const breakdownValues = Object.entries(breakdown).map(([item_key, amount]) => [
         plan.id,
@@ -428,7 +544,7 @@ export const updatePlansWithoutAI = async (userId) => {
         );
       }
 
-      // update plan
+      // Update plan
       await db.execute(
         `UPDATE savings_plans SET current_amount = ?, updated_at = ? WHERE id = ? AND user_id = ?`,
         [newCurrentAmount, currentDate, plan.id, userId]

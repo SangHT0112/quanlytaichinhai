@@ -74,7 +74,7 @@ export default function RightSidebar({
 
   return (
     <aside
-      className={`fixed inset-y-0 right-0 z-5 p-4 transition-all duration-300 ease-in-out h-full flex flex-col ${
+      className={`fixed inset-y-0 right-0 z-40 p-4 transition-all duration-300 ease-in-out h-full flex flex-col ${
         isSidebarOpen
           ? "w-75 bg-gradient-to-b from-slate-800 to-slate-900 shadow-xl"
           : "w-12 bg-transparent shadow-none"
@@ -240,7 +240,7 @@ export default function RightSidebar({
           <div className="sticky bottom-0 bg-slate-900/80 backdrop-blur-sm py-3 px-4 border-t border-slate-700/50">
             <button
               onClick={loadMoreTransactionGroups}
-              className="w-full py-2 bg-slate-700 hover:bg-slate-600 text-slate-200 rounded-md transition-all duration-200 flex items-center justify-center gap-2"
+              className="w-full fixed z-50 bottom-0 py-2 bg-slate-700 hover:bg-slate-600 text-slate-200 rounded-md transition-all duration-200 flex items-center justify-center gap-2"
             >
               <span>Xem thêm</span>
               <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">

@@ -11,6 +11,8 @@ import { renderCustomContent } from './hooks/renderCustomContent';
 import BackgroundImageConfirmForm from './transaction-form/ComfirmImage';
 import CategoryConfirmationForm from './transaction-form/CategoryConfirmationForm';
 import { PriorityForm } from './transaction-form/priority-form';
+import { ConfirmedTransactionForm } from './transaction-form/confirmed-transaction-form';
+import { ConfirmedMultiTransactionForm } from './transaction-form/ConfirmedMultiTransactionForm';
 import axiosInstance from '@/config/axios';
 
 import { useRouter } from 'next/navigation'; // Nếu dùng Next.js
@@ -153,6 +155,9 @@ export const MessageItem = ({
   return typeof parsedData === 'object' && 'type' in parsedData && parsedData.type === 'component';
 };
 
+  // Thêm state để track confirmed cho pending transaction riêng biệt nếu cần
+  const [isPendingConfirmed, setIsPendingConfirmed] = useState(false);
+
   useEffect(() => {
     const storedPending = localStorage.getItem(`pendingTransaction_${message.id}`);
     if (storedPending) {
@@ -195,6 +200,9 @@ export const MessageItem = ({
   const hasCustomContent =
     Array.isArray(message.custom_content) &&
     message.custom_content.some((part) => part.type === 'component' || part.type === 'function_call');
+
+  // Sử dụng confirmed từ prop để nhất quán
+  const isMessageConfirmed = confirmedIds.includes(message.id);
 
   const handleEditChange = (field: keyof TransactionData, value: string | number) => {
     setEditedData((prev) => ({
@@ -264,6 +272,7 @@ export const MessageItem = ({
       try {
         await onConfirm(message, transactionData);
         setIsTransactionConfirmed(true);
+        setIsPendingConfirmed(true); // Cập nhật state cho pending
         localStorage.removeItem(`pendingTransaction_${message.id}`);
       } finally {
         setIsLoading(false);
@@ -365,24 +374,41 @@ export const MessageItem = ({
             ) : (
               <>
                 {isSingleTransaction && (
-                  <SingleTransactionConfirmationForm
-                    transactionData={transactions[0]}
-                    isConfirmed={isTransactionConfirmed || confirmedIds.includes(message.id)}
-                    onConfirm={() => onConfirm?.(message, transactions[0])}
-                    onEdit={() => handleStartEdit(0)}
-                  />
+                  <div className="space-y-4">
+                    {isMessageConfirmed ? (
+                      <ConfirmedTransactionForm transaction={transactions[0]} />
+                    ) : (
+                      <SingleTransactionConfirmationForm
+                        transactionData={transactions[0]}
+                        isConfirmed={false}
+                        onConfirm={() => onConfirm?.(message, transactions[0])}
+                        onEdit={() => handleStartEdit(0)}
+                      />
+                    )}
+                  </div>
                 )}
                 {isMultiTransaction && message.structured && isTransactionStructuredData(message.structured) && (
-                  <MultiTransactionConfirmationForm
-                    groupName={message.structured.group_name || ''}
-                    transactionDate={message.structured.transaction_date || new Date().toISOString()}
-                    transactions={transactions}
-                    totalAmount={message.structured.total_amount || 0}
-                    isConfirmed={confirmedIds.includes(message.id)}
-                    onConfirmAll={handleConfirmAll}
-                    onEdit={handleStartEdit}
-                  />
-                )}
+                    <div className="space-y-4">
+                      {isMessageConfirmed ? (
+                        <ConfirmedMultiTransactionForm
+                          groupName={message.structured.group_name || ''}
+                          transactionDate={message.structured.transaction_date || new Date().toISOString()}
+                          transactions={transactions}
+                          totalAmount={message.structured.total_amount || 0}
+                        />
+                      ) : (
+                        <MultiTransactionConfirmationForm
+                          groupName={message.structured.group_name || ''}
+                          transactionDate={message.structured.transaction_date || new Date().toISOString()}
+                          transactions={transactions}
+                          totalAmount={message.structured.total_amount || 0}
+                          isConfirmed={false}
+                          onConfirmAll={handleConfirmAll}
+                          onEdit={handleStartEdit}
+                        />
+                      )}
+                    </div>
+                  )}
               </>
             )}
           </div>
@@ -402,16 +428,28 @@ export const MessageItem = ({
         )}
 
         {pendingTransaction && (
-          <div className="mt-2">
-            <SingleTransactionConfirmationForm
-              transactionData={pendingTransaction}
-              isConfirmed={isTransactionConfirmed || confirmedIds.includes(message.id)}
-              onConfirm={() => handleTransactionConfirm(pendingTransaction)}
-              onEdit={() => {
-                setEditedData(pendingTransaction);
-                setIsEditing(true);
-              }}
-            />
+          <div className="mt-2 space-y-4">
+            {isEditing ? (
+              <TransactionEditForm
+                initialData={editedData}
+                onChange={handleEditChange}
+                onCancel={handleCancelEdit}
+                onSave={handleSaveEdit}
+                isLoading={isLoading}
+              />
+            ) : isPendingConfirmed || isMessageConfirmed ? (
+              <ConfirmedTransactionForm transaction={pendingTransaction} />
+            ) : (
+              <SingleTransactionConfirmationForm
+                transactionData={pendingTransaction}
+                isConfirmed={false}
+                onConfirm={() => handleTransactionConfirm(pendingTransaction)}
+                onEdit={() => {
+                  setEditedData(pendingTransaction);
+                  setIsEditing(true);
+                }}
+              />
+            )}
           </div>
         )}
 

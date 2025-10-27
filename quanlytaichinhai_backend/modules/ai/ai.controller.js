@@ -129,11 +129,19 @@ export const confirmTransaction = async (req, res) => {
     }
 
     for (const tx of validTransactions) {
-      const category_id = await getCategoryIdByKeyword(tx.category);
+      let category_id = null;
+
+      // Ưu tiên category_id nếu có
+      if (tx.category_id) {
+        category_id = tx.category_id;
+      } else {
+        category_id = await getCategoryIdByKeyword(tx.category);
+      }
+
+      // Fallback nếu không có
       if (!category_id) {
-        return res.status(400).json({
-          error: `Không tìm thấy danh mục "${tx.category}"`,
-        });
+        console.warn(`⚠️ Không tìm thấy danh mục "${tx.category}", gán mặc định 1`);
+        category_id = 1;
       }
 
       const dbData = {
@@ -152,12 +160,16 @@ export const confirmTransaction = async (req, res) => {
       }
     }
 
+
     res.status(200).json({
       success: true,
       message: confirmed
         ? "✅ Đã lưu nhóm giao dịch và các giao dịch thành công."
         : "⚠️ Giao dịch không được xác nhận.",
+      confirmed: confirmed, // thêm
+      transactions: validTransactions, // thêm để frontend hiển thị lại form đã xác nhận
     });
+
   } catch (err) {
     console.error("❌ Lỗi khi lưu giao dịch:", err);
     res.status(500).json({ error: "Lỗi server" });
