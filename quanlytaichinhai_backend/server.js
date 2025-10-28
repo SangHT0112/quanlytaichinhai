@@ -95,7 +95,7 @@ const lastTransactionCache = new Map();  // key: user_id, value: last_id (string
 // Cache đơn giản: Chỉ lưu last_date (string, ISO format) - key: user_id
 const lastDateCache = new Map();  // key: user_id, value: last_transaction_date
 
-// ✅ Webhook route cho SePay (thay thế sync thủ công)
+// ✅ Webhook route cho SePay (sửa để xử lý payload phẳng)
 app.post('/api/sepay/webhook', async (req, res) => {
   try {
     console.log('Webhook received:', req.body);  // Debug: Log full payload
@@ -114,41 +114,53 @@ app.post('/api/sepay/webhook', async (req, res) => {
       }
     }
 
-    const { event, data } = req.body;
-    if (!data || event !== 'TRANSACTION_COMPLETED') {  // Chỉ xử lý completed; điều chỉnh event nếu cần
-      console.log('Skipped event:', event);  // Debug
+    const payload = req.body;
+    
+    // ✅ FIX: Xử lý payload phẳng (không có event/data wrapper)
+    // Giả sử đây là TRANSACTION_COMPLETED nếu có transferAmount và transferType
+    if (!payload.transferAmount || !payload.transferType) {
+      console.log('Skipped invalid payload (no transferAmount or transferType)');  // Debug
       return res.status(200).json({ received: true });  // OK để tránh retry
     }
 
-    const demoUserId = 1;  // Hardcode demo; production: map từ account_number hoặc data
-    // ✅ Điều chỉnh fields để match format SePay (tương tự list API: amount_in/out, transaction_date, etc.)
+    // Map user_id từ accountNumber (demo hardcoded; production: query DB)
+    const demoUserId = 15;  // Hoặc: await getUserIdByAccount(payload.accountNumber)
+    // ✅ Map fields từ payload thực tế
     const { 
-      id: transaction_id,  // Hoặc transaction_id
-      amount_in = 0, 
-      amount_out = 0, 
-      transaction_content: description = 'Giao dịch từ SePay webhook',
-      transaction_date,  // Hoặc created_at
-      accumulated,  // Số dư nếu có
-      status 
-    } = data;  // Giả sử data là object transaction
+      id: transaction_id,  // id từ payload
+      transferType,  // 'in' hoặc 'out'
+      transferAmount: amount,  // Số tiền
+      description,  // Mô tả chi tiết
+      transactionDate: rawDate,  // '2025-10-28 09:47:57'
+      accumulated,  // Số dư (0 trong mẫu, nhưng dùng nếu có)
+      content,  // Nội dung ngắn (fallback cho description)
+      referenceCode  // Có thể dùng làm unique ID nếu cần
+    } = payload;
 
-    const amount = Number(amount_in || amount_out || 0);
-    const transferType = amount_in > 0 ? 'in' : 'out';
-    const effectiveDate = transaction_date || new Date().toISOString();  // Fallback nếu thiếu
+    // Convert date sang ISO
+    const transaction_date = new Date(rawDate.replace(' ', 'T') + 'Z').toISOString();  // Fix format nếu cần timezone
+    const effectiveDescription = description || content || 'Giao dịch từ SePay webhook';
+    const status = 'Hoàn tất';  // Giả sử completed vì là notify
+
+    // Xác định type: in -> income, out -> expense
+    const transferTypeMapped = transferType.toLowerCase();
+    const amountInOut = transferTypeMapped === 'in' ? amount : 0;
+    const amountOutIn = transferTypeMapped === 'out' ? amount : 0;
+    const typeMapped = transferTypeMapped === 'in' ? 'income' : 'expense';
 
     const autoConfirmedData = {
       response_type: 'transaction',
       transactions: [{
-        id: transaction_id || uuidv4(),  // Fallback ID
+        id: transaction_id || referenceCode || uuidv4(),  // Ưu tiên id > referenceCode
         amount: Math.abs(amount),
-        type: transferType === 'in' ? 'income' : 'expense',
-        category_id: 9,  // Default category
-        description,
-        transaction_date: effectiveDate,
+        type: typeMapped,
+        category_id: 9,  // Default category (có thể map từ content nếu cần)
+        description: effectiveDescription,
+        transaction_date: transaction_date,
         group_name: 'Giao dịch SePay',
       }],
       total_amount: Math.abs(amount),
-      transaction_date: effectiveDate,
+      transaction_date: transaction_date,
       user_id: demoUserId,
     };
 
@@ -159,22 +171,27 @@ app.post('/api/sepay/webhook', async (req, res) => {
       user_input: 'Giao dịch từ webhook SePay',
       ai_suggested: autoConfirmedData,
       confirmed: true,  // Không cần form xác nhận
+    }).catch(err => {
+      console.error('Error auto-confirming transaction:', err.message);
+      // Không throw để tránh fail toàn bộ webhook
     });
 
     // Tạo tin nhắn chat
     const transactionMessage = {
       message_id: uuidv4(),
-      content: `🔔 Giao dịch mới: ${transferType === 'in' ? 'Nhận' : 'Chuyển'} ${Math.abs(amount).toLocaleString()} VND. Nội dung: ${description}. Trạng thái: ${status || 'Hoàn tất'}. ${accumulated ? `Số dư: ${Number(accumulated).toLocaleString()} VND.` : ''}`,
+      content: `🔔 Giao dịch mới: ${transferTypeMapped === 'in' ? 'Nhận' : 'Chuyển'} ${Math.abs(amount).toLocaleString()} VND. Nội dung: ${effectiveDescription}. Trạng thái: ${status}. ${accumulated ? `Số dư: ${Number(accumulated).toLocaleString()} VND.` : ''}`,
       role: 'assistant',
-      timestamp: new Date(effectiveDate),
+      timestamp: new Date(transaction_date),
       structured: autoConfirmedData,
       intent: 'auto_confirmed_transaction',
     };
 
-    // Lưu chat history
+    // Lưu chat history vào DB
     const saved = await saveChatHistory(demoUserId, [transactionMessage]);
     if (!saved) {
-      console.error('Failed to save chat history');
+      console.error('Failed to save chat history for webhook');
+    } else {
+      console.log('✅ Saved chat history for transaction:', transaction_id);
     }
 
     // Emit socket realtime đến web (nếu user online)
