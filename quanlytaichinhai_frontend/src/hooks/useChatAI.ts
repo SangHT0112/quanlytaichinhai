@@ -9,7 +9,7 @@ import { useTransaction } from '@/contexts/TransactionContext';
 import { fetchOverview } from '@/api/overviewApi';
 import { MessageRole } from '@/utils/types';
 import { isSuggestNewCategoryStructured, isTransactionStructuredData } from '@/utils/typeGuards';
-import { Socket } from 'socket.io-client'; // Thêm import cho Socket
+import { Socket } from 'socket.io-client';
 import { toast } from 'react-toastify';
 
 // Define interface for socket message data to avoid 'any'
@@ -48,114 +48,183 @@ export const useChatAI = () => {
     setSocket(sock);
   }, []);
 
-  // Lắng nghe receive_message để đồng bộ tin nhắn real-time
+  // ✅ FIX: handleReceiveMessage dùng useCallback với deps stable (tránh loop re-bind)
+  const handleReceiveMessage = useCallback((data: SocketMessageData) => {
+    console.log('🔥 Received message from socket:', data);  // Debug log
+
+    // Check duplicate
+    if (data.id && messages.some(msg => msg.id === data.id)) {
+      console.log('Skipped duplicate:', data.id);
+      return;
+    }
+
+    const newMessage: ChatMessage = {
+      id: data.id || uuidv4(),
+      content: data.content,
+      role: data.role as MessageRole,
+      timestamp: data.timestamp ? new Date(data.timestamp) : new Date(),
+      structured: data.structured || undefined,
+      intent: data.intent || undefined,
+      imageUrl: data.imageUrl || undefined,
+      user_input: data.user_input || undefined,
+    };
+
+    setMessages((prev) => {
+      const updated = [...prev, newMessage];
+      // ✅ THÊM: Scroll to bottom sau append
+      setTimeout(() => messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' }), 100);
+      return updated;
+    });
+
+    // Backup save (optional)
+    saveChatHistory(currentUser?.user_id || 0, [newMessage]).catch(console.error);
+
+    if (newMessage.role === MessageRole.ASSISTANT) {
+      setIsLoading(false);
+    }
+
+    // Redirect plan_created
+    interface PlanCreatedStructured { response_type: 'plan_created'; }
+    const structuredData = newMessage.structured as PlanCreatedStructured | undefined;
+    if (newMessage.role === MessageRole.ASSISTANT && structuredData?.response_type === 'plan_created') {
+      console.log('Redirecting to /financial_plan after planning confirmed');
+      setTimeout(() => router.push('/financial_plan'), 1500);
+    }
+
+    // Auto-confirmed handling (chỉ intent cụ thể, remove || 'transaction' nếu không cần)
+    if (newMessage.intent === 'auto_confirmed_transaction') {
+      console.log('🔔 Handling auto-confirmed from webhook:', newMessage.structured);
+      toast.success(newMessage.content, {
+        position: 'top-right',
+        autoClose: 5000,
+        toastId: newMessage.id,
+        onClick: () => console.log('Chi tiết giao dịch tự động:', newMessage.structured),
+      });
+
+      setConfirmedIds((prev) => {
+        const newConfirmedIds = [...prev, newMessage.id];
+        localStorage.setItem('confirmedIds', JSON.stringify({
+          user_id: currentUser?.user_id || 1,
+          ids: newConfirmedIds,
+          expiry: new Date(new Date().setDate(new Date().getDate() + 1)).toISOString(),
+        }));
+        return newConfirmedIds;
+      });
+
+      refreshTransactionGroups();
+      fetchOverview(currentUser?.user_id || 1).then((summary) => {
+        console.log('Updated financial summary after auto-confirm:', summary.actual_balance);
+      });
+    }
+  }, [currentUser?.user_id, router, refreshTransactionGroups]);  // Stable deps
+
+    // ✅ UNIQUE fetchHistory: Chỉ 1 version (load 7 ngày, sort time)
+    const fetchHistory = useCallback(async () => {
+      try {
+        setIsLoading(true);
+        setError(null);
+
+        const today = new Date().toISOString().split('T')[0];
+        const history = await getChatHistory(currentUser?.user_id, 50, today);
+
+        const uniqueHistory: ChatMessage[] = Array.from(
+          new Map(history.map((msg: ChatMessage) => [msg.id, {
+            ...msg,
+            role: msg.role ?? MessageRole.USER,
+            timestamp: msg.timestamp || new Date(),
+          }])).values()
+        ).sort((a, b) => new Date(a.timestamp).getTime() - new Date(b.timestamp).getTime());
+
+        setMessages(uniqueHistory);
+        console.log(`📥 Loaded ${uniqueHistory.length} messages (for ${today})`);
+      } catch (err) {
+        console.error('Error fetching history:', err);
+        setError('Lỗi khi tải lịch sử chat.');
+      } finally {
+        setIsLoading(false);
+      }
+}, [currentUser?.user_id]);
+
+
+  // ✅ useEffect socket: Bind handler đúng cách
   useEffect(() => {
     if (!socket) return;
 
-    const handleReceiveMessage = (data: SocketMessageData) => {
-      console.log('Received message from socket:', data);
-      const newMessage: ChatMessage = {
-        id: data.id || uuidv4(), // Fallback nếu server không gửi id
-        content: data.content,
-        role: data.role as MessageRole,
-        timestamp: data.timestamp ? new Date(data.timestamp) : new Date(),
-        structured: data.structured || undefined,
-        intent: data.intent || undefined,
-        imageUrl: data.imageUrl || undefined,
-        user_input: data.user_input || undefined,
-      };
-
-      // Append message (server emit cả user và AI message)
-      setMessages((prev) => [...prev, newMessage]);
-
-      // Lưu vào DB nếu cần (server đã lưu, nhưng để backup)
-      saveChatHistory(currentUser?.user_id || 0, [newMessage]).catch((err) => {
-        console.error('Error saving message:', err);
-      });
-
-      // Dừng loading sau khi nhận AI response (role ASSISTANT)
-      if (newMessage.role === MessageRole.ASSISTANT) {
-        setIsLoading(false);
-      }
-
-      // ✅ THÊM REDIRECT Ở ĐÂY: Tự động chuyển đến /financial_plan khi tạo kế hoạch thành công
-      // Define a specific type for plan_created structured data
-      interface PlanCreatedStructured {
-        response_type: 'plan_created';
-      }
-      // Sử dụng type assertion để tránh TS error vì StructuredData không có response_type
-      const structuredData = newMessage.structured as PlanCreatedStructured | undefined;
-      if (newMessage.role === MessageRole.ASSISTANT && structuredData?.response_type === 'plan_created') {
-        console.log('Redirecting to /financial_plan after planning confirmed');
-        // Có thể delay 1s để user thấy message trước khi redirect
-        setTimeout(() => {
-          router.push('/financial_plan');
-        }, 1500); // Optional: Delay để UX mượt
-      }
-
-      // ✅ THÊM XỬ LÝ AUTO-CONFIRMED TRANSACTION: Nếu intent = 'auto_confirmed_transaction' hoặc 'transaction' với group_name 'Giao dịch tự động'
-      if (newMessage.intent === 'auto_confirmed_transaction' || 
-          (newMessage.intent === 'transaction')) {  // Điều kiện match message từ ngân hàng
-
-        // Hiển thị toast confirm (pop-up) - giữ nguyên
-        toast.success(newMessage.content, {
-          position: 'top-right',
-          autoClose: 5000,
-          toastId: newMessage.id,
-          onClick: () => {
-            console.log('Chi tiết giao dịch tự động:', newMessage.structured);
-            // Optional: Mở modal chi tiết hoặc navigate
-          },
-        });
-
-        // ✅ FIX MỚI: Tự động add ID vào confirmedIds để UI hiển thị confirmed view ngay
-        setConfirmedIds((prev) => {
-          const newConfirmedIds = [...prev, newMessage.id];
-          // Lưu localStorage với expiry 1 ngày (giữ nguyên logic cũ)
-          localStorage.setItem('confirmedIds', JSON.stringify({
-            user_id: currentUser?.user_id || 1,
-            ids: newConfirmedIds,
-            expiry: new Date(new Date().setDate(new Date().getDate() + 1)).toISOString(),
-          }));
-          return newConfirmedIds;
-        });
-
-        // Refresh transaction groups và overview (update UI số dư/list) - giữ nguyên
-        refreshTransactionGroups();
-        fetchOverview(currentUser?.user_id || 1).then((summary) => {
-          console.log('Updated financial summary after auto-confirm:', summary.actual_balance);
-          // Optional: Update global state số dư nếu có context
-        });
-
-        // Optional: Append một confirm message ngắn gọn nếu muốn (nhưng có thể skip để UI sạch)
-        // const autoConfirmMsg: ChatMessage = {
-        //   id: uuidv4(),
-        //   content: `✅ Giao dịch từ ngân hàng đã được tự động lưu. Số dư: ${summary.actual_balance.toLocaleString('vi-VN')} VND`,
-        //   role: MessageRole.ASSISTANT,
-        //   timestamp: new Date(),
-        // };
-        // setMessages((prev) => [...prev, autoConfirmMsg]);  // Hoặc emit socket nếu cần sync
-
-        // Không cần stop loading vì không liên quan
-      }
-    };
-
-    
-
+    console.log('🔌 Binding socket listeners');  // Debug
     socket.on('receive_message', handleReceiveMessage);
- 
-    // Lắng nghe error từ socket
     socket.on('error', (err: string) => {
       console.error('Socket error:', err);
       setError(err);
       setIsLoading(false);
     });
 
+    // ✅ THÊM: Listen refetch từ backend (nếu dùng)
+    socket.on('refetch_history', () => {
+      console.log('🔄 Refetching history on reconnect');
+      fetchHistory();  // Call hàm fetch
+    });
+
     return () => {
+      console.log('🔌 Unbinding listeners');
       socket.off('receive_message', handleReceiveMessage);
       socket.off('error');
+      socket.off('refetch_history');
     };
-  }, [socket, currentUser?.user_id, router, refreshTransactionGroups]);
+  }, [socket, handleReceiveMessage]);  // Deps: handle là callback ổn định
+
+  // ✅ THÊM: useEffect cho connect & user_online (refetch sau reconnect)
+  useEffect(() => {
+    if (!socket || !currentUser?.user_id) return;
+
+    const handleConnect = () => {
+      console.log('✅ Socket connected, emitting user_online & refetch');  // Debug
+      socket.emit('user_online', currentUser.user_id);  // Emit để backend add sockets
+      // Refetch ngay để load missed webhook
+      fetchHistory();  // Define hàm dưới
+    };
+
+    socket.on('connect', handleConnect);
+
+    // Nếu đã connect rồi (reconnect), emit ngay
+    if (socket.connected) {
+      handleConnect();
+    }
+
+    return () => { socket.off('connect', handleConnect); };
+  }, [socket, currentUser?.user_id, fetchHistory]);
+
+  
+
+  // ✅ Mount effect: Fetch initial history (NO duplicate define)
+  useEffect(() => {
+    const user = localStorage.getItem('user');
+    if (!user) {
+      console.warn('No user found in localStorage, redirecting to login');
+      router.push('/login');
+      return;
+    }
+    if (currentUser?.user_id) {
+      fetchHistory();
+    }
+  }, [router, currentUser?.user_id, fetchHistory]);  // Deps OK
+
+  // ConfirmedIds effect
+  useEffect(() => {
+    const savedConfirmedIds = localStorage.getItem('confirmedIds');
+    if (savedConfirmedIds) {
+      try {
+        const parsed = JSON.parse(savedConfirmedIds);
+        if (parsed.user_id === currentUser?.user_id && new Date(parsed.expiry) > new Date()) {
+          setConfirmedIds(parsed.ids);
+        } else {
+          localStorage.removeItem('confirmedIds');
+        }
+      } catch (e) {
+        console.warn('⚠️ Lỗi khi đọc confirmedIds:', e);
+        localStorage.removeItem('confirmedIds');
+      }
+    }
+  }, [currentUser?.user_id]);
 
   const sendToApi = useCallback(async (message: string, updatedMessages: ChatMessage[], imageData?: FormData) => {
     if (isApiProcessing.current) return;
@@ -240,9 +309,6 @@ export const useChatAI = () => {
 
   const handleSendMessage = useCallback(async (message: string, imageData?: FormData) => {
       if (!message.trim() && !imageData) return;
-
-      // Không append user message local nữa, chờ server emit back (để sync multi-tab)
-      // Nhưng cho UX instant, có thể append temp và replace sau, nhưng giữ đơn giản: chờ server
 
       setInputValue('');
       setIsLoading(true);
@@ -428,7 +494,6 @@ export const useChatAI = () => {
       }
     };
 
-
   const handleSaveEdit = async (messageId: string, editedData: TransactionData, editingIndex: number): Promise<void> => {
         console.log('SAVE EDIT PAYLOAD:', {
           messageId,
@@ -484,70 +549,10 @@ export const useChatAI = () => {
           });
         }
       };
-    const handleQuickAction = (action: string) => {
+
+  const handleQuickAction = (action: string) => {
     handleSendMessage(action);
   };
-
-  // Effects
-  useEffect(() => {
-    const user = localStorage.getItem('user');
-    if (!user) {
-      console.warn('No user found in localStorage, redirecting to login');
-      router.push('/login');
-      return;
-    }
-
-    const fetchHistory = async () => {
-      try {
-        setIsLoading(true);
-        setError(null);
-
-        const today = new Date().toISOString().split("T")[0];
-        const history = await getChatHistory(currentUser?.user_id, 50, today);
-
-        const uniqueHistory: ChatMessage[] = Array.from(
-          new Map(
-            history.map((msg: ChatMessage) => [
-              msg.id,
-              {
-                ...msg,
-                role: msg.role ?? MessageRole.USER,
-                timestamp: msg.timestamp,
-              },
-            ])
-          ).values()
-        );
-
-        setMessages(uniqueHistory);
-      } catch (err) {
-        console.error("⚠️ Lỗi khi lấy lịch sử chat:", err);
-        setError("Lỗi khi tải lịch sử chat. Vui lòng thử lại.");
-      } finally {
-        setIsLoading(false);
-      }
-    };
-
-    if (currentUser?.user_id) {
-      fetchHistory();
-    }
-  }, [router, currentUser?.user_id]);
-
-  useEffect(() => {
-    const savedConfirmedIds = localStorage.getItem('confirmedIds');
-    if (savedConfirmedIds) {
-      try {
-        const parsed = JSON.parse(savedConfirmedIds);
-        if (parsed.user_id === currentUser?.user_id && new Date(parsed.expiry) > new Date()) {
-          setConfirmedIds(parsed.ids);
-        } else {
-          localStorage.removeItem('confirmedIds');
-        }
-      } catch (e) {
-        console.warn('⚠️ Lỗi khi đọc confirmedIds:', e);
-        localStorage.removeItem('confirmedIds');
-      }
-    }
-  }, [currentUser?.user_id]);
 
   return {
     messages,
@@ -564,5 +569,4 @@ export const useChatAI = () => {
     currentUser,
     initializeSocket
   };
-
-}
+};

@@ -50,6 +50,15 @@ app.use('/api/category', categoryRoutes);
 app.use('/api/savings-plans', savingsPlansRoutes);
 app.use('/api/ai', aiRoutes);
 app.use('/public', express.static(path.join(process.cwd(), 'public')));
+
+
+// Cache để lưu last_transaction_id (demo 1 user, dùng Map global - production dùng Redis)
+const lastTransactionCache = new Map();  // key: user_id, value: last_id (string) từ lần poll trước
+
+// Cache đơn giản: Chỉ lưu last_date (string, ISO format) - key: user_id
+const lastDateCache = new Map();  // key: user_id, value: last_transaction_date
+
+
 // Route lấy lịch sử SePay (demo 1 TK, dùng default nếu không truyền param)
 app.get('/api/get-sepay', async (req, res) => {
   try {
@@ -89,60 +98,74 @@ app.get('/api/get-sepay', async (req, res) => {
   }
 });
 
-// Cache để lưu last_transaction_id (demo 1 user, dùng Map global - production dùng Redis)
-const lastTransactionCache = new Map();  // key: user_id, value: last_id (string) từ lần poll trước
-
-// Cache đơn giản: Chỉ lưu last_date (string, ISO format) - key: user_id
-const lastDateCache = new Map();  // key: user_id, value: last_transaction_date
 
 // ✅ Webhook route cho SePay (sửa để xử lý payload phẳng)
 app.post('/api/sepay/webhook', async (req, res) => {
   try {
-    console.log('Webhook received:', req.body);  // Debug: Log full payload
+    console.log('Webhook received:', req.body);  // Debug
 
-    // Verify signature nếu có secret
+    // Verify signature (giữ nguyên)
     const secret = process.env.SEPAY_WEBHOOK_SECRET;
     if (secret) {
       const signature = req.headers['x-signature'];
-      if (!signature) {
-        return res.status(401).json({ error: 'Missing signature' });
-      }
+      if (!signature) return res.status(401).json({ error: 'Missing signature' });
       const hash = crypto.createHmac('sha256', secret).update(JSON.stringify(req.body)).digest('hex');
       if (hash !== signature) {
-        console.log('Invalid signature:', { received: signature, calculated: hash });  // Debug
+        console.log('Invalid signature:', { received: signature, calculated: hash });
         return res.status(401).json({ error: 'Invalid signature' });
       }
     }
 
     const payload = req.body;
-    
-    // ✅ FIX: Xử lý payload phẳng (không có event/data wrapper)
-    // Giả sử đây là TRANSACTION_COMPLETED nếu có transferAmount và transferType
     if (!payload.transferAmount || !payload.transferType) {
-      console.log('Skipped invalid payload (no transferAmount or transferType)');  // Debug
-      return res.status(200).json({ received: true });  // OK để tránh retry
+      console.log('Skipped invalid payload');
+      return res.status(200).json({ received: true });
     }
 
-    // Map user_id từ accountNumber (demo hardcoded; production: query DB)
-    const demoUserId = 15;  // Hoặc: await getUserIdByAccount(payload.accountNumber)
-    // ✅ Map fields từ payload thực tế
+    // Map user_id (demo hardcoded; production: query DB)
+    const demoUserId = 1;
+    // ✅ FIX: Parse date an toàn, chỉ + seconds nếu thiếu
     const { 
-      id: transaction_id,  // id từ payload
-      transferType,  // 'in' hoặc 'out'
-      transferAmount: amount,  // Số tiền
-      description,  // Mô tả chi tiết
+      id: transaction_id,
+      transferType,
+      transferAmount: amount,
+      description,
       transactionDate: rawDate,  // '2025-10-28 09:47:57'
-      accumulated,  // Số dư (0 trong mẫu, nhưng dùng nếu có)
-      content,  // Nội dung ngắn (fallback cho description)
-      referenceCode  // Có thể dùng làm unique ID nếu cần
+      accumulated,
+      content,
+      referenceCode,
+      accountNumber  // Không dùng trong payload trước, nhưng OK
     } = payload;
 
-    // Convert date sang ISO
-    const transaction_date = new Date(rawDate.replace(' ', 'T') + 'Z').toISOString();  // Fix format nếu cần timezone
-    const effectiveDescription = description || content || 'Giao dịch từ SePay webhook';
-    const status = 'Hoàn tất';  // Giả sử completed vì là notify
+    // Parse date: Ưu tiên format chuẩn, fallback nếu invalid
+    let transaction_date;
+    try {
+      // Cách 1: JS tự parse 'YYYY-MM-DD HH:mm:ss' → UTC
+      let parsedDate = new Date(rawDate);
+      
+      // Nếu invalid (e.g., format lạ), manual split
+      if (isNaN(parsedDate.getTime())) {
+        const [datePart, timePart] = rawDate.split(' ');
+        const [year, month, day] = datePart.split('-').map(Number);
+        const [hour, minute, second] = timePart.split(':').map(Number);
+        parsedDate = new Date(Date.UTC(year, month - 1, day, hour, minute, second));  // Assume UTC
+      }
+      
+      // ✅ Adjust VN timezone (+7h nếu rawDate là local time)
+      parsedDate.setHours(parsedDate.getHours() + 7);  // Chỉ +7 nếu rawDate không phải UTC
+      
+      transaction_date = parsedDate.toISOString();  // Bây giờ valid!
+      
+      console.log('✅ Parsed date:', rawDate, '→', transaction_date);  // Debug log
+    } catch (dateError) {
+      console.error('Date parse error:', dateError.message, 'Fallback to now');
+      transaction_date = new Date().toISOString();  // Fallback an toàn
+    }
 
-    // Xác định type: in -> income, out -> expense
+
+
+    const effectiveDescription = description || content || 'Giao dịch từ SePay webhook';
+    const status = 'Hoàn tất';
     const transferTypeMapped = transferType.toLowerCase();
     const amountInOut = transferTypeMapped === 'in' ? amount : 0;
     const amountOutIn = transferTypeMapped === 'out' ? amount : 0;
@@ -151,62 +174,66 @@ app.post('/api/sepay/webhook', async (req, res) => {
     const autoConfirmedData = {
       response_type: 'transaction',
       transactions: [{
-        id: transaction_id || referenceCode || uuidv4(),  // Ưu tiên id > referenceCode
+        id: transaction_id || referenceCode || uuidv4(),
         amount: Math.abs(amount),
         type: typeMapped,
-        category_id: 9,  // Default category (có thể map từ content nếu cần)
+        category_id: 9,
         description: effectiveDescription,
-        transaction_date: transaction_date,
+        transaction_date,
         group_name: 'Giao dịch SePay',
       }],
       total_amount: Math.abs(amount),
-      transaction_date: transaction_date,
+      transaction_date,
       user_id: demoUserId,
     };
 
-    // Tự động confirm (thêm vào DB qua AI route)
+    // Auto-confirm (giữ nguyên)
     const backendUrl = process.env.BACKEND_URL || 'http://localhost:4000';
     await axios.post(`${backendUrl}/api/ai/confirm`, {
       user_id: demoUserId,
       user_input: 'Giao dịch từ webhook SePay',
       ai_suggested: autoConfirmedData,
-      confirmed: true,  // Không cần form xác nhận
-    }).catch(err => {
-      console.error('Error auto-confirming transaction:', err.message);
-      // Không throw để tránh fail toàn bộ webhook
-    });
+      confirmed: true,
+    }).catch(err => console.error('Error auto-confirming:', err.message));
 
-    // Tạo tin nhắn chat
+    // ✅ Tạo tin nhắn (giữ nguyên, nhưng thêm check duplicate nếu cần)
     const transactionMessage = {
-      message_id: uuidv4(),
+      message_id: uuidv4(),  // Unique ID
       content: `🔔 Giao dịch mới: ${transferTypeMapped === 'in' ? 'Nhận' : 'Chuyển'} ${Math.abs(amount).toLocaleString()} VND. Nội dung: ${effectiveDescription}. Trạng thái: ${status}. ${accumulated ? `Số dư: ${Number(accumulated).toLocaleString()} VND.` : ''}`,
       role: 'assistant',
-      timestamp: new Date(transaction_date),
+      timestamp: new Date(transaction_date),  // Use transaction time
       structured: autoConfirmedData,
       intent: 'auto_confirmed_transaction',
+      user_input: 'Giao dịch từ webhook',  // Để match confirm logic
     };
 
-    // Lưu chat history vào DB
+    // Lưu DB (giữ nguyên)
     const saved = await saveChatHistory(demoUserId, [transactionMessage]);
-    if (!saved) {
-      console.error('Failed to save chat history for webhook');
-    } else {
-      console.log('✅ Saved chat history for transaction:', transaction_id);
-    }
+    if (!saved) console.error('Failed to save chat history');
 
-    // Emit socket realtime đến web (nếu user online)
+    // ✅ Emit socket (thêm log, và chỉ emit nếu user online)
     const socketSet = userSockets.get(demoUserId);
     if (socketSet && socketSet.size > 0) {
-      socketSet.forEach((socketId) => io.to(socketId).emit('receive_message', transactionMessage));
-      console.log(`📩 Emitted to user ${demoUserId} sockets: ${socketSet.size}`);
+      socketSet.forEach((socketId) => {
+        io.to(socketId).emit('receive_message', {
+          id: transactionMessage.message_id,  // Match frontend
+          content: transactionMessage.content,
+          role: transactionMessage.role,
+          timestamp: transactionMessage.timestamp.toISOString(),  // ISO string
+          structured: transactionMessage.structured,
+          intent: transactionMessage.intent,
+          user_input: transactionMessage.user_input,
+        });
+      });
+      console.log(`📩 Emitted auto-transaction to user ${demoUserId} (${socketSet.size} sockets)`);
     } else {
-      console.log(`💾 User ${demoUserId} offline: Saved to DB only`);
+      console.log(`💾 User ${demoUserId} offline: Saved to DB only (will load on reconnect)`);
     }
 
-    console.log(`✅ Webhook processed: ${transaction_id || 'unknown'} for user ${demoUserId}`);
+    console.log(`✅ Webhook processed: ${transaction_id || 'unknown'}`);
     res.status(200).json({ received: true, processed: transaction_id || 'unknown' });
   } catch (error) {
-    console.error('Webhook error:', error.message || error);
+    console.error('Webhook error:', error);
     res.status(500).json({ error: 'Internal error', details: error.message });
   }
 });
@@ -247,6 +274,15 @@ io.on('connection', (socket) => {
     } catch (err) {
       console.error('user_online handler error:', err);
     }
+
+    // ✅ THÊM: Sau connect, emit event để frontend refetch history (nếu cần)
+    socket.on('connect_ack', () => {  // Client emit 'connect_ack' sau connect
+      const userId = onlineUsers.get(socket.id);
+      if (userId) {
+        console.log(`🔄 Trigger refetch history for user ${userId} on reconnect`);
+        socket.emit('refetch_history');  // Frontend listen & call fetchHistory
+      }
+    });
   });
 
   // Xử lý tin nhắn mới (FIXED: hỗ trợ clientId, full fields cho error)
