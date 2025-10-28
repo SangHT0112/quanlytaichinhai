@@ -110,43 +110,46 @@ export const getChatHistoryByDate = async (userId, date, limit = 50) => {
     return [];
   }
 
+  const safeUserId = Number(userId);
+  const safeDate = new Date(date).toISOString().split("T")[0]; // yyyy-mm-dd
+  const safeLimit = Number(limit) || 50;
+
   try {
     const [rows] = await db.execute(
       `SELECT 
-         message_id as id,
+         message_id AS id,
          content,
          role,
          timestamp,
-         structured_data as structured,
+         structured_data AS structured,
          custom_content,
-         image_url as imageUrl,
+         image_url AS imageUrl,
          intent,
          user_input
        FROM chat_histories
        WHERE user_id = ? AND DATE(timestamp) = ?
        ORDER BY timestamp ASC
        LIMIT ?`,
-      [userId, date, limit]
+      [safeUserId, safeDate, safeLimit]
     );
 
     return rows.map(row => {
+      let structured = null;
+      let custom_content = null;
       try {
-        let structured = row.structured ? JSON.parse(row.structured) : null;
-        return {
-          ...row,
-          timestamp: new Date(row.timestamp),
-          structured,
-          custom_content: row.custom_content ? JSON.parse(row.custom_content) : null,
-          imageUrl: row.image_url || undefined,
-          user_input: row.user_input || undefined,
-        };
-      } catch {
-        return { ...row, structured: null, custom_content: null, timestamp: new Date(row.timestamp) };
-      }
+        structured = row.structured ? JSON.parse(row.structured) : null;
+        custom_content = row.custom_content ? JSON.parse(row.custom_content) : null;
+      } catch {}
+      return {
+        ...row,
+        timestamp: new Date(row.timestamp),
+        structured,
+        custom_content,
+      };
     });
   } catch (error) {
-    console.error("Lỗi khi lấy lịch sử chat theo ngày:", error);
+    console.error("🔥 Lỗi khi lấy lịch sử chat theo ngày:", error);
+    console.log("➡️ Params:", { safeUserId, safeDate, safeLimit });
     return [];
   }
 };
-

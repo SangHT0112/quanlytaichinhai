@@ -123,7 +123,27 @@ app.post('/api/sepay/webhook', async (req, res) => {
     }
 
     // Map user_id (demo hardcoded; production: query DB)
-    const demoUserId = 1;
+    // 🔍 Lấy user_id theo bank_account (tự động thay vì hardcode)
+    let demoUserId;
+    const effectiveAccount = payload.accountNumber || process.env.DEFAULT_ACCOUNT_NUMBER;
+
+    try {
+      const [rows] = await db.execute(
+        'SELECT user_id FROM users WHERE bank_account = ? LIMIT 1',
+        [effectiveAccount]
+      );
+
+      if (rows.length === 0) {
+        console.warn(`⚠️ Không tìm thấy user có bank_account = ${effectiveAccount}`);
+        return res.status(404).json({ error: 'User not found for this bank account' });
+      }
+
+      demoUserId = rows[0].user_id;
+    } catch (dbErr) {
+      console.error('Lỗi khi truy vấn user_id:', dbErr);
+      return res.status(500).json({ error: 'Database error when finding user_id' });
+    }
+
     // ✅ FIX: Parse date an toàn, chỉ + seconds nếu thiếu
     const { 
       id: transaction_id,

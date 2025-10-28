@@ -1,5 +1,6 @@
-import db from "../../config/db.js"
+import db from "../../config/db.js";
 
+// ======================== LẤY GIAO DỊCH NGƯỜI DÙNG ========================
 export const getTransactionsByUserId = async (userId, limit = null) => {
   let query = `
     SELECT 
@@ -15,38 +16,29 @@ export const getTransactionsByUserId = async (userId, limit = null) => {
     LEFT JOIN categories c ON t.category_id = c.category_id
     WHERE t.user_id = ?
     ORDER BY t.transaction_date DESC
-  `
-  
-  const params = [userId]
-  
-  // Thêm LIMIT nếu có yêu cầu
-  if (limit && Number.isInteger(limit)) {
-    query += ' LIMIT ?'
-    params.push(limit)
+  `;
+
+  const params = [Number(userId)];
+
+  const safeLimit = Number(limit);
+  if (!isNaN(safeLimit) && safeLimit > 0) {
+    query += " LIMIT ?";
+    params.push(safeLimit);
   }
 
-  const [rows] = await db.execute(query, params)
-
+  const [rows] = await db.execute(query, params);
   return rows.map((t) => ({
     id: t.transaction_id,
     description: t.description,
     amount: Number(t.amount),
     type: t.type,
     category: t.category_name || "Không rõ",
-    icon: t.category_icon || (t.type === 'income' ? '💰' : '💸'),
-    date: t.transaction_date
-  }))
-}
+    icon: t.category_icon || (t.type === "income" ? "💰" : "💸"),
+    date: t.transaction_date,
+  }));
+};
 
-
-// Lấy 5 giao dịch gần nhất
-//const recentTransactions = await getTransactionsByUserId(userId, 5)
-
-// Lấy tất cả giao dịch (không giới hạn)
-//const allTransactions = await getTransactionsByUserId(userId)
-
-
-
+// ======================== THÊM GIAO DỊCH ========================
 export const addTransaction = async (transactionData) => {
   const {
     user_id,
@@ -56,7 +48,7 @@ export const addTransaction = async (transactionData) => {
     type,
     description,
     transaction_date,
-    group_id
+    group_id,
   } = transactionData;
 
   const query = `
@@ -67,20 +59,20 @@ export const addTransaction = async (transactionData) => {
   `;
 
   const [result] = await db.execute(query, [
-    user_id,
-    amount,
-    category_id,
+    Number(user_id),
+    Number(amount),
+    category_id || null,
     purpose_id || null,
     type,
     description,
     transaction_date,
-    group_id || null
+    group_id || null,
   ]);
 
   return result.insertId;
-}
+};
 
-
+// ======================== TẠO NHÓM GIAO DỊCH ========================
 export const createTransactionGroup = async (groupData) => {
   const query = `
     INSERT INTO transaction_groups 
@@ -88,19 +80,18 @@ export const createTransactionGroup = async (groupData) => {
     VALUES (?, ?, ?, ?)
   `;
   const [result] = await db.execute(query, [
-    groupData.user_id,
+    Number(groupData.user_id),
     groupData.group_name,
-    groupData.total_amount,
-    groupData.transaction_date
+    Number(groupData.total_amount),
+    groupData.transaction_date,
   ]);
   return result.insertId;
-}
+};
 
-// lấy các giao dịch trong 1 thời gian yêu cầu
-// lấy các giao dịch trong 1 thời gian yêu cầu
+// ======================== LẤY NHÓM GIAO DỊCH ========================
 export const getTransactionGroupsByUserId = async (
   userId,
-  limit = null,
+  limit = 10,
   offset = 0,
   dateFilter = null
 ) => {
@@ -109,7 +100,7 @@ export const getTransactionGroupsByUserId = async (
       tg.group_id,
       tg.group_name,
       tg.transaction_date,
-      tg.created_at,    -- thêm trường này
+      tg.created_at,
       COUNT(t.transaction_id) AS transaction_count,
       COALESCE(SUM(
         CASE 
@@ -125,7 +116,7 @@ export const getTransactionGroupsByUserId = async (
 
   const params = [Number(userId)];
 
-  // Lọc theo ngày
+  // Lọc ngày
   if (dateFilter === "today") {
     query += ` AND DATE(tg.transaction_date) = CURDATE()`;
   } else if (dateFilter === "yesterday") {
@@ -140,19 +131,19 @@ export const getTransactionGroupsByUserId = async (
     ORDER BY tg.transaction_date DESC
   `;
 
-  // thêm LIMIT/OFFSET chắc chắn
-  if (limit && Number.isInteger(Number(limit))) {
+  const safeLimit = Number(limit);
+  const safeOffset = Number(offset);
+
+  if (!isNaN(safeLimit) && !isNaN(safeOffset)) {
     query += ` LIMIT ? OFFSET ?`;
-    params.push(Number(limit), Number(offset));
+    params.push(safeLimit, safeOffset);
   }
 
-  // console.log("Executing query:", query, "with params:", params); // Debug
   const [rows] = await db.execute(query, params);
   return rows;
 };
 
-
-//lấy các chi tiết giao dịch trong 1 nhóm yêu cầu
+// ======================== LẤY GIAO DỊCH THEO NHÓM ========================
 export const getTransactionsByGroupId = async (groupId) => {
   const query = `
     SELECT 
@@ -164,13 +155,17 @@ export const getTransactionsByGroupId = async (groupId) => {
     WHERE t.group_id = ?
     ORDER BY t.transaction_date DESC
   `;
-  
-  const [rows] = await db.execute(query, [groupId]);
+
+  const [rows] = await db.execute(query, [Number(groupId)]);
   return rows;
-}
+};
 
-
-export const getRecentTransactionsByUserId = async (userId, limit = 5, offset = 0) => {
+// ======================== LẤY GIAO DỊCH GẦN NHẤT ========================
+export const getRecentTransactionsByUserId = async (
+  userId,
+  limit = 5,
+  offset = 0
+) => {
   const query = `
     SELECT 
       t.transaction_id AS id,
@@ -182,9 +177,13 @@ export const getRecentTransactionsByUserId = async (userId, limit = 5, offset = 
     INNER JOIN transaction_groups tg ON t.group_id = tg.group_id
     WHERE tg.user_id = ?
     ORDER BY t.created_at DESC
-    LIMIT ${Number(limit)} OFFSET ${Number(offset)}
+    LIMIT ? OFFSET ?
   `;
 
-  const [rows] = await db.execute(query, [Number(userId)]);
+  const [rows] = await db.execute(query, [
+    Number(userId),
+    Number(limit),
+    Number(offset),
+  ]);
   return rows;
 };
