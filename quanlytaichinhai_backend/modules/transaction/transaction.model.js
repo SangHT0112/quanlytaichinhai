@@ -130,16 +130,21 @@ export const getTransactionGroupsByUserId = async (
     GROUP BY tg.group_id, tg.group_name, tg.transaction_date, tg.created_at
     ORDER BY tg.transaction_date DESC
   `;
-
-  const safeLimit = Number(limit);
+ const safeLimit = Number(limit);
   const safeOffset = Number(offset);
 
+  let limitOffsetClause = '';
+  let finalParams = [...params];  // Copy params hiện tại (có thể có date nếu có)
+
   if (!isNaN(safeLimit) && !isNaN(safeOffset)) {
-    query += ` LIMIT ? OFFSET ?`;
-    params.push(safeLimit, safeOffset);
+    limitOffsetClause = ` LIMIT ${safeLimit} OFFSET ${safeOffset}`;  // Nội suy
+  } else if (!isNaN(safeLimit)) {
+    limitOffsetClause = ` LIMIT ${safeLimit}`;
   }
 
-  const [rows] = await db.execute(query, params);
+  query += limitOffsetClause;
+
+  const [rows] = await db.execute(query, finalParams);  // Không push LIMIT/OFFSET vào params
   return rows;
 };
 

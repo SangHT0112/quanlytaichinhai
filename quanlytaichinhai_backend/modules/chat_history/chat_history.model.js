@@ -111,8 +111,11 @@ export const getChatHistoryByDate = async (userId, date, limit = 50) => {
   }
 
   const safeUserId = Number(userId);
-  const safeDate = new Date(date).toISOString().split("T")[0]; // yyyy-mm-dd
+  const safeDate = new Date(date).toISOString().split("T")[0];
   const safeLimit = Number(limit) || 50;
+
+  // Xây dựng LIMIT clause mà không dùng ?
+  const limitClause = `LIMIT ${safeLimit}`;
 
   try {
     const [rows] = await db.execute(
@@ -129,8 +132,8 @@ export const getChatHistoryByDate = async (userId, date, limit = 50) => {
        FROM chat_histories
        WHERE user_id = ? AND DATE(timestamp) = ?
        ORDER BY timestamp ASC
-       LIMIT ?`,
-      [safeUserId, safeDate, safeLimit]
+       ${limitClause}`,  // Nội suy LIMIT
+      [safeUserId, safeDate]  // Chỉ 2 params
     );
 
     return rows.map(row => {
