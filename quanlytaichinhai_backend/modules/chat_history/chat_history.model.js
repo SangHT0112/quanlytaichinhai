@@ -1,4 +1,3 @@
-
 import db from "../../config/db.js";
 
 export const saveChatHistory = async (userId, messages) => {
@@ -54,29 +53,40 @@ export const saveChatHistory = async (userId, messages) => {
 };
 
 export const getChatHistory = async (userId, limit = 20) => {
-  if (!userId) {
-    console.error("Thiếu userId");
+  // Strict check cho userId (phải là string hoặc number hợp lệ, tránh undefined/null)
+  if (!userId || (typeof userId !== 'string' && typeof userId !== 'number')) {
+    console.error("userId không hợp lệ:", userId);
     return [];
   }
 
+  // Coerce limit thành number an toàn
+  const safeLimit = Number(limit) || 20;
+  if (isNaN(safeLimit) || safeLimit <= 0) {
+    console.error("limit không hợp lệ:", limit);
+    return [];
+  }
+
+  // SQL query (không filter date ở đây, dùng getChatHistoryByDate nếu cần)
+  const sql = `SELECT 
+    message_id as id,
+    content,
+    role,
+    timestamp,
+    structured_data as structured,
+    custom_content,
+    image_url as imageUrl,
+    intent,
+    user_input
+  FROM chat_histories
+  WHERE user_id = ?
+  ORDER BY timestamp ASC
+  LIMIT ?`;
+
   try {
-    const [rows] = await db.execute(
-      `SELECT 
-         message_id as id,
-         content,
-         role,
-         timestamp,
-         structured_data as structured,
-         custom_content,
-         image_url as imageUrl,
-         intent,
-         user_input
-       FROM chat_histories
-       WHERE user_id = ?
-       ORDER BY timestamp ASC
-       LIMIT ?`,
-      [userId, limit]
-    );
+    // Debug log để trace params trước khi execute
+    console.log('Executing getChatHistory with params:', { userId, limit: safeLimit });
+
+    const [rows] = await db.execute(sql, [userId, safeLimit]);
 
     return rows.map(row => {
       try {
@@ -93,8 +103,16 @@ export const getChatHistory = async (userId, limit = 20) => {
           user_input: row.user_input || undefined,
         };
       } catch (parseError) {
-        console.error('Lỗi khi parse structured/custom_content:', parseError, { structured: row.structured, custom_content: row.custom_content });
-        return { ...row, structured: null, custom_content: null, timestamp: new Date(row.timestamp) };
+        console.error('Lỗi khi parse structured/custom_content:', parseError, { 
+          structured: row.structured, 
+          custom_content: row.custom_content 
+        });
+        return { 
+          ...row, 
+          structured: null, 
+          custom_content: null, 
+          timestamp: new Date(row.timestamp) 
+        };
       }
     });
   } catch (error) {
@@ -103,7 +121,7 @@ export const getChatHistory = async (userId, limit = 20) => {
   }
 };
 
-// Add getChatHistoryByDate if needed
+// Add getChatHistoryByDate if needed (đã có, giữ nguyên nhưng thêm safe check tương tự)
 export const getChatHistoryByDate = async (userId, date, limit = 50) => {
   if (!userId || !date) {
     console.error("Thiếu userId hoặc date");
@@ -111,30 +129,41 @@ export const getChatHistoryByDate = async (userId, date, limit = 50) => {
   }
 
   const safeUserId = Number(userId);
+  if (isNaN(safeUserId)) {
+    console.error("userId không hợp lệ cho getChatHistoryByDate:", userId);
+    return [];
+  }
+
   const safeDate = new Date(date).toISOString().split("T")[0];
   const safeLimit = Number(limit) || 50;
+  if (isNaN(safeLimit) || safeLimit <= 0) {
+    console.error("limit không hợp lệ:", limit);
+    return [];
+  }
 
-  // Xây dựng LIMIT clause mà không dùng ?
+  // Xây dựng LIMIT clause mà không dùng ? (tránh bind error)
   const limitClause = `LIMIT ${safeLimit}`;
 
+  const sql = `SELECT 
+    message_id AS id,
+    content,
+    role,
+    timestamp,
+    structured_data AS structured,
+    custom_content,
+    image_url AS imageUrl,
+    intent,
+    user_input
+  FROM chat_histories
+  WHERE user_id = ? AND DATE(timestamp) = ?
+  ORDER BY timestamp ASC
+  ${limitClause}`;
+
   try {
-    const [rows] = await db.execute(
-      `SELECT 
-         message_id AS id,
-         content,
-         role,
-         timestamp,
-         structured_data AS structured,
-         custom_content,
-         image_url AS imageUrl,
-         intent,
-         user_input
-       FROM chat_histories
-       WHERE user_id = ? AND DATE(timestamp) = ?
-       ORDER BY timestamp ASC
-       ${limitClause}`,  // Nội suy LIMIT
-      [safeUserId, safeDate]  // Chỉ 2 params
-    );
+    // Debug log
+    console.log('Executing getChatHistoryByDate with params:', { safeUserId, safeDate, safeLimit });
+
+    const [rows] = await db.execute(sql, [safeUserId, safeDate]);  // Chỉ 2 params
 
     return rows.map(row => {
       let structured = null;
@@ -142,7 +171,9 @@ export const getChatHistoryByDate = async (userId, date, limit = 50) => {
       try {
         structured = row.structured ? JSON.parse(row.structured) : null;
         custom_content = row.custom_content ? JSON.parse(row.custom_content) : null;
-      } catch {}
+      } catch (parseError) {
+        console.error('Lỗi parse in getChatHistoryByDate:', parseError);
+      }
       return {
         ...row,
         timestamp: new Date(row.timestamp),

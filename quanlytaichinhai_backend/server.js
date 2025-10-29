@@ -100,21 +100,10 @@ app.get('/api/get-sepay', async (req, res) => {
 
 
 // ✅ Webhook route cho SePay (sửa để xử lý payload phẳng)
+// ✅ Webhook route cho SePay (bỏ verify signature/API key, chỉ xử lý payload)
 app.post('/api/sepay/webhook', async (req, res) => {
   try {
     console.log('Webhook received:', req.body);  // Debug
-
-    // Verify signature (giữ nguyên)
-    const secret = process.env.SEPAY_WEBHOOK_SECRET;
-    if (secret) {
-      const signature = req.headers['x-signature'];
-      if (!signature) return res.status(401).json({ error: 'Missing signature' });
-      const hash = crypto.createHmac('sha256', secret).update(JSON.stringify(req.body)).digest('hex');
-      if (hash !== signature) {
-        console.log('Invalid signature:', { received: signature, calculated: hash });
-        return res.status(401).json({ error: 'Invalid signature' });
-      }
-    }
 
     const payload = req.body;
     if (!payload.transferAmount || !payload.transferType) {
@@ -181,8 +170,6 @@ app.post('/api/sepay/webhook', async (req, res) => {
       console.error('Date parse error:', dateError.message, 'Fallback to now');
       transaction_date = new Date().toISOString();  // Fallback an toàn
     }
-
-
 
     const effectiveDescription = description || content || 'Giao dịch từ SePay webhook';
     const status = 'Hoàn tất';
@@ -257,7 +244,6 @@ app.post('/api/sepay/webhook', async (req, res) => {
     res.status(500).json({ error: 'Internal error', details: error.message });
   }
 });
-
 // Khởi tạo HTTP server (di chuyển Maps trước để an toàn, nhưng JS hoisting OK)
 const PORT = process.env.PORT || 4000;
 const httpServer = createServer(app);
