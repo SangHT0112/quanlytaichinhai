@@ -149,26 +149,24 @@ app.post('/api/sepay/webhook', async (req, res) => {
     // Parse date: Ưu tiên format chuẩn, fallback nếu invalid
     let transaction_date;
     try {
-      // Cách 1: JS tự parse 'YYYY-MM-DD HH:mm:ss' → UTC
       let parsedDate = new Date(rawDate);
       
-      // Nếu invalid (e.g., format lạ), manual split
       if (isNaN(parsedDate.getTime())) {
         const [datePart, timePart] = rawDate.split(' ');
         const [year, month, day] = datePart.split('-').map(Number);
         const [hour, minute, second] = timePart.split(':').map(Number);
-        parsedDate = new Date(Date.UTC(year, month - 1, day, hour, minute, second));  // Assume UTC
+        parsedDate = new Date(Date.UTC(year, month - 1, day, hour, minute, second));
       }
       
-      // ✅ Adjust VN timezone (+7h nếu rawDate là local time)
-      parsedDate.setHours(parsedDate.getHours() + 7);  // Chỉ +7 nếu rawDate không phải UTC
+      // ❌ BỎ: parsedDate.setHours(parsedDate.getHours() + 7);  // Gây vượt ngày nếu raw là UTC
+      // ✅ THAY: Format thành MySQL DATETIME (local time, không Z/T)
+      const mysqlDate = parsedDate.toISOString().slice(0, 19).replace('T', ' ');  // '2025-10-29 20:37:39'
+      transaction_date = mysqlDate;  // Bind trực tiếp string này vào SQL
       
-      transaction_date = parsedDate.toISOString();  // Bây giờ valid!
-      
-      console.log('✅ Parsed date:', rawDate, '→', transaction_date);  // Debug log
+      console.log('✅ Parsed MySQL date:', rawDate, '→', transaction_date);
     } catch (dateError) {
-      console.error('Date parse error:', dateError.message, 'Fallback to now');
-      transaction_date = new Date().toISOString();  // Fallback an toàn
+      console.error('Date parse error:', dateError.message);
+      transaction_date = new Date().toISOString().slice(0, 19).replace('T', ' ');
     }
 
     const effectiveDescription = description || content || 'Giao dịch từ SePay webhook';
