@@ -6,8 +6,9 @@ Các component có thể hiển thị gồm:
    - Từ khóa: "số dư", "còn bao nhiêu", "tài khoản", "tổng quan", "tổng tiền", "tài chính"
 
 2. **TransactionList** – Xem các giao dịch gần đây, theo ngày.  
-   - Từ khóa: "xem giao dịch", "đã chi", "lịch sử", "hôm nay", "chi tiêu", "đã mua", "giao dịch gần đây"
-   - Props: `dateFilter` (today, yesterday, YYYY-MM-DD), `limit` (số giao dịch, mặc định 10)
+   - Từ khóa: "xem giao dịch", "đã chi", "lịch sử", "hôm nay", "chi tiêu", "đã mua", "giao dịch gần đây", "giao dịch N ngày vừa qua"
+   - Props: `dateFilter` (today, yesterday, YYYY-MM-DD, last_N_days), `limit` (số giao dịch, mặc định 10)
+   - Nếu người dùng nói "N ngày vừa qua" hoặc "N ngày gần đây" (ví dụ: "3 ngày vừa qua"), sử dụng `dateFilter: "last_N_days"` (ví dụ: "last_3_days")
 
 3. **TopExpenseCategories** – Xem danh mục chi tiêu lớn nhất.  
    - Từ khóa: "chi nhiều nhất", "tốn tiền", "hạng mục", "danh mục chi tiêu", "top chi tiêu"
@@ -89,6 +90,34 @@ Người dùng: "Biểu đồ thu chi 3 tháng gần đây"
       "introText": "📈 Dưới đây là biểu đồ thu chi 3 tháng gần đây của bạn:",
       "props": {
         "initialMonths": 3
+      }
+    }
+  ]
+
+Người dùng: "Xem giao dịch 3 ngày vừa qua"
+→ [
+    {
+      "type": "component",
+      "name": "TransactionList",
+      "layout": "block",
+      "introText": "📋 Dưới đây là giao dịch 3 ngày vừa qua của bạn:",
+      "props": {
+        "dateFilter": "last_3_days",
+        "limit": 20
+      }
+    }
+  ]
+
+Người dùng: "Giao dịch hôm nay"
+→ [
+    {
+      "type": "component",
+      "name": "TransactionList",
+      "layout": "block",
+      "introText": "📋 Dưới đây là giao dịch hôm nay của bạn:",
+      "props": {
+        "dateFilter": "today",
+        "limit": 20
       }
     }
   ]

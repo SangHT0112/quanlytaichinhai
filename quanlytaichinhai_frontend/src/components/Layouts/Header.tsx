@@ -23,7 +23,7 @@ export const Header = ({
         >
           <Menu className="w-5 h-5 text-teal-700" />
         </button>
-        <h2 className="text-xl font-semibold text-teal-800">AI Finance Manager</h2>
+        <h2 className="text-xl font-semibold text-teal-800">Quản lý tài chính AI</h2>
       </div>
 
       <div className="flex items-center gap-4">

@@ -103,7 +103,7 @@ app.get('/api/get-sepay', async (req, res) => {
 // ✅ Webhook route cho SePay (bỏ verify signature/API key, chỉ xử lý payload)
 app.post('/api/sepay/webhook', async (req, res) => {
   try {
-    console.log('Webhook received:', req.body);  // Debug
+    console.log('Webhook received:', req.body);  // Đã có
 
     const payload = req.body;
     if (!payload.transferAmount || !payload.transferType) {
@@ -111,42 +111,56 @@ app.post('/api/sepay/webhook', async (req, res) => {
       return res.status(200).json({ received: true });
     }
 
-    // Map user_id (demo hardcoded; production: query DB)
-    // 🔍 Lấy user_id theo bank_account (tự động thay vì hardcode)
+    // Map user_id: Thêm retry cho lock timeout
     let demoUserId;
     const effectiveAccount = payload.accountNumber || process.env.DEFAULT_ACCOUNT_NUMBER;
+    console.log('🔍 Querying user for account:', effectiveAccount);  // NEW: Log trước query
 
     try {
-      const [rows] = await db.execute(
-        'SELECT user_id FROM users WHERE bank_account = ? LIMIT 1',
-        [effectiveAccount]
-      );
-
-      if (rows.length === 0) {
-        console.warn(`⚠️ Không tìm thấy user có bank_account = ${effectiveAccount}`);
-        return res.status(404).json({ error: 'User not found for this bank account' });
+      // Retry logic cho lock (max 3 lần)
+      let attempts = 0;
+      while (attempts < 3) {
+        try {
+          await db.execute('SET SESSION innodb_lock_wait_timeout = 30');  // Tăng timeout ngắn
+          const [rows] = await db.execute(
+            'SELECT user_id FROM users WHERE bank_account = ? LIMIT 1',
+            [effectiveAccount]
+          );
+          if (rows.length > 0) {
+            demoUserId = rows[0].user_id;
+            console.log('✅ Found user_id:', demoUserId);  // NEW: Log success
+            break;
+          } else {
+            console.warn(`⚠️ Không tìm thấy user có bank_account = ${effectiveAccount}`);  // Đã có
+            return res.status(404).json({ error: 'User not found for this bank account' });
+          }
+        } catch (queryErr) {
+          attempts++;
+          console.error(`Query user attempt ${attempts} failed:`, queryErr.message);
+          if (queryErr.code === 'ER_LOCK_WAIT_TIMEOUT' && attempts < 3) {
+            await new Promise(resolve => setTimeout(resolve, 1000 * attempts));  // Wait 1s, 2s
+          } else {
+            throw queryErr;  // Fail sau 3 lần
+          }
+        }
       }
-
-      demoUserId = rows[0].user_id;
     } catch (dbErr) {
       console.error('Lỗi khi truy vấn user_id:', dbErr);
       return res.status(500).json({ error: 'Database error when finding user_id' });
     }
 
-    // ✅ FIX: Parse date an toàn, chỉ + seconds nếu thiếu
+    // Parse date (đã OK)
     const { 
       id: transaction_id,
       transferType,
       transferAmount: amount,
       description,
-      transactionDate: rawDate,  // '2025-10-28 09:47:57'
+      transactionDate: rawDate,
       accumulated,
       content,
       referenceCode,
-      accountNumber  // Không dùng trong payload trước, nhưng OK
     } = payload;
 
-    // Parse date: Ưu tiên format chuẩn, fallback nếu invalid
     let transaction_date;
     try {
       let parsedDate = new Date(rawDate);
@@ -158,10 +172,8 @@ app.post('/api/sepay/webhook', async (req, res) => {
         parsedDate = new Date(Date.UTC(year, month - 1, day, hour, minute, second));
       }
       
-      // ❌ BỎ: parsedDate.setHours(parsedDate.getHours() + 7);  // Gây vượt ngày nếu raw là UTC
-      // ✅ THAY: Format thành MySQL DATETIME (local time, không Z/T)
-      const mysqlDate = parsedDate.toISOString().slice(0, 19).replace('T', ' ');  // '2025-10-29 20:37:39'
-      transaction_date = mysqlDate;  // Bind trực tiếp string này vào SQL
+      const mysqlDate = parsedDate.toISOString().slice(0, 19).replace('T', ' ');
+      transaction_date = mysqlDate;
       
       console.log('✅ Parsed MySQL date:', rawDate, '→', transaction_date);
     } catch (dateError) {
@@ -169,11 +181,15 @@ app.post('/api/sepay/webhook', async (req, res) => {
       transaction_date = new Date().toISOString().slice(0, 19).replace('T', ' ');
     }
 
-    const effectiveDescription = description || content || 'Giao dịch từ SePay webhook';
+    // Lấy phần cuối sau dấu ";" nếu có
+      let effectiveDescription = description || content || 'Giao dịch từ SePay webhook';
+      if (effectiveDescription.includes(';')) {
+        const parts = effectiveDescription.split(';');
+        effectiveDescription = parts[parts.length - 1].trim();
+      }
+
     const status = 'Hoàn tất';
     const transferTypeMapped = transferType.toLowerCase();
-    const amountInOut = transferTypeMapped === 'in' ? amount : 0;
-    const amountOutIn = transferTypeMapped === 'out' ? amount : 0;
     const typeMapped = transferTypeMapped === 'in' ? 'income' : 'expense';
 
     const autoConfirmedData = {
@@ -184,7 +200,7 @@ app.post('/api/sepay/webhook', async (req, res) => {
         type: typeMapped,
         category_id: 9,
         description: effectiveDescription,
-        transaction_date,
+        transaction_date,  // String MySQL format
         group_name: 'Giao dịch SePay',
       }],
       total_amount: Math.abs(amount),
@@ -192,39 +208,46 @@ app.post('/api/sepay/webhook', async (req, res) => {
       user_id: demoUserId,
     };
 
-    // Auto-confirm (giữ nguyên)
+    // Auto-confirm: Thêm log trước/sau
     const backendUrl = process.env.BACKEND_URL || 'http://localhost:4000';
-    await axios.post(`${backendUrl}/api/ai/confirm`, {
-      user_id: demoUserId,
-      user_input: 'Giao dịch từ webhook SePay',
-      ai_suggested: autoConfirmedData,
-      confirmed: true,
-    }).catch(err => console.error('Error auto-confirming:', err.message));
+    console.log('🔄 Calling auto-confirm with data:', { userId: demoUserId, amount, transaction_date });  // NEW: Log payload
+    try {
+      const confirmRes = await axios.post(`${backendUrl}/api/ai/confirm`, {
+        user_id: demoUserId,
+        user_input: 'Giao dịch từ webhook SePay',
+        ai_suggested: autoConfirmedData,
+        confirmed: true,
+      });
+      console.log('✅ Auto-confirm success:', confirmRes.status);  // NEW: Log response
+    } catch (confirmErr) {
+      console.error('❌ Auto-confirm failed:', confirmErr.response?.data || confirmErr.message);  // NEW: Log chi tiết
+      // Không return, tiếp tục save message (graceful fail)
+    }
 
-    // ✅ Tạo tin nhắn (giữ nguyên, nhưng thêm check duplicate nếu cần)
+    // Tạo & Save message
     const transactionMessage = {
-      message_id: uuidv4(),  // Unique ID
+      message_id: uuidv4(),
       content: `🔔 Giao dịch mới: ${transferTypeMapped === 'in' ? 'Nhận' : 'Chuyển'} ${Math.abs(amount).toLocaleString()} VND. Nội dung: ${effectiveDescription}. Trạng thái: ${status}. ${accumulated ? `Số dư: ${Number(accumulated).toLocaleString()} VND.` : ''}`,
       role: 'assistant',
-      timestamp: new Date(transaction_date),  // Use transaction time
+      timestamp: new Date(transaction_date),
       structured: autoConfirmedData,
       intent: 'auto_confirmed_transaction',
-      user_input: 'Giao dịch từ webhook',  // Để match confirm logic
+      user_input: 'Giao dịch từ webhook',
     };
 
-    // Lưu DB (giữ nguyên)
     const saved = await saveChatHistory(demoUserId, [transactionMessage]);
+    console.log('💾 Chat history saved:', saved);  // NEW: Log save result
     if (!saved) console.error('Failed to save chat history');
 
-    // ✅ Emit socket (thêm log, và chỉ emit nếu user online)
+    // Emit socket
     const socketSet = userSockets.get(demoUserId);
     if (socketSet && socketSet.size > 0) {
       socketSet.forEach((socketId) => {
         io.to(socketId).emit('receive_message', {
-          id: transactionMessage.message_id,  // Match frontend
+          id: transactionMessage.message_id,
           content: transactionMessage.content,
           role: transactionMessage.role,
-          timestamp: transactionMessage.timestamp.toISOString(),  // ISO string
+          timestamp: transactionMessage.timestamp.toISOString(),
           structured: transactionMessage.structured,
           intent: transactionMessage.intent,
           user_input: transactionMessage.user_input,
@@ -232,7 +255,7 @@ app.post('/api/sepay/webhook', async (req, res) => {
       });
       console.log(`📩 Emitted auto-transaction to user ${demoUserId} (${socketSet.size} sockets)`);
     } else {
-      console.log(`💾 User ${demoUserId} offline: Saved to DB only (will load on reconnect)`);
+      console.log(`💾 User ${demoUserId} offline: Saved to DB only`);
     }
 
     console.log(`✅ Webhook processed: ${transaction_id || 'unknown'}`);

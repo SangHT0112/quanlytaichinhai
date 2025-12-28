@@ -1,5 +1,21 @@
 import Category from "./category.model.js";
 import db from "../../config/db.js"
+import { getCategory } from "./category.model.js";
+export const getCategories = async (req, res) => {
+  try {
+    const userId = req.query.user_id;
+    if (!userId) {
+      return res.status(400).json({ message: "Thiếu user_id" });
+    }
+
+    // Gọi model để lấy categories (user-specific + global, loại trừ fallback)
+    const data = await getCategory(Number(userId));
+    res.json(data); // Trả array categories [{category_id, name, type, icon, ...}]
+  } catch (err) {
+    console.error("Lỗi getCategories:", err);
+    res.status(500).json({ message: "Lỗi server khi lấy danh mục" });
+  }
+};
 export const getCategoryIdByName = async (req, res) => {
   const { name, user_id } = req.query; // Thêm user_id
   if (!name || !user_id) {
@@ -142,3 +158,4 @@ export const confirmCategory = async (req, res) => {
     return res.status(500).json({ error: "Internal server error" });
   }
 };
+

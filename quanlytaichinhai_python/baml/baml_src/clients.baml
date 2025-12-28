@@ -4,7 +4,7 @@ client<llm> Gemini_2_0_pro {
   provider google-ai
   options {
     model "gemini-2.0-flash"
-    api_key env.GOOGLE_API_KEY
+    api_key env.GOOGLE_API_KEY_1
   }
 }
 
@@ -12,7 +12,7 @@ client<llm> Gemini_1_5_pro {
   provider google-ai
   options {
     model "gemini-1.5-flash"
-    api_key env.GOOGLE_API_KEY
+    api_key env.GOOGLE_API_KEY_1
   }
 }
 
@@ -21,7 +21,7 @@ client<llm> Vertex {
   options {
     model gemini-1.5-pro
     location us-central1
-    api_key env.GOOGLE_API_KEY
+    api_key env.GOOGLE_API_KEY_1
   }
 }
 

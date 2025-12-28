@@ -1,20 +1,19 @@
 from fastapi import FastAPI, UploadFile, File, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.staticfiles import StaticFiles
 from PIL import Image, UnidentifiedImageError
 import shutil
 import uuid
-import sys
 import os
+import traceback
 from dotenv import load_dotenv
-load_dotenv()  # Load các biến từ file .env
-# Thêm đường dẫn đến thư mục `baml` để import được engine.py
-sys.path.append(os.path.join(os.path.dirname(__file__), 'baml'))
 
-
-from engine import process_baml
-
+load_dotenv()
+from engine_openai import process_openai_ocr
 
 app = FastAPI()
+
+app.mount("/public", StaticFiles(directory="public"), name="public")
 
 app.add_middleware(
     CORSMiddleware,
@@ -27,37 +26,44 @@ app.add_middleware(
 @app.post("/processDocument")
 async def process_document(file: UploadFile = File(...)):
     try:
-        # Kiểm tra định dạng ảnh
+        # Validate image
         try:
             image = Image.open(file.file)
             image.verify()
             file.file.seek(0)
         except UnidentifiedImageError:
-            raise HTTPException(status_code=400, detail="File tải lên không phải là ảnh hợp lệ.")
+            raise HTTPException(status_code=400, detail="File không phải ảnh hợp lệ")
 
-        # Lưu file ảnh tạm
+        # Save image
         upload_dir = "public/uploads"
         os.makedirs(upload_dir, exist_ok=True)
-        file_ext = os.path.splitext(file.filename)[-1].lower()
-        saved_filename = f"{uuid.uuid4().hex}{file_ext}"
-        file_path = os.path.join(upload_dir, saved_filename)
-
+        ext = os.path.splitext(file.filename)[-1]
+        filename = f"{uuid.uuid4().hex}{ext}"
+        file_path = os.path.join(upload_dir, filename)
         with open(file_path, "wb") as buffer:
             shutil.copyfileobj(file.file, buffer)
 
-        # Gọi xử lý bằng BAML
-        result = process_baml(file_path)
-        print("✅ Kết quả từ BAML:", result)
+        # OCR bằng OpenAI
+        structured_data = process_openai_ocr(file_path)
 
+        # ✅ Chuẩn hóa response giống BAML cũ
         return {
-            "filename": saved_filename,
-            "result": result,
+            "result": [
+                {
+                    "file_name": file.filename,
+                    "extract_data": structured_data,
+                    "tokens": [0, 0]  # nếu muốn giữ tokens giả lập BAML
+                }
+            ]
         }
 
+    except HTTPException:
+        raise
     except Exception as e:
-        return {"error": f"Lỗi xử lý: {str(e)}"}
-    
-    
+        print(traceback.format_exc())
+        raise HTTPException(status_code=500, detail=str(e))
+
+
 @app.get("/ping")
-async def ping():
-    return {"status": "awake"}
+def ping():
+    return {"status": "ok"}

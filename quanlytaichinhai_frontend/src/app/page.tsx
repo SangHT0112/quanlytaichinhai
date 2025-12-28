@@ -51,6 +51,23 @@ export default function ChatAI() {
       });
     }
   }, [messages, messagesEndRef]);
+
+  // Thêm vào ChatAI.tsx
+useEffect(() => {
+  const handleSendChatEvent = (event: CustomEvent) => {
+    const message = event.detail;
+   // console.log('Received send-chat event:', message);
+    handleSendMessage(message);
+  };
+
+  // Lắng nghe sự kiện từ window
+  const eventHandler = (e: Event) => handleSendChatEvent(e as CustomEvent);
+  window.addEventListener('send-chat', eventHandler);
+  
+  return () => {
+    window.removeEventListener('send-chat', eventHandler);
+  };
+}, [handleSendMessage]);
   return (
     <div className="flex flex-col h-full bg-cover bg-center pb-20 md:pb-0">
       <MessageList

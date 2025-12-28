@@ -28,6 +28,7 @@ const menuItems = [
   { icon: Calendar, label: "Lập kế hoạch tài chính", href: "/financial_plan", emoji: "📋" },
   { icon: TrendingUp, label: "Lịch sử", href: "/history", emoji: "📜" },
   { icon: BarChart3, label: "Thống kê", href: "/thongke", emoji: "📈" },
+  { icon: BarChart3, label: "Giao dịch", href: "/transaction", emoji: "📈" },
   { icon: Shield, label: "Quản trị", href: "/admin", emoji: "🛡️", adminOnly: true },
 ];
 
@@ -201,7 +202,7 @@ export default function Sidebar({
               isSidebarOpen ? "opacity-100" : "opacity-0 pointer-events-none"
             }`}
           >
-            AI Finance
+            Quản lý tài chính AI
           </h2>
          
         </div>

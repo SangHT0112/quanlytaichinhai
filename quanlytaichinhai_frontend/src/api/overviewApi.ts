@@ -23,9 +23,12 @@ export async function fetchExpensePieChart(userId: number) {
   return res.data // Array<{ category_name: string, total: number }>
 }
 
-export async function fetchWeeklyExpenses(userId: number) {
+export async function fetchWeeklyExpenses(userId: number, timeframe?: string) {
   const res = await axiosInstance.get("/overview/weekly-expenses", {
-    params: { user_id: userId },
+    params: { 
+      user_id: userId,
+      timeframe: timeframe || "current_week"
+    },
   })
-  return res.data // Array<{ day: string, chi: number }>
+  return res.data // { data: WeeklyExpenseData[], week_range: {...} }
 }

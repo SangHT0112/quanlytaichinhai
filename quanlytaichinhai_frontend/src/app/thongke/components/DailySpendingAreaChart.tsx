@@ -80,14 +80,15 @@ export default function DailySpendingAreaChart({ initialDays = 5 }: DailySpendin
       {data.length === 0 ? (
         <div className="text-center text-gray-500 py-10">Không có dữ liệu</div>
       ) : (
-        <ResponsiveContainer width="100%" height={300}>
-          <AreaChart data={data} margin={{ top: 10, right: 20, left: 40, bottom: 0 }}>
+        <ResponsiveContainer width="100%" height={450}>
+          <AreaChart data={data} margin={{ top: 10, right: 20, left: 50, bottom: 40 }}>
             <CartesianGrid strokeDasharray="3 3" />
-            <XAxis dataKey="day" tick={{ fontSize: 12 }} />
+            <XAxis dataKey="day" tick={{ fontSize: 14 }} />
             <YAxis
               tickFormatter={formatCurrency}
               domain={[0, maxValue * 1.1]}
               tickCount={6}
+              tick={{ fontSize: 14 }}
             />
             <Tooltip content={<CustomTooltip />} />
             <Area

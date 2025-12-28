@@ -5,7 +5,8 @@ import {
   createTransactionGroupWithItems,
   getGroupTransactionHistory,
   getGroupTransactionDetail,
-  getRecentTransactions
+  getRecentTransactions,
+  getGroupedTransactionHistory
 } from "./transaction.controller.js";
 const router = Router();
 
@@ -15,4 +16,5 @@ router.post("/groups", createTransactionGroupWithItems);
 router.get("/groups", getGroupTransactionHistory);
 router.get("/recent", getRecentTransactions);
 router.get("/groups/:groupId", getGroupTransactionDetail);
+router.get("/grouped", getGroupedTransactionHistory);
 export default router;

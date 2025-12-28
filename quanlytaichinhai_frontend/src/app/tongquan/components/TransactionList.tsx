@@ -26,23 +26,36 @@ export default function TransactionList({ dateFilter, limit }: TransactionListPr
 
   const resolveDateLabel = () => {
     const today = new Date()
-    let targetDate = new Date()
-    if (dateFilter === "yesterday") {
-      targetDate.setDate(today.getDate() - 1)
+    if (dateFilter === "today") {
+      return `Giao dịch hôm nay`
+    } else if (dateFilter === "yesterday") {
+      const yesterday = new Date(today)
+      yesterday.setDate(today.getDate() - 1)
+      return `Giao dịch ngày ${yesterday.toLocaleDateString("vi-VN", {
+        weekday: "long",
+        day: "2-digit",
+        month: "2-digit",
+        year: "numeric",
+      })}`
+    } else if (dateFilter && dateFilter.startsWith("last_") && dateFilter.endsWith("_days")) {
+      // Hỗ trợ "last_N_days" (ví dụ: "last_3_days")
+      const daysMatch = dateFilter.match(/last_(\d+)_days/)
+      if (daysMatch) {
+        const days = parseInt(daysMatch[1], 10)
+        return `Giao dịch ${days} ngày vừa qua`
+      }
     } else if (dateFilter && /^\d{4}-\d{2}-\d{2}$/.test(dateFilter)) {
       // Nếu là chuỗi định dạng yyyy-mm-dd thì dùng luôn
-      targetDate = new Date(dateFilter)
-    } else {
-      // Mặc định là hôm nay
-      targetDate = today
+      const targetDate = new Date(dateFilter)
+      return `Giao dịch ngày ${targetDate.toLocaleDateString("vi-VN", {
+        weekday: "long",
+        day: "2-digit",
+        month: "2-digit",
+        year: "numeric",
+      })}`
     }
-
-    return `Giao dịch ngày ${targetDate.toLocaleDateString("vi-VN", {
-      weekday: "long",
-      day: "2-digit",
-      month: "2-digit",
-      year: "numeric",
-    })}`
+    // Mặc định là hôm nay
+    return `Giao dịch hôm nay`
   }
 
   useEffect(() => {

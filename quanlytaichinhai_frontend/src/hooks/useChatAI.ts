@@ -235,12 +235,6 @@ export const useChatAI = () => {
       if (imageData) {
         // Xử lý image: Upload trước, lấy imageUrl, emit socket cho user message, append AI local
         console.log('Gửi yêu cầu xử lý tài liệu đến API:');
-        try {
-          await fetch('https://quanlytaichinhai-python.onrender.com/ping');
-          await new Promise((resolve) => setTimeout(resolve, 3000));
-        } catch (err) {
-          console.warn("Không thể ping backend Python:", err);
-        }
 
         const res = await axiosInstance.post('/ai/process-document', imageData, {
           headers: { 'Content-Type': 'multipart/form-data' },

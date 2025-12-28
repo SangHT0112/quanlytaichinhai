@@ -16,7 +16,7 @@ class Invoices {
 
 
 function ExtractInvoices(images: image[]) -> Invoices {
-  client "ollama/llama3"
+  client Gemini_1_5_pro
   prompt #"
     {{_.role("user")}}
     Hãy trích xuất các thông tin từ hóa đơn sau:

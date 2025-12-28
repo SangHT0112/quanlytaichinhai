@@ -41,7 +41,24 @@ export type MessageContentPart =
       arguments: string;
     };
 
-// 4. Định nghĩa kiểu cho structured
+// utils/types.ts (hoặc file chứa StructuredData)
+
+// Thêm vào union StructuredData
+// utils/types.ts
+
+export interface FollowupData {
+  question: string;
+  suggestedQuery: string;
+}
+
+export interface SqlQueryStructured {
+  query?: string;
+  result?: unknown;
+  answer?: string;
+  followup?: FollowupData; // Thêm optional followup
+}
+
+// Cập nhật StructuredData để bao gồm SqlQueryStructured
 export type StructuredData =
   | {
       transactions?: Array<{
@@ -56,7 +73,8 @@ export type StructuredData =
       group_name?: string;
       total_amount?: number;
       transaction_date?: string;
-      image_path?: string; 
+      image_path?: string;
+      image_url?: string;
     }
   | {
       type: 'component';
@@ -65,13 +83,13 @@ export type StructuredData =
       props?: Record<string, unknown>;
       layout?: 'inline' | 'block';
     }
-    | {
+  | {
       response_type: 'confirm_priority';
       temp_plans: PlanData[];
       priority_options: string[];
       message: string;
     }
-    | {
+  | {
       response_type: 'suggest_new_category';
       message: string;
       suggest_new_category: {
@@ -96,8 +114,8 @@ export type StructuredData =
           transaction_date?: string;
         }>;
       };
-    };
-
+    }
+  | SqlQueryStructured; // Thêm kiểu SqlQueryStructured vào union
 // 5. Kiểu cho TransactionData (từ MessageItem.tsx)
 export interface TransactionData {
   type: 'expense' | 'income';

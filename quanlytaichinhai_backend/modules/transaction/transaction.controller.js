@@ -3,6 +3,27 @@ import { createTransactionGroup } from "./transaction.model.js";
 import { getTransactionGroupsByUserId } from "./transaction.model.js";
 import { getTransactionsByGroupId } from "./transaction.model.js";
 import {getRecentTransactionsByUserId} from "./transaction.model.js"
+// Thêm vào transaction.controller.js (controller mới, không ảnh hưởng code cũ)
+import { getGroupedTransactionsByUserId } from "./transaction.model.js"; // Import hàm mới
+
+export const getGroupedTransactionHistory = async (req, res) => {
+  try {
+    const userId = req.query.user_id;
+    const categoryId = req.query.category_id ? parseInt(req.query.category_id) : null;
+    const limit = req.query.limit ? parseInt(req.query.limit) : 50; // Default 50 cho grouped view
+
+    if (!userId) {
+      return res.status(400).json({ message: "Thiếu user_id" });
+    }
+
+    const groupedData = await getGroupedTransactionsByUserId(userId, categoryId, limit);
+    res.json(groupedData); // Trả về object grouped { categoryName: { icon, items: [...] } }
+  } catch (err) {
+    console.error("Lỗi getGroupedTransactionHistory:", err);
+    res.status(500).json({ message: "Lỗi server khi lấy lịch sử giao dịch theo nhóm" });
+  }
+};
+
 export const createTransactionGroupWithItems = async (req, res) => {
   try {
     const { user_id, group_name, transaction_date, transactions } = req.body;

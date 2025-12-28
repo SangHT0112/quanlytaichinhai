@@ -275,7 +275,7 @@ export const intentMap = {
       };
     },
   },
-  planning: {
+ planning: {
     generatePrompt: generatePlanningPrompt,
     isJsonResponse: true,
     processResponse: async (aiText, { user_input, now, user_id }) => {
