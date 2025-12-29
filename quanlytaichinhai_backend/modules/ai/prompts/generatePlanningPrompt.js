@@ -1,17 +1,30 @@
 import { fetchFinancialSummary } from '../../overview/overview.model.js';
 import db from '../../../config/db.js';
-// Hàm detect goal từ user_input (simple regex, có thể nâng cấp bằng LLM)
+
+// Fallback prices cho các category (dùng làm hint min/max, không gán avg cứng - dựa trên data 12/2025)
+const fallbacks = {
+  electronics: { min: 5000000, max: 50000000 },
+  travel: { min: 10000000, max: 50000000 },  // Update: Phù hợp quốc tế hơn
+  vehicle: { min: 20000000, max: 50000000 },
+  education: { min: 2000000, max: 100000000 },
+  real_estate: { min: 1000000000, max: 5000000000 },
+  wedding: { min: 50000000, max: 200000000 },
+  emergency: { min: 30000000, max: 60000000 },
+  general: { min: 10000000, max: 100000000 }
+};
+
+// Hàm detect goal từ user_input (không search, chỉ detect category/item và hint range)
 const detectGoalAndFetchPrice = async (user_input) => {
   const lowerInput = user_input.toLowerCase();
-  let detected = { item: null, category: null, estimated_price: null };
+  let detected = { item: null, category: null, estimated_price: null, price_range: null };
 
-  // Regex patterns cho common goals (mở rộng dễ dàng)
+  // Regex patterns cho common goals
   const patterns = {
     electronics: /(iphone|ipad|samsung|macbook|laptop)/i,
     travel: /(du lịch|japan|nhật|đà lạt|phú quốc)/i,
     vehicle: /(xe máy|wave|exciter|xe hơi)/i,
     education: /(học|khóa học|đại học|thạc sĩ)/i,
-    real_estate: /(mua nhà|đất|chung cư)/i,
+    real_estate: /(mua nhà|đất|chung cư|nhà mặt tiền tphcm)/i,
     wedding: /(đám cưới|kết hôn)/i,
     emergency: /quỹ khẩn cấp/i
   };
@@ -25,90 +38,45 @@ const detectGoalAndFetchPrice = async (user_input) => {
   }
 
   if (!detected.item) {
-    detected.category = 'general'; // Fallback
+    detected.category = 'general';
     detected.item = 'mục tiêu chung';
   }
 
-  // Fetch price dynamic (thay bằng API thật, e.g., Google Shopping)
-  try {
-    // Ví dụ: Query Google Shopping API (cần key, hoặc dùng scraper)
-    const query = `${detected.item} giá việt nam 2025`;
-    const response = await axios.get(`https://www.googleapis.com/customsearch/v1?key=YOUR_API_KEY&q=${encodeURIComponent(query)}&cx=YOUR_CX`); // Placeholder
-    // Parse response để lấy avg price (giả sử)
-    detected.estimated_price = Math.floor(Math.random() * 10000000 + 5000000); // Demo random, thay bằng real parse
-
-    // Fallback hardcode cho categories
-    const fallbacks = {
-      electronics: { min: 5000000, max: 50000000, avg: 20000000 },
-      travel: { min: 5000000, max: 30000000, avg: 15000000 },
-      vehicle: { min: 20000000, max: 50000000, avg: 30000000 }, // Xe máy ~30tr
-      education: { min: 2000000, max: 100000000, avg: 20000000 }, // Đại học ~20tr/năm
-      real_estate: { min: 1000000000, max: 5000000000, avg: 2000000000 }, // Nhà TP.HCM ~2 tỷ
-      wedding: { min: 50000000, max: 200000000, avg: 100000000 },
-      emergency: { min: 30000000, max: 60000000, avg: 45000000 }, // 6 tháng chi tiêu
-      general: { min: 10000000, max: 100000000, avg: 50000000 }
-    };
-    if (!detected.estimated_price) {
-      const fb = fallbacks[detected.category] || fallbacks.general;
-      detected.estimated_price = fb.avg;
-    }
-  } catch (error) {
-    console.error('Lỗi fetch price:', error);
-    // Fallback như trên
-    detected.estimated_price = 20000000; // Default
-  }
+  // Chỉ dùng range làm hint, không gán estimated_price (để AI tự tính)
+  detected.price_range = fallbacks[detected.category] || fallbacks.general;
+  console.log(`🔍 Detected: "${detected.item}" (${detected.category}), hint range: ${detected.price_range.min.toLocaleString()}-${detected.price_range.max.toLocaleString()} VND`);
 
   return detected;
 };
 
-// Hàm fetch market data dynamic (mẫu, bạn có thể customize với API cụ thể)
+// Hàm fetch market data dynamic (chỉ general)
 const fetchMarketData = async () => {
   try {
-    // Ví dụ: Fetch từ một API giả định hoặc scrape (thực tế dùng proxy nếu cần)
-    // const response = await axios.get('https://api.gia-ca-vn.com/market/2025'); // Thay bằng API thật
-    // return response.data;
-    
-    // Tạm hardcode với data 10/2025, cập nhật thủ công hàng tháng
+    // Có thể fetch từ API thật nếu cần (e.g., inflation từ NHNN VN)
     return {
-      electronics: {
-        iphone17promax: {
-          base_price: 38000000, // 256GB trung bình
-          variants: { '256GB': 38000000, '512GB': 44490000, '1TB': 50990000 },
-          note: 'Giá chính hãng VN, có thể đội 4-8 triệu ở chợ đen'
-        }
-      },
-      travel: {
-        japan: {
-          flight_roundtrip: { min: 6000000, max: 13000000, avg: 10000000 }, // Từ HCM/HN đến Tokyo
-          accommodation: { per_night: 1000000, for_5days: 5000000 }, // Khách sạn 3 sao
-          food: { per_day: 800000, for_5days: 4000000 }, // Ăn uống trung bình
-          transport_local: { per_day: 1000000, for_5days: 5000000 }, // Di chuyển nội địa
-          total_estimate_5days: 20000000, // Tổng tự túc, chưa visa ~500k
-          note: 'Tăng 10-15% so 2024 do lạm phát; mùa cao điểm +20%'
-        }
-      },
-      general: {
-        inflation: 3.8, // %/năm 2025
+      general: { 
+        inflation: 3.8, // %/năm 12/2025
         savings_rate: { min: 3, max: 7.5 } // %/năm
       }
     };
   } catch (error) {
     console.error('Lỗi fetch market data:', error);
-    // Fallback hardcode cũ
     return {
-      electronics: { iphone17promax: { base_price: 40000000 } },
-      travel: { japan: { total_estimate_5days: 25000000 } },
       general: { inflation: 4, savings_rate: { min: 3, max: 7.5 } }
     };
   }
 };
 
-
 export const generatePlanningPrompt = async ({ user_input, historyText, now, user_id }) => {
   // Khởi tạo ngày hiện tại
   const currentDate = now instanceof Date ? now : new Date();
+  
+  // Detect goal (không search giá, chỉ hint range)
+  const detected = await detectGoalAndFetchPrice(user_input);
+  
   // Fetch market data
   const marketData = await fetchMarketData();
+  
   // Lấy dữ liệu tài chính
   let financialData = { actual_balance: 0, current_income: 0, previous_income: 0, current_expense: 0, previous_expense: 0, monthly_surplus: 0, warnings: [] };
   try {
@@ -141,7 +109,7 @@ export const generatePlanningPrompt = async ({ user_input, historyText, now, use
     spendingByCategory = { 'Không xác định': { total: financialData.current_expense, percentage: 100, count: 0 } };
   }
 
-  // Lấy giao dịch lớn (ngưỡng giảm xuống 2 triệu cho thu nhập thấp)
+  // Lấy giao dịch lớn (ngưỡng 2 triệu cho thu nhập thấp)
   let largeTransactions = [];
   try {
     const [rows] = await db.query(`
@@ -225,44 +193,108 @@ export const generatePlanningPrompt = async ({ user_input, historyText, now, use
     console.error('Lỗi khi lấy thông tin người dùng:', error);
   }
 
-  // Xác định current_amount
-  const currentAmountForNewPlan = hasExistingPlans ? 0 : financialData.actual_balance;
-  // Build market context string động
+  // Xác định current_amount cho kế hoạch mới (với rebalance)
+  let totalRemainingForExisting = 0;
+  existingPlans.forEach(plan => {
+    if (plan.current_amount < plan.target_amount) {
+      totalRemainingForExisting += (plan.target_amount - plan.current_amount);
+    }
+  });
+
+  // Số dư khả dụng cho plan mới (ưu tiên cover existing trước)
+  const availableBalanceForNewPlan = Math.max(0, financialData.actual_balance - totalRemainingForExisting);
+
+  // Cap conservative: Chỉ dùng 50% available cho plan mới, giữ 50% làm buffer
+  const currentAmountForNewPlan = Math.min(availableBalanceForNewPlan * 0.5, (detected.estimated_price || financialData.actual_balance) * 0.5);
+
+  // Thêm cảnh báo nếu existing cần nhiều tiền
+  if (totalRemainingForExisting > 0 && availableBalanceForNewPlan < financialData.actual_balance) {
+    financialData.warnings.push(`Ưu tiên hoàn thành existing plans: Còn thiếu ${totalRemainingForExisting.toLocaleString()} VND. Dư khả dụng cho plan mới: ${availableBalanceForNewPlan.toLocaleString()} VND`);
+  }
+
+  console.log(`💰 Rebalance: Total remaining existing: ${totalRemainingForExisting.toLocaleString()}, Available: ${availableBalanceForNewPlan.toLocaleString()}, Current for new: ${currentAmountForNewPlan.toLocaleString()}`);
+
+  // Build market context động, dùng detected range làm hint
   const marketContext = `
-    - Bối cảnh thị trường (10/2025):
+    - Bối cảnh thị trường (12/2025):
       - Lãi suất tiết kiệm: ${marketData.general.savings_rate.min}-${marketData.general.savings_rate.max}%/năm
       - Lạm phát: ${marketData.general.inflation}%/năm
-      - Điện thoại (iPhone 17 Pro Max): ${marketData.electronics.iphone17promax.base_price} VND (256GB), biến thể: ${JSON.stringify(marketData.electronics.iphone17promax.variants)}; lưu ý: ${marketData.electronics.iphone17promax.note}
-      - Du lịch Nhật Bản (từ VN, 5-7 ngày tự túc): Vé khứ hồi ${marketData.travel.japan.flight_roundtrip.min}-${marketData.travel.japan.flight_roundtrip.max} VND (trung bình ${marketData.travel.japan.flight_roundtrip.avg}); Lưu trú ${marketData.travel.japan.accommodation.per_night} VND/đêm; Ăn uống ${marketData.travel.japan.food.per_day} VND/ngày; Di chuyển nội địa ${marketData.travel.japan.transport_local.per_day} VND/ngày; Tổng ước tính ${marketData.travel.japan.total_estimate_5days} VND; lưu ý: ${marketData.travel.japan.note}
+      - Hint range cho mục tiêu "${detected.item}" (${detected.category}): ${detected.price_range.min.toLocaleString()}-${detected.price_range.max.toLocaleString()} VND (dùng để validate target_amount bạn tính).
       - Chi phí du lịch nội địa: 5-15 triệu/người
       - Chi phí học tập (khóa học): 2-10 triệu
-    `;
+  `;
+
+  // Tính toán một số giá trị cho ví dụ (giữ nguyên để ví dụ)
+  const monthlyContribution = Math.min(financialData.monthly_surplus || 1000000, financialData.current_income * 0.2);
+  const feasibilityScore = Math.min(95, 95 - (financialData.monthly_surplus < 2000000 ? 5 : 0) - (financialData.expense_change_percentage > 15 ? 5 : 0) - (existingPlans.some(plan => plan.category === 'Quỹ khẩn cấp') ? 10 : 0));
+  const riskLevel = financialData.monthly_surplus < 1000000 || financialData.income_change_percentage < -15 ? 'high' : 'low';
+  const highExpenseCategory = Object.entries(spendingByCategory).find(([_, cat]) => cat.percentage > 40)?.[0];
+  const hasHighExpense = Object.values(spendingByCategory).some(cat => cat.percentage > 40);
+  const hasMultiplePlans = existingPlans.length > 1;
+
+  // Xây dựng recommendations động (giữ nguyên)
+  let recommendations = [
+    {
+      type: "savings",
+      title: "Tiết kiệm cố định",
+      description: "Chuyển tự động 1 triệu/tháng vào tài khoản tiết kiệm",
+      impact: "Đạt mục tiêu đúng hạn",
+      priority: "high"
+    },
+    {
+      type: "expense",
+      title: "Cắt giảm chi tiêu",
+      description: "Giảm chi tiêu ăn uống từ 5 triệu xuống 4 triệu/tháng",
+      impact: "Tăng thặng dư 1 triệu/tháng",
+      priority: "high"
+    }
+  ];
+  if (financialData.monthly_surplus < 2000000) {
+    recommendations.push({
+      type: "income",
+      title: "Tăng thu nhập",
+      description: "Tìm công việc phụ như giao hàng, bán hàng online",
+      impact: "Tăng thặng dư 1-2 triệu/tháng",
+      priority: "medium"
+    });
+  }
+
+  // Challenges động (giữ nguyên)
+  let challenges = [
+    "Lạm phát 3.4-4.2% có thể làm giảm giá trị tiết kiệm"
+  ];
+  if (financialData.monthly_surplus < 1000000) {
+    challenges.push("Thặng dư hàng tháng thấp, khó duy trì tiết kiệm");
+  }
+  if (hasHighExpense) {
+    challenges.push(`Chi tiêu ${highExpenseCategory} chiếm hơn 40% thu nhập`);
+  }
+  if (hasMultiplePlans) {
+    challenges.push("Phân tán nguồn lực cho nhiều kế hoạch");
+  }
+
+  // Tips động (giữ nguyên)
+  let tips = [
+    "Thiết lập chuyển khoản tự động 1 triệu/tháng",
+    "Theo dõi chi tiêu hàng tuần qua ứng dụng"
+  ];
+  if (financialData.expense_change_percentage > 15) {
+    tips.push("Cắt giảm chi tiêu không cần thiết như ăn ngoài, giải trí");
+  }
+  tips.push("Ưu tiên quỹ khẩn cấp trước các mục tiêu khác");
+
+  // Monthly breakdown (giữ nguyên)
+  const optimizedSavings = Math.min((financialData.monthly_surplus || 1000000) * 1.2, financialData.current_income * 0.25);
+  const withInvestment = Math.min((financialData.monthly_surplus || 1000000) * 1.3, financialData.current_income * 0.3);
+
   return `
 Bạn là AI lập kế hoạch tài chính chuyên nghiệp, tạo JSON cho các kế hoạch tiết kiệm dựa trên input người dùng, dữ liệu tài chính cá nhân, và bối cảnh thị trường Việt Nam 2025 (ngày: ${currentDate.toISOString().split('T')[0]}).
 
 📌 Input:
 - Câu hỏi: "${user_input}"
 - Lịch sử hội thoại: "${historyText || 'Không có lịch sử'}"
-- Dữ liệu tài chính: [giữ nguyên phần này]
+- Detected goal: "${JSON.stringify(detected)}" (dùng price_range làm hint để validate target_amount bạn tính; KHÔNG dùng làm default).
 ${marketContext}
-- [Giữ nguyên các phần còn lại]
-
-🔑 Nhiệm vụ:
-1. **Trích xuất từ câu hỏi**: [Giữ nguyên, nhưng thêm: Nếu category liên quan đến sản phẩm cụ thể (e.g., iPhone), dùng giá từ market data để set target_amount mặc định nếu user không chỉ định.]
-
-2. **Tính toán**: [Giữ nguyên, nhưng thêm: Điều chỉnh target_amount dựa trên market data nếu phù hợp (e.g., iPhone 17 Pro Max → 38-45tr; du lịch Nhật → 20-30tr cho 5 ngày).]
-
-3. **Tạo gợi ý AI**: [Giữ nguyên, thêm: Trong recommendations, gợi ý so sánh giá (e.g., mua iPhone chính hãng để tránh đội giá).]
-
-4. **Breakdown chi phí** (dùng market data để phân bổ chính xác):
-   - Quỹ khẩn cấp: 100% mục tiêu
-   - Du lịch (e.g., Nhật Bản): 50% vé máy bay, 25% lưu trú, 15% ăn uống, 10% di chuyển/dự phòng
-   - Mua sắm (e.g., iPhone): 95% giá sản phẩm, 5% phụ kiện/dự phòng
-   - Học tập: 85% học phí, 15% tài liệu/dự phòng
-   - Nếu category khác, suy luận dựa trên market data (e.g., du lịch nội địa: 40% vé, 30% lưu trú, 30% ăn/di chuyển)
-📌 Input:
-- Câu hỏi: "${user_input}"
-- Lịch sử hội thoại: "${historyText || 'Không có lịch sử'}"
 - Dữ liệu tài chính:
   - Số dư thực tế: ${financialData.actual_balance} VND
   - Thu nhập tháng hiện tại: ${financialData.current_income} VND
@@ -277,61 +309,47 @@ ${marketContext}
   - Giao dịch lớn (6 tháng, ≥2 triệu): ${JSON.stringify(largeTransactions)}
   - Kế hoạch tiết kiệm hiện tại: ${JSON.stringify(existingPlans)}
   - Đã có kế hoạch tiết kiệm: ${hasExistingPlans}
-  - Current amount cho kế hoạch mới: ${currentAmountForNewPlan} VND
+  - Current amount cho kế hoạch mới: ${currentAmountForNewPlan.toLocaleString()} VND (sau rebalance existing: available ${availableBalanceForNewPlan.toLocaleString()} VND)
   - Danh mục khả dụng: ${JSON.stringify(categories)}
   - Thông tin người dùng: ${userInfo.username}, lần cuối hoạt động: ${userInfo.last_active_at || 'Không xác định'}
-- Bối cảnh thị trường (2025):
-  - Lãi suất tiết kiệm: 3-7.5%/năm
-  - Lạm phát: 3.4-4.2%/năm
-  - Giá điện thoại: 5-20 triệu
-  - Chi phí du lịch nội địa: 5-15 triệu/người
-  - Chi phí học tập (khóa học): 2-10 triệu
 
 🔑 Nhiệm vụ:
-1. **Trích xuất từ câu hỏi**:
-   - Tên kế hoạch (e.g., "Quỹ khẩn cấp", "Mua điện thoại", "Du lịch Đà Lạt")
-   - Số tiền mục tiêu (e.g., "10 triệu", "50 triệu")
-   - Thời gian (e.g., "6 tháng", "2 năm")
-   - Danh mục (chọn từ: ${JSON.stringify(categories.map(c => c.name))})
-   - Ưu tiên (suy ra: quỹ khẩn cấp=high, học tập=high, du lịch=medium, mua sắm=low)
+1. **Trích xuất từ câu hỏi và tính target_amount phù hợp (step-by-step reasoning)**:
+   - Tên kế hoạch (e.g., "Quỹ khẩn cấp", "Mua iPhone 17 Pro Max", "Du lịch Tokyo 10 ngày").
+   - Thời gian (e.g., "6 tháng", "2 năm"; extract từ input như "trong 10 ngày").
+   - Danh mục (chọn từ: ${JSON.stringify(categories.map(c => c.name))}).
+   - Ưu tiên (suy ra: quỹ khẩn cấp=high, học tập=high, du lịch=medium, mua sắm=low).
+   - **Tính target_amount ĐỘNG**:
+     - Bước 1: Extract goal chi tiết từ user_input (e.g., sản phẩm: "iPhone 17 Pro Max 256GB", duration: "10 ngày").
+     - Bước 2: Research giá base qua web_search (query động: "giá [extracted_goal] chính hãng Việt Nam tháng 12 2025 site:thegioididong.com OR site:fptshop.com.vn OR site:cellphones.com.vn OR site:didongviet.vn OR site:vietravel.com num_results=10"). Parse top 5 prices VND hợp lý (5-100tr, bỏ noise), tính base_price = avg hoặc max (an toàn).
+     - Bước 3: Adjust phù hợp với user: target = base_price * (1 + 0.1 cho buffer lạm phát/phí) + adjust theo feasibility (nếu monthly_surplus < 2tr, giảm 10% target; nếu time ngắn <6 tháng, tăng contribution thay vì target; validate trong hint range).
+     - Bước 4: Nếu user chỉ định số tiền (e.g., "30tr"), dùng nó làm target. Log reasoning: "Base price: X VND → Target phù hợp: Y VND (lý do: Z)".
+     - Ví dụ: iPhone 17 Pro Max → base 37tr → target 40.7tr (buffer), nhưng surplus thấp → target 35tr (đạt trong 8 tháng).
 
-2. **Tính toán**:
-   - Current amount: ${hasExistingPlans ? '0 VND (đã có kế hoạch khác)' : `${financialData.actual_balance} VND`}
-   - Monthly contribution: Tối đa 20% current_income nếu monthly_surplus < 3 triệu, tối đa 50% nếu monthly_surplus ≥ 3 triệu.
-   - Time to goal: Nếu không có thời gian, tính: time_to_goal = ceil((target_amount - current_amount) / monthly_contribution).
+2. **Tính toán khác**:
+   - Current amount: ${currentAmountForNewPlan.toLocaleString()} VND (sau rebalance).
+   - Monthly contribution: Tối đa 20% current_income nếu monthly_surplus < 3 triệu, tối đa 50% nếu ≥ 3 triệu; adjust theo target (e.g., contribution = (target - current) / time_to_goal).
+   - Time to goal: Extract từ input, hoặc tính: Math.ceil((target_amount - current_amount) / monthly_contribution).
    - Milestones: 3 cột mốc (25%, 50%, 100%) dựa trên target_amount.
    - Feasibility score:
-     - Dưới 15% current_income: 90-100
-     - 15-25% current_income: 80-90
-     - Trên 25% current_income: dưới 80
+     - Dựa target/income: Dưới 15% current_income/năm: 90-100; 15-25%: 80-90; Trên 25%: dưới 80.
      - Giảm 5 điểm nếu monthly_surplus < 2 triệu; giảm 5 điểm nếu expense_change_percentage > 15%.
      - Giảm 10 điểm nếu existingPlans có kế hoạch tương tự (category trùng).
-   - Risk level: Dài hạn (>3 năm)=medium, ngắn hạn (≤3 năm)=low. Nếu monthly_surplus < 1 triệu hoặc income_change_percentage < -15%, risk_level = "high".
+   - Risk level: Dài hạn (>3 năm)=medium, ngắn hạn (≤3 năm)=low. Nếu monthly_surplus < 1 triệu hoặc income_change_percentage < -15%, hoặc target > surplus * 12, risk_level = "high".
 
 3. **Tạo gợi ý AI**:
-   - Recommendations (2-3 gợi ý):
-     - Nếu monthly_surplus < 2 triệu, gợi ý tăng thu nhập (freelance, bán hàng online).
-     - Nếu spendingByCategory có danh mục >40% current_income, gợi ý cắt giảm danh mục đó.
-     - Nếu existingPlans không rỗng, gợi ý ưu tiên hoặc điều chỉnh kế hoạch hiện có.
-     - Gợi ý tiết kiệm nhỏ (1-2 triệu/tháng) hoặc quỹ khẩn cấp nếu chưa có.
-   - Challenges (2-3 rủi ro):
-     - Lạm phát 3.4-4.2%/năm.
-     - Thu nhập không ổn định nếu income_change_percentage < -10%.
-     - Chi tiêu cao nếu spendingByCategory có danh mục >40%.
-     - Nếu existingPlans > 1, thêm rủi ro "Phân tán nguồn lực".
-   - Tips (2-3 lời khuyên):
-     - Thiết lập chuyển khoản tự động để tiết kiệm.
-     - Theo dõi chi tiêu hàng tuần.
-     - Nếu expense_change_percentage > 15%, gợi ý cắt giảm chi tiêu không cần thiết.
-     - Nếu chưa có quỹ khẩn cấp, khuyên ưu tiên tiết kiệm 6-12 tháng chi tiêu.
+   - Recommendations (2-3 gợi ý): Nếu monthly_surplus < 2 triệu, gợi ý tăng thu nhập (freelance, bán hàng online). Nếu spendingByCategory có danh mục >40% current_income, gợi ý cắt giảm danh mục đó. Nếu existingPlans không rỗng, gợi ý ưu tiên hoặc điều chỉnh kế hoạch hiện có. Gợi ý tiết kiệm nhỏ (1-2 triệu/tháng) hoặc quỹ khẩn cấp nếu chưa có. Gợi ý so sánh giá (e.g., mua iPhone chính hãng để tránh đội giá).
+   - Challenges (2-3 rủi ro): Lạm phát 3.4-4.2%/năm. Thu nhập không ổn định nếu income_change_percentage < -10%. Chi tiêu cao nếu spendingByCategory có danh mục >40%. Nếu existingPlans > 1, thêm rủi ro "Phân tán nguồn lực".
+   - Tips (2-3 lời khuyên): Thiết lập chuyển khoản tự động để tiết kiệm. Theo dõi chi tiêu hàng tuần. Nếu expense_change_percentage > 15%, gợi ý cắt giảm chi tiêu không cần thiết. Nếu chưa có quỹ khẩn cấp, khuyên ưu tiên tiết kiệm 6-12 tháng chi tiêu.
 
-4. **Breakdown chi phí**:
+4. **Breakdown chi phí** (dùng price_range sau tính target nếu có):
    - Quỹ khẩn cấp: 100% mục tiêu
-   - Du lịch: 80% chi phí chính, 20% dự phòng
-   - Mua sắm: 90% giá sản phẩm, 10% dự phòng
+   - Du lịch: 50% vé máy bay (dùng min price_range), 25% lưu trú, 15% ăn uống, 10% di chuyển/dự phòng
+   - Mua sắm: 95% giá sản phẩm (dùng target_amount * 0.95), 5% phụ kiện/dự phòng
    - Học tập: 85% học phí, 15% tài liệu/dự phòng
+   - Nếu category khác, suy luận dựa trên detected (e.g., real_estate: 80% giá nhà, 20% phí pháp lý).
 
-📄 Output JSON:
+📄 Output JSON (KHÔNG bao gồm reasoning, chỉ JSON sạch):
 {
   "plans": [
     {
@@ -358,7 +376,7 @@ ${marketContext}
   ]
 }
 
-Ví dụ:
+Ví dụ (dùng target tính động):
 Câu hỏi: "Lập kế hoạch tiết kiệm 10 triệu cho quỹ khẩn cấp trong 1 năm"
 Output: {
   "plans": [
@@ -366,62 +384,29 @@ Output: {
       "id": "plan_${Date.now()}_${Math.random().toString(36).slice(2)}",
       "name": "Quỹ khẩn cấp",
       "description": "Tiết kiệm quỹ khẩn cấp cho 6 tháng chi tiêu",
-      "target_amount": 10000000,
+      "target_amount": 10000000,  // Tính từ input, không gán
       "current_amount": ${currentAmountForNewPlan},
-      "monthly_contribution": ${Math.min(financialData.monthly_surplus || 1000000, financialData.current_income * 0.2)},
+      "monthly_contribution": ${monthlyContribution},
       "time_to_goal": 12,
       "priority": "high",
       "category": "Quỹ khẩn cấp",
       "breakdown": { "Quỹ khẩn cấp": 10000000 },
       "ai_analysis": {
-        "feasibility_score": ${Math.min(95, 95 - (financialData.monthly_surplus < 2000000 ? 5 : 0) - (financialData.expense_change_percentage > 15 ? 5 : 0) - (existingPlans.some(plan => plan.category === 'Quỹ khẩn cấp') ? 10 : 0))},
-        "risk_level": "${financialData.monthly_surplus < 1000000 || financialData.income_change_percentage < -15 ? 'high' : 'low'}",
-        "recommendations": [
-          {
-            "type": "savings",
-            "title": "Tiết kiệm cố định",
-            "description": "Chuyển tự động 1 triệu/tháng vào tài khoản tiết kiệm",
-            "impact": "Đạt mục tiêu đúng hạn",
-            "priority": "high"
-          },
-          {
-            "type": "expense",
-            "title": "Cắt giảm chi tiêu",
-            "description": "Giảm chi tiêu ăn uống từ 5 triệu xuống 4 triệu/tháng",
-            "impact": "Tăng thặng dư 1 triệu/tháng",
-            "priority": "high"
-          },
-          ${financialData.monthly_surplus < 2000000 ? `
-          {
-            "type": "income",
-            "title": "Tăng thu nhập",
-            "description": "Tìm công việc phụ như giao hàng, bán hàng online",
-            "impact": "Tăng thặng dư 1-2 triệu/tháng",
-            "priority": "medium"
-          }` : ''}
-        ].filter(Boolean),
+        "feasibility_score": ${feasibilityScore},
+        "risk_level": "${riskLevel}",
+        "recommendations": ${JSON.stringify(recommendations)},
         "milestones": [
           { "amount": 2500000, "timeframe": "3 tháng", "description": "Đạt 25% mục tiêu" },
           { "amount": 5000000, "timeframe": "6 tháng", "description": "Đạt 50% mục tiêu" },
           { "amount": 10000000, "timeframe": "12 tháng", "description": "Hoàn thành mục tiêu" }
         ],
         "monthly_breakdown": {
-          "current_savings": ${Math.min(financialData.monthly_surplus || 1000000, financialData.current_income * 0.2)},
-          "optimized_savings": ${Math.min((financialData.monthly_surplus || 1000000) * 1.2, financialData.current_income * 0.25)},
-          "with_investment": ${Math.min((financialData.monthly_surplus || 1000000) * 1.3, financialData.current_income * 0.3)}
+          "current_savings": ${monthlyContribution},
+          "optimized_savings": ${optimizedSavings},
+          "with_investment": ${withInvestment}
         },
-        "challenges": [
-          "Lạm phát 3.4-4.2% có thể làm giảm giá trị tiết kiệm",
-          ${financialData.monthly_surplus < 1000000 ? '"Thặng dư hàng tháng thấp, khó duy trì tiết kiệm",' : ''}
-          ${Object.values(spendingByCategory).some(cat => cat.percentage > 40) ? `"Chi tiêu ${Object.entries(spendingByCategory).find(([_, cat]) => cat.percentage > 40)?.[0]} chiếm hơn 40% thu nhập",` : ''}
-          ${existingPlans.length > 1 ? '"Phân tán nguồn lực cho nhiều kế hoạch",' : ''}
-        ].filter(Boolean),
-        "tips": [
-          "Thiết lập chuyển khoản tự động 1 triệu/tháng",
-          "Theo dõi chi tiêu hàng tuần qua ứng dụng",
-          ${financialData.expense_change_percentage > 15 ? '"Cắt giảm chi tiêu không cần thiết như ăn ngoài, giải trí",' : ''}
-          "Ưu tiên quỹ khẩn cấp trước các mục tiêu khác"
-        ].filter(Boolean)
+        "challenges": ${JSON.stringify(challenges)},
+        "tips": ${JSON.stringify(tips)}
       }
     }
   ]
