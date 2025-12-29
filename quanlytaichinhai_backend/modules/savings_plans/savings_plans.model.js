@@ -1,7 +1,7 @@
 // savings_plans.model.js
 import db from "../../config/db.js";
 import { fetchFinancialSummary } from "../overview/overview.model.js";
-export const getSavingsPlans = async (userId, limit = 50) => {
+export const getSavingsPlans = async (userId) => {
   if (!userId) {
     console.error("Thiếu userId");
     return [];
@@ -30,8 +30,8 @@ export const getSavingsPlans = async (userId, limit = 50) => {
        LEFT JOIN ai_analyses aa ON sp.id = aa.plan_id
        WHERE sp.user_id = ?
        ORDER BY sp.created_at DESC
-       LIMIT ?`,
-      [userId, limit]
+       LIMIT 20`,
+      [userId]
     );
 
     // Lấy dữ liệu lồng nhau (breakdowns, recommendations, milestones, challenges, tips)
