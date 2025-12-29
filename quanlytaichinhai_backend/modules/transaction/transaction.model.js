@@ -1,7 +1,7 @@
 import db from "../../config/db.js";
 
 // ======================== LẤY GIAO DỊCH NGƯỜI DÙNG ========================
-export const getTransactionsByUserId = async (userId, limit = null) => {
+export const getTransactionsByUserId = async (userId, limit = 50) => {
   let query = `
     SELECT 
       t.transaction_id, 
@@ -21,12 +21,17 @@ export const getTransactionsByUserId = async (userId, limit = null) => {
   const params = [Number(userId)];
 
   const safeLimit = Number(limit);
-  if (!isNaN(safeLimit) && safeLimit > 0) {
+
+  if (!Number.isInteger(safeLimit) || safeLimit <= 0) {
+    // fallback an toàn
+    query += " LIMIT 50";
+  } else {
     query += " LIMIT ?";
     params.push(safeLimit);
   }
 
   const [rows] = await db.execute(query, params);
+
   return rows.map((t) => ({
     id: t.transaction_id,
     description: t.description,
@@ -37,6 +42,7 @@ export const getTransactionsByUserId = async (userId, limit = null) => {
     date: t.transaction_date,
   }));
 };
+
 
 // ======================== THÊM GIAO DỊCH ========================
 export const addTransaction = async (transactionData) => {
