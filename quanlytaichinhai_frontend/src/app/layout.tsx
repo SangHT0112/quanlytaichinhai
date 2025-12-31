@@ -122,6 +122,16 @@ export default function RootLayout({ children }: { children: ReactNode }) {
                   label="Hướng dẫn sử dụng"
                 />
 
+                <a
+                  href="https://drive.google.com/file/d/12_UR3WlFaeGZ1WTbzg1auKZ_4qwBx9s_/view?usp=sharing"
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="fixed bottom-20 right-4 z-50 px-4 py-2 bg-blue-600 text-white rounded-lg shadow-lg hover:bg-blue-700 transition"
+                >
+                  Xem video hướng dẫn dự án
+                </a>
+
+
                 <RightSidebar
                   isSidebarOpen={isSidebarRightOpen}
                   setIsSidebarOpen={setSidebarRightOpen}

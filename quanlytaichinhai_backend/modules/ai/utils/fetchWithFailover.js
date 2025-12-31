@@ -1,5 +1,5 @@
 // Load Gemini API keys từ environment variables
-let GEMINI_API_KEYS = Array.from({ length: 40 }, (_, i) => process.env[`GOOGLE_API_KEY_${i + 1}`])
+let GEMINI_API_KEYS = Array.from({ length: 56 }, (_, i) => process.env[`GOOGLE_API_KEY_${i + 1}`])
   .filter(key => key && key !== 'xxx'); // Lọc bỏ key không hợp lệ (undefined hoặc 'xxx')
 
 const GEMINI_API_URL = 'https://generativelanguage.googleapis.com/v1/models/gemini-2.5-flash:generateContent';

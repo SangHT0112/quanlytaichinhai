@@ -1,4 +1,5 @@
 import { useState, useRef, useCallback, useEffect } from 'react';
+import { flushSync } from 'react-dom'; // ✅ Import flushSync nếu cần force update (tùy chọn cho placeholder)
 import { useRouter } from 'next/navigation';
 import { v4 as uuidv4 } from 'uuid';
 import { ChatMessage, TransactionData } from '@/utils/types';
@@ -116,7 +117,7 @@ export const useChatAI = () => {
         console.log('Updated financial summary after auto-confirm:', summary.actual_balance);
       });
     }
-  }, [currentUser?.user_id, router, refreshTransactionGroups]);  // Stable deps
+  }, [messages, currentUser?.user_id, router, refreshTransactionGroups]);  // ✅ THÊM: messages để check duplicate chính xác
 
     // ✅ UNIQUE fetchHistory: Chỉ 1 version (load 7 ngày, sort time)
     const fetchHistory = useCallback(async () => {
@@ -153,7 +154,7 @@ export const useChatAI = () => {
     console.log('🔌 Binding socket listeners');  // Debug
     socket.on('receive_message', handleReceiveMessage);
     socket.on('error', (err: string) => {
-      console.error('Socket error:', err);
+      console.log('Socket error:', err);
       setError(err);
       setIsLoading(false);
     });
@@ -226,6 +227,17 @@ export const useChatAI = () => {
     }
   }, [currentUser?.user_id]);
 
+  // ✅ FIXED: Helper function to update user message with real imageUrl after upload
+  const updateUserMessageWithImage = useCallback((clientId: string, realImageUrl: string) => {
+    setMessages((prev) => 
+      prev.map((msg) =>
+        msg.id === clientId
+          ? { ...msg, imageUrl: realImageUrl, content: '' }  // Clear content, chỉ hiển thị image
+          : msg
+      )
+    );
+  }, []);
+
   const sendToApi = useCallback(async (message: string, updatedMessages: ChatMessage[], imageData?: FormData) => {
     if (isApiProcessing.current) return;
     isApiProcessing.current = true;
@@ -233,9 +245,23 @@ export const useChatAI = () => {
     try {
       let aiMessage: ChatMessage;
       if (imageData) {
-        // Xử lý image: Upload trước, lấy imageUrl, emit socket cho user message, append AI local
+        // ✅ FIXED: Xử lý image - Append placeholder trước (để hiển thị ngay), sau đó update với real URL
         console.log('Gửi yêu cầu xử lý tài liệu đến API:');
+        const clientId = uuidv4();
+        const placeholderUserMsg: ChatMessage = {
+          id: clientId,
+          role: MessageRole.USER,
+          content: 'Đang tải hình ảnh...',  // Placeholder text tạm thời
+          imageUrl: '',  // Empty ban đầu
+          timestamp: new Date(),
+        };
 
+        // Append placeholder optimistic (hiển thị ngay)
+        flushSync(() => {
+          setMessages((prev) => [...prev, placeholderUserMsg]);
+        });
+
+        // Gọi API upload & process (trả về imageUrl)
         const res = await axiosInstance.post('/ai/process-document', imageData, {
           headers: { 'Content-Type': 'multipart/form-data' },
         });
@@ -243,46 +269,47 @@ export const useChatAI = () => {
         console.log('Phản hồi từ API xử lý tài liệu:', res.data);
         const { raw, imageUrl, structured, intent } = res.data;
 
+        // ✅ FIXED: Update user message với real imageUrl (hiển thị hình ảnh luôn, clear content)
+        updateUserMessageWithImage(clientId, imageUrl || '');  // Nếu imageUrl null, giữ empty
+
+        // Tạo & append AI message
         aiMessage = {
           id: uuidv4(),
           content: raw || 'Đã xử lý tài liệu.',
           structured,
-          imageUrl, // imageUrl từ upload
+          imageUrl,  // AI cũng có thể reference image nếu cần
           user_input: message,
           role: MessageRole.ASSISTANT,
           timestamp: new Date(),
           intent: intent || 'document',
         };
-
-        // Emit socket cho user message với imageUrl (server sẽ lưu và emit back user message)
-        if (socket && currentUser?.user_id) {
-          const clientId = uuidv4(); // Tạo id cho user message
-          socket.emit('send_message', {
-            userId: currentUser.user_id,
-            message: 'Đã gửi hình ảnh',
-            imageUrl,
-            clientId, // Để server dùng id này
-          });
-        }
-
-        // Append AI message local (vì image không qua socket AI)
         setMessages((prev) => [...prev, aiMessage]);
         saveChatHistory(currentUser?.user_id || 0, [aiMessage]);
+
+        // ✅ FIXED: Emit socket cho user message VỚI real imageUrl (server lưu & emit back, duplicate skip)
+        if (socket && currentUser?.user_id) {
+          socket.emit('send_message', {
+            userId: currentUser.user_id,
+            message: '',  // Content empty vì chỉ image
+            imageUrl: imageUrl || null,
+            clientId,  // Trùng id để duplicate check
+          });
+        }
       } else {
         // Text: Emit socket, server xử lý AI và emit back cả user + AI
         if (!socket || !currentUser?.user_id) {
           throw new Error('Socket chưa kết nối hoặc không có user ID');
         }
 
-        const clientId = uuidv4(); // Tạo id cho user message
+        // ✅ FIXED: Emit cho text message (bị thiếu trước)
+        const clientId = uuidv4();
         socket.emit('send_message', {
           userId: currentUser.user_id,
           message,
           imageUrl: null,
-          clientId, // Để server dùng id này cho user message
+          clientId,  // Để server dùng id này
         });
-
-        // Không append gì ở đây, chờ receive từ socket cho cả user và AI
+        // Không append local, chờ receive từ server
       }
     } catch (err: unknown) {
       console.error('❌ Socket/API error:', err instanceof Error ? err.message : 'Unknown error');
@@ -297,9 +324,10 @@ export const useChatAI = () => {
       saveChatHistory(currentUser?.user_id || 0, [errorMsg]);
     } finally {
       isApiProcessing.current = false;
-      // Không setIsLoading(false) ở đây, vì socket sẽ handle
+      // Không setIsLoading(false) ở đây, vì socket sẽ handle cho text; cho image đã done
+      if (imageData) setIsLoading(false);  // ✅ THÊM: Set loading false sau image process
     }
-  }, [currentUser?.user_id, socket]);
+  }, [currentUser?.user_id, socket, updateUserMessageWithImage]);  // ✅ THÊM: deps cho helper
 
   const handleSendMessage = useCallback(async (message: string, imageData?: FormData) => {
       if (!message.trim() && !imageData) return;
@@ -310,7 +338,8 @@ export const useChatAI = () => {
       await sendToApi(message, messages, imageData); // Pass current messages
     }, [sendToApi, messages]);
 
-    const handleConfirm = async (message: ChatMessage, correctedData?: TransactionData | TransactionData[]): Promise<void> => {
+
+  const handleConfirm = async (message: ChatMessage, correctedData?: TransactionData | TransactionData[]): Promise<void> => {
       console.log('CONFIRM PAYLOAD:', {
         user_id: currentUser?.user_id || 1,
         user_input: message.user_input || message.content,

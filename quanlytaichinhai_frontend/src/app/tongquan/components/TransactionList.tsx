@@ -118,7 +118,7 @@ export default function TransactionList({ dateFilter, limit }: TransactionListPr
       <CardContent className="p-6">
         {/* Header - Fixed */}
         <div className="flex items-center gap-4 mb-6 pb-4 border-b border-slate-200">
-          <div className="w-12 h-12 bg-gradient-to-r from-blue-500 to-purple-500 rounded-xl flex items-center justify-center shadow-md">
+          <div className="w-12 h-12 bg-gradient-to-r from-blue-500 to-purple-500 rounded-xl flex items-center justify-center shadow-none">
             <Receipt className="w-6 h-6 text-white" />
           </div>
           <div>
@@ -136,14 +136,14 @@ export default function TransactionList({ dateFilter, limit }: TransactionListPr
                   key={tx.group_id || idx}
                   className="bg-white/70 backdrop-blur-sm border-slate-200 hover:shadow-md transition-all duration-200"
                 >
-                  <CardContent className="p-0 relative w-100">
+                  <CardContent className="p-0 relative w-100 shadow-none">
                     {/* Main Transaction Row */}
                     <div className="flex items-center justify-between p-5 hover:bg-slate-50/50 transition-colors">
                       <div className="flex items-center gap-4">
                         <div className="w-10 h-10 bg-gradient-to-r from-emerald-400 to-blue-400 rounded-lg flex items-center justify-center">
                           <DollarSign className="w-5 h-5 text-white" />
                         </div>
-                        <div className="flex flex-col">
+                        <div className="flex flex-col shadow-none">
                           <span className="text-slate-800 font-semibold text-base">{tx.group_name}</span>
                           <div className="flex items-center gap-2 text-slate-500 text-xs">
                             <Calendar className="w-4 h-4" />

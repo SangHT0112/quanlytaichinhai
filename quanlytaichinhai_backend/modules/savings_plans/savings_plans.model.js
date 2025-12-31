@@ -320,12 +320,17 @@ export const saveSavingsPlan = async (userId, plan) => {
     }
 
     // Lưu milestones
-    const milestoneValues = (aiAnalysis.milestones ?? []).map((m) => [
-      id,
-      Number(m.amount) ?? 0,
-      m.timeframe ?? 'Không xác định',
-      m.description ?? null
-    ]);
+    const milestoneValues = (aiAnalysis.milestones ?? []).map((m) => {
+      const amount = Number(m.amount);
+      const safeAmount = isNaN(amount) ? 0 : amount;   // <<< fix quan trọng
+
+      return [
+        id,
+        safeAmount,
+        m.timeframe ?? 'Không xác định',
+        m.description ?? null
+      ];
+    });
     if (milestoneValues.length > 0) {
       await db.query(
         `INSERT INTO milestones (plan_id, amount, timeframe, description) VALUES ?`,
@@ -402,161 +407,106 @@ export const deleteSavingsPlan = async (userId, planId) => {
 
 export const updatePlansWithoutAI = async (userId) => {
   if (!userId) {
-    console.error('Thiếu userId');
+    console.error("Thiếu userId");
     return false;
   }
 
   try {
-    await db.query('START TRANSACTION');
+    await db.query("START TRANSACTION");
 
-    // Lấy dữ liệu tài chính
+    // 1. lấy dữ liệu tài chính
     let financialData;
     try {
       financialData = await fetchFinancialSummary(userId);
-    } catch (error) {
-      console.error('Lỗi khi lấy dữ liệu tài chính:', error);
+    } catch (e) {
+      console.error("Không lấy được financial summary, set mặc định 0");
       financialData = {
-        actual_balance: 0,
         monthly_surplus: 0,
         current_income: 0,
-        current_expense: 0
+        current_expense: 0,
       };
     }
 
+    const surplus = Number(financialData.monthly_surplus) || 0;
+
+    // 2. lấy danh sách plan
     const plans = await getSavingsPlans(userId);
     if (!plans.length) {
-      await db.query('COMMIT');
+      await db.query("COMMIT");
       return true;
     }
 
     const priorityWeights = { high: 3, medium: 2, low: 1 };
     const totalWeight = plans.reduce(
-      (sum, p) => sum + priorityWeights[p.priority],
+      (sum, p) => sum + (priorityWeights[p.priority] || 1),
       0
     );
 
-    // Tổng số dư hiện tại và monthly_surplus
-    let baseBalance = financialData.actual_balance || 0;
-    const surplus = financialData.monthly_surplus || 0;
-    const currentDate = new Date().toISOString().slice(0, 19).replace('T', ' '); // ✅ Fix: Define currentDate
-
-    // Track remaining balance for allocation (to avoid over-allocation)
-    let remainingBalance = baseBalance;
-
+    // 3. cập nhật từng plan
     for (const plan of plans) {
-      const weight = priorityWeights[plan.priority];
-      const ratio = weight / totalWeight;
+      const weight = priorityWeights[plan.priority] || 1;
+      const ratio = totalWeight ? weight / totalWeight : 0;
 
-      // Số tiền hiện có trong plan
-      const currentAmount = Number(plan.current_amount || 0);
-      let newCurrentAmount = currentAmount;
+      // đảm bảo số hợp lệ
+      const targetAmount = Number(plan.targetAmount) || 0;
+      const currentAmount = Number(plan.currentAmount) || 0;
 
-      // Check if this is end-of-month update (only add surplus if last updated < current month)
-      const lastUpdated = new Date(plan.updated_at || 0);
-      const isNewMonth = lastUpdated.getMonth() < new Date().getMonth() || lastUpdated.getFullYear() < new Date().getFullYear();
-      const shouldAddSurplus = isNewMonth || plan.updated_at === null; // ✅ Fix: Chỉ add surplus nếu tháng mới
+      // tiền tăng thêm
+      const add = Math.round(surplus * ratio);
+      const newCurrentAmount = Math.max(0, currentAmount + add);
 
-      // ===== LOGIC CHÍNH =====
-      if (currentAmount === 0 && plan.initial_amount === 0) {
-        // Nếu lần đầu tạo → chia actual_balance (cap at remaining)
-        const allocated = Math.min(remainingBalance * ratio, plan.target_amount); // ✅ Fix: Cap at target and remaining
-        newCurrentAmount = allocated;
-        remainingBalance -= allocated; // Update remaining
-        // Lưu initial_amount để không dồn lại lần sau
-        await db.execute(
-          `UPDATE savings_plans SET initial_amount = ? WHERE id = ? AND user_id = ?`,
-          [allocated, plan.id, userId]
-        );
-      } 
+      // thời gian đạt mục tiêu
+      const remaining = targetAmount - newCurrentAmount;
+      const monthlyContribution = Math.max(add, 1);
 
-      // Luôn cộng surplus nếu end-month (cho cả new/existing)
-      if (shouldAddSurplus) {
-        const surplusAllocated = Math.min(surplus * ratio, plan.target_amount - newCurrentAmount); // ✅ Fix: Cap at target - current
-        newCurrentAmount += surplusAllocated;
-      }
+      const timeToGoal = remaining > 0
+        ? Math.ceil(remaining / monthlyContribution)
+        : 0;
 
-      // Cap final at target_amount
-      newCurrentAmount = Math.min(newCurrentAmount, plan.target_amount); // ✅ Fix: Không vượt target
+      // ⚠️ đảm bảo KHÔNG NaN
+      const safeCurrent = isNaN(newCurrentAmount) ? 0 : newCurrentAmount;
+      const safeTime = isNaN(timeToGoal) ? 0 : timeToGoal;
 
-      // Milestones
-      await db.execute(`DELETE FROM milestones WHERE plan_id = ?`, [plan.id]);
-      const milestoneSteps = [0.25, 0.5, 0.75, 1]; // ✅ Suggest: 25/50/75/100% thay 20/40/...
-      const milestoneValues = milestoneSteps.map(step => {
-        const amount = plan.target_amount * step;
-        const remaining = Math.max(0, amount - newCurrentAmount);
-        const months = plan.monthly_contribution > 0 ? Math.ceil(remaining / plan.monthly_contribution) : 0; // ✅ Fix: ceil cho accuracy
-        const timeframe = months > 0 ? `${months} tháng` : 'Hoàn thành';
-        return [plan.id, amount, timeframe, `Đạt ${step * 100}% mục tiêu`];
-      });
-      if (milestoneValues.length > 0) {
-        await db.query(
-          `INSERT INTO milestones (plan_id, amount, timeframe, description) VALUES ?`,
-          [milestoneValues]
-        );
-      }
-
-      // Breakdowns (thêm default)
-      await db.execute(`DELETE FROM breakdowns WHERE plan_id = ?`, [plan.id]);
-      let breakdown = {};
-      switch (plan.category) { // ✅ Fix: Switch cho clean
-        case 'Phương tiện':
-          breakdown = {
-            'Giá xe': plan.target_amount * 0.85,
-            'Phí': plan.target_amount * 0.05,
-            'Bảo hiểm': plan.target_amount * 0.05,
-            'Dự phòng': plan.target_amount * 0.05
-          };
-          break;
-        case 'Bất động sản':
-          breakdown = {
-            'Giá nhà': plan.target_amount * 0.85,
-            'Phí': plan.target_amount * 0.05,
-            'Nội thất': plan.target_amount * 0.05,
-            'Dự phòng': plan.target_amount * 0.05
-          };
-          break;
-        case 'Du lịch':
-          breakdown = {
-            'Chi phí chính': plan.target_amount * 0.8,
-            'Dự phòng': plan.target_amount * 0.2
-          };
-          break;
-        case 'Quỹ khẩn cấp':
-          breakdown = {
-            'Quỹ': plan.target_amount * 1.0
-          };
-          break;
-        default: // ✅ Fix: Default cho category lạ
-          breakdown = {
-            'Chính': plan.target_amount * 0.9,
-            'Dự phòng': plan.target_amount * 0.1
-          };
-      }
-      const breakdownValues = Object.entries(breakdown).map(([item_key, amount]) => [
-        plan.id,
-        item_key,
-        Number(amount)
-      ]);
-      if (breakdownValues.length > 0) {
-        await db.query(
-          `INSERT INTO breakdowns (plan_id, item_key, amount) VALUES ?`,
-          [breakdownValues]
-        );
-      }
-
-      // Update plan
       await db.execute(
-        `UPDATE savings_plans SET current_amount = ?, updated_at = ? WHERE id = ? AND user_id = ?`,
-        [newCurrentAmount, currentDate, plan.id, userId]
+        `
+        UPDATE savings_plans 
+        SET current_amount = ?, 
+            time_to_goal = ?, 
+            updated_at = NOW()
+        WHERE id = ? AND user_id = ?
+        `,
+        [safeCurrent, safeTime, plan.id, userId]
+      );
+
+      // 4. milestones auto-generate
+      const milestones = [
+        { p: 0.25, d: "Đạt 25% mục tiêu" },
+        { p: 0.5, d: "Đạt 50% mục tiêu" },
+        { p: 0.75, d: "Đạt 75% mục tiêu" },
+        { p: 1, d: "Đạt 100% mục tiêu" },
+      ];
+
+      const milestoneValues = milestones.map(m => {
+        const raw = targetAmount * m.p;
+        const safe = isNaN(raw) ? 0 : Math.round(raw);
+        return [plan.id, safe, "Không xác định", m.d];
+      });
+
+      await db.execute(`DELETE FROM milestones WHERE plan_id = ?`, [plan.id]);
+
+      await db.query(
+        `INSERT INTO milestones (plan_id, amount, timeframe, description) VALUES ?`,
+        [milestoneValues]
       );
     }
 
-    await db.query('COMMIT');
-    console.log(`Đã cập nhật kế hoạch cho user ${userId}`);
+    await db.query("COMMIT");
+    console.log("updatePlansWithoutAI completed");
     return true;
-  } catch (error) {
-    await db.query('ROLLBACK');
-    console.error('Lỗi khi cập nhật kế hoạch:', error);
+
+  } catch (err) {
+    await db.query("ROLLBACK");
+    console.error("Lỗi updatePlansWithoutAI:", err);
     return false;
   }
 };
