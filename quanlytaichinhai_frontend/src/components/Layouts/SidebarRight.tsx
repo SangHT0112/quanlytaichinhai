@@ -218,7 +218,7 @@ export default function RightSidebar({
                 <svg
                   className="w-12 h-12 text-slate-500 mb-2"
                   fill="none"
-                  stroke="currentColor" 
+                  stroke="currentColor"
                   viewBox="0 0 24 24"
                 >
                   <path
@@ -235,8 +235,8 @@ export default function RightSidebar({
           </div>
         </div>
 
-        {/* {transactionGroups.length > 0 && isSidebarOpen && (
-          <div className="sticky bottom-0 bg-slate-900/80 backdrop-blur-sm py-3 px-4 border-t border-slate-700/50">
+        {transactionGroups.length > 0 && isSidebarOpen && (
+          <div className="sticky bottom-0 bg-slate-900/80 backdrop-blur-sm py-3 px-4 border-t border-slate-700/50 z-5000">
             <button
               onClick={loadMoreTransactionGroups}
               className="w-full fixed z-50 bottom-0 py-2 bg-slate-700 hover:bg-slate-600 text-slate-200 rounded-md transition-all duration-200 flex items-center justify-center gap-2"
@@ -252,7 +252,7 @@ export default function RightSidebar({
               </svg>
             </button>
           </div>
-        )} */}
+        )}
       </div>
 
       {/* Footer */}
