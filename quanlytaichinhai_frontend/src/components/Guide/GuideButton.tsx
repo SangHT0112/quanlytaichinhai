@@ -210,7 +210,7 @@ export default function GuideButton({
             <div className="flex w-full">
               <div className="w-1/3 border-r border-slate-700 pr-4 overflow-y-auto">
                 <h2 className="text-xl font-bold text-white mb-4 bg-gradient-to-r from-cyan-300 to-teal-300 bg-clip-text text-transparent">
-                  Hướng dẫn sử dụng AI Finance
+                  Hướng dẫn sử dụng trợ lý tài chính AI
                 </h2>
                 {menuItems.map((category, index) => (
                   <div key={index} className="mb-4">

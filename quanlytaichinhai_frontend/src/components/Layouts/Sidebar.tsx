@@ -23,12 +23,12 @@ import { useState, useEffect } from "react"; // Thêm useEffect
 import { getChatHistory } from "@/api/chatHistoryApi";
 
 const menuItems = [
-  { icon: Plus, label: "Thêm giao dịch", href: "/", emoji: "➕" },
+  { icon: Plus, label: "Thêm chi tiêu", href: "/", emoji: "➕" },
   { icon: PieChart, label: "Tổng quan", href: "/tongquan", emoji: "📊" },
   { icon: Calendar, label: "Lập kế hoạch tài chính", href: "/financial_plan", emoji: "📋" },
   { icon: TrendingUp, label: "Lịch sử", href: "/history", emoji: "📜" },
   { icon: BarChart3, label: "Thống kê", href: "/thongke", emoji: "📈" },
-  { icon: BarChart3, label: "Giao dịch", href: "/transaction", emoji: "📈" },
+  { icon: BarChart3, label: "Chi tiêu", href: "/transaction", emoji: "📈" },
   { icon: Shield, label: "Quản trị", href: "/admin", emoji: "🛡️", adminOnly: true },
 ];
 

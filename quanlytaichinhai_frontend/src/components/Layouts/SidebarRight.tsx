@@ -34,7 +34,7 @@ const formatRelativeTime = (time: string) => {
 export default function RightSidebar({
   isSidebarOpen,
   setIsSidebarOpen,
-  title = "Lịch sử nhóm giao dịch",
+  title = "Lịch sử nhóm chi tiêu",
 }: {
   isSidebarOpen: boolean;
   setIsSidebarOpen: (value: boolean) => void;
@@ -63,10 +63,10 @@ export default function RightSidebar({
     if (selectedGroupId === groupId) {
       // Đóng dropdown nếu nhấp lại vào cùng nhóm
       setSelectedGroupId(null);
-      // Xóa danh sách giao dịch để tiết kiệm bộ nhớ (tùy chọn)
+      // Xóa danh sách chi tiêu để tiết kiệm bộ nhớ (tùy chọn)
       fetchGroupTransactions(0);
     } else {
-      // Mở dropdown và lấy chi tiết giao dịch
+      // Mở dropdown và lấy chi tiết chi tiêu
       setSelectedGroupId(groupId);
       fetchGroupTransactions(groupId);
     }
@@ -165,15 +165,15 @@ export default function RightSidebar({
                         {formatRelativeTime(group.transaction_date)}
                       </span>
                       <span className="text-xs text-slate-500">
-                        {group.transaction_count} giao dịch
+                        {group.transaction_count} chi tiêu
                       </span>
                     </div>
                   </div>
-                  {/* Dropdown hiển thị chi tiết giao dịch */}
+                  {/* Dropdown hiển thị chi tiết chi tiêu */}
                   {selectedGroupId === group.group_id && (
                     <div className="mt-2 pl-4 pr-2 pb-2 bg-slate-800/30 rounded-lg transition-all duration-200">
                       {loading ? (
-                        <div className="text-center text-slate-400 py-2">Đang tải giao dịch...</div>
+                        <div className="text-center text-slate-400 py-2">Đang tải chi tiêu...</div>
                       ) : selectedGroupTransactions.length > 0 ? (
                         selectedGroupTransactions.map((tx) => (
                           <div
@@ -203,7 +203,7 @@ export default function RightSidebar({
                         ))
                       ) : (
                         <div className="text-center text-slate-400 py-2">
-                          Không có giao dịch trong nhóm này
+                          Không có chi tiêu trong nhóm này
                         </div>
                       )}
                       {error && selectedGroupId === group.group_id && (
@@ -218,7 +218,7 @@ export default function RightSidebar({
                 <svg
                   className="w-12 h-12 text-slate-500 mb-2"
                   fill="none"
-                  stroke="currentColor"
+                  stroke="currentColor" 
                   viewBox="0 0 24 24"
                 >
                   <path
@@ -228,15 +228,14 @@ export default function RightSidebar({
                     d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"
                   />
                 </svg>
-                <p className="text-slate-400">Không có nhóm giao dịch nào</p>
-                <p className="text-slate-500 text-xs mt-1">Hãy thêm nhóm giao dịch mới</p>
+                <p className="text-slate-400">Không có nhóm chi tiêu nào</p>
+                <p className="text-slate-500 text-xs mt-1">Hãy thêm nhóm chi tiêu mới</p>
               </div>
             )}
           </div>
         </div>
 
-        {/* Load More Button */}
-        {transactionGroups.length > 0 && isSidebarOpen && (
+        {/* {transactionGroups.length > 0 && isSidebarOpen && (
           <div className="sticky bottom-0 bg-slate-900/80 backdrop-blur-sm py-3 px-4 border-t border-slate-700/50">
             <button
               onClick={loadMoreTransactionGroups}
@@ -253,7 +252,7 @@ export default function RightSidebar({
               </svg>
             </button>
           </div>
-        )}
+        )} */}
       </div>
 
       {/* Footer */}
@@ -263,7 +262,7 @@ export default function RightSidebar({
         }`}
       >
         {/* <div className="flex justify-between items-center text-xs">
-          <span className="text-slate-500">Tổng: {transactionGroups.length} nhóm giao dịch</span>
+          <span className="text-slate-500">Tổng: {transactionGroups.length} nhóm chi tiêu</span>
           <span className="text-slate-400">v1.0</span>
         </div> */}
       </div>
