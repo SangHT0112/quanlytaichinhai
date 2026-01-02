@@ -36,9 +36,18 @@ export const useChatAI = () => {
   const [confirmedIds, setConfirmedIds] = useState<string[]>([]);
   const [error, setError] = useState<string | null>(null);
 
-  const currentUser = typeof window !== 'undefined'
-    ? JSON.parse(localStorage.getItem('user') || 'null')
-    : null;
+  // ✅ UPDATED: Làm currentUser thành state để có thể update động (nếu cần listen localStorage sau)
+  const [currentUser, setCurrentUser] = useState(() => {
+    if (typeof window !== 'undefined') {
+      try {
+        return JSON.parse(localStorage.getItem('user') || 'null');
+      } catch {
+        return null;
+      }
+    }
+    return null;
+  });
+
   const { refreshTransactionGroups } = useTransaction();
 
   // Thêm state cho socket
@@ -196,18 +205,35 @@ export const useChatAI = () => {
 
   
 
-  // ✅ Mount effect: Fetch initial history (NO duplicate define)
+  // ✅ UPDATED: Mount effect: Không redirect ngay, chỉ fetch nếu có user (hiển thị giao diện rỗng nếu chưa login)
   useEffect(() => {
-    const user = localStorage.getItem('user');
-    if (!user) {
-      console.warn('No user found in localStorage, redirecting to login');
-      router.push('/login');
-      return;
-    }
     if (currentUser?.user_id) {
       fetchHistory();
     }
-  }, [router, currentUser?.user_id, fetchHistory]);  // Deps OK
+    // Không check !user thì redirect nữa -> thân thiện hơn, cho phép xem giao diện
+  }, [currentUser?.user_id, fetchHistory]);  // Loại bỏ router khỏi deps vì không dùng
+
+  // ✅ THÊM: Listen localStorage changes để update currentUser (nếu login từ tab khác)
+  useEffect(() => {
+    if (typeof window === 'undefined') return;
+
+    const handleStorageChange = (e: StorageEvent) => {
+      if (e.key === 'user') {
+        try {
+          const newUser = JSON.parse(e.newValue || 'null');
+          setCurrentUser(newUser);
+          if (newUser?.user_id) {
+            fetchHistory();  // Refetch nếu login mới
+          }
+        } catch {
+          setCurrentUser(null);
+        }
+      }
+    };
+
+    window.addEventListener('storage', handleStorageChange);
+    return () => window.removeEventListener('storage', handleStorageChange);
+  }, [fetchHistory]);
 
   // ConfirmedIds effect
   useEffect(() => {
@@ -332,11 +358,22 @@ export const useChatAI = () => {
   const handleSendMessage = useCallback(async (message: string, imageData?: FormData) => {
       if (!message.trim() && !imageData) return;
 
+      // ✅ UPDATED: Check login chỉ khi gửi tin nhắn (thân thiện hơn, không redirect ngay)
+      if (!currentUser?.user_id) {
+        console.warn('No user found, redirecting to login on send attempt');
+        toast.error('Vui lòng đăng nhập để sử dụng chat AI!', {
+          position: 'top-right',
+          autoClose: 3000,
+        });
+        router.push('/login');
+        return;
+      }
+
       setInputValue('');
       setIsLoading(true);
 
       await sendToApi(message, messages, imageData); // Pass current messages
-    }, [sendToApi, messages]);
+    }, [sendToApi, messages, currentUser?.user_id, router]);
 
 
   const handleConfirm = async (message: ChatMessage, correctedData?: TransactionData | TransactionData[]): Promise<void> => {
