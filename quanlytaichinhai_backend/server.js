@@ -103,13 +103,23 @@ app.get('/api/get-sepay', async (req, res) => {
 // ✅ Webhook route cho SePay (bỏ verify signature/API key, chỉ xử lý payload)
 app.post('/api/sepay/webhook', async (req, res) => {
   try {
-    console.log('Webhook received:', req.body);  // Đã có
+    console.log('Webhook received FULL:', JSON.stringify(req.body, null, 2));  // Log đầy đủ payload để debug
 
     const payload = req.body;
-    if (!payload.transferAmount || !payload.transferType) {
-      console.log('Skipped invalid payload');
+    
+    // Fallback cho outgoing/incoming: SePay có thể dùng amount_out/amount_in thay transferAmount
+    const amount = payload.transferAmount || 
+                   (payload.amount_out ? -parseFloat(payload.amount_out) : 
+                   (payload.amount_in ? parseFloat(payload.amount_in) : 0));
+    const transferType = payload.transferType || 
+                         (payload.amount_out > 0 ? 'out' : 
+                         (payload.amount_in > 0 ? 'in' : null));
+    
+    if (!amount || !transferType || amount === 0) {
+      console.log('Skipped invalid payload (no amount/type even with fallback)');
       return res.status(200).json({ received: true });
     }
+    console.log('Processed amount/type:', { amount, transferType });  // Log fallback success
 
     // Map user_id: Thêm retry cho lock timeout
     let demoUserId;
@@ -152,16 +162,15 @@ app.post('/api/sepay/webhook', async (req, res) => {
     // Parse date (đã OK)
     const { 
       id: transaction_id,
-      transferType,
-      transferAmount: amount,
       description,
-      transactionDate: rawDate,
+      rawDate: transactionDate,  // Fallback nếu transactionDate không có
       accumulated,
       content,
       referenceCode,
     } = payload;
 
     let transaction_date;
+    const rawDate = transactionDate || payload.transactionDate;  // Fallback field
     try {
       let parsedDate = new Date(rawDate);
       
@@ -182,11 +191,11 @@ app.post('/api/sepay/webhook', async (req, res) => {
     }
 
     // Lấy phần cuối sau dấu ";" nếu có
-      let effectiveDescription = description || content || 'Giao dịch từ SePay webhook';
-      if (effectiveDescription.includes(';')) {
-        const parts = effectiveDescription.split(';');
-        effectiveDescription = parts[parts.length - 1].trim();
-      }
+    let effectiveDescription = description || content || 'Giao dịch từ SePay webhook';
+    if (effectiveDescription.includes(';')) {
+      const parts = effectiveDescription.split(';');
+      effectiveDescription = parts[parts.length - 1].trim();
+    }
 
     const status = 'Hoàn tất';
     const transferTypeMapped = transferType.toLowerCase();
@@ -235,9 +244,16 @@ app.post('/api/sepay/webhook', async (req, res) => {
       user_input: 'Giao dịch từ webhook',
     };
 
-    const saved = await saveChatHistory(demoUserId, [transactionMessage]);
-    console.log('💾 Chat history saved:', saved);  // NEW: Log save result
-    if (!saved) console.error('Failed to save chat history');
+    // Lưu chat: Thêm try-catch cho save để debug
+    try {
+      const saved = await saveChatHistory(demoUserId, [transactionMessage]);
+      console.log('💾 Chat history saved:', saved);  // NEW: Log save result
+      if (!saved) {
+        console.error('Failed to save chat history - check model or DB constraints');
+      }
+    } catch (saveErr) {
+      console.error('SaveChatHistory error FULL:', saveErr);  // Log full error để debug
+    }
 
     // Emit socket
     const socketSet = userSockets.get(demoUserId);
@@ -261,7 +277,7 @@ app.post('/api/sepay/webhook', async (req, res) => {
     console.log(`✅ Webhook processed: ${transaction_id || 'unknown'}`);
     res.status(200).json({ received: true, processed: transaction_id || 'unknown' });
   } catch (error) {
-    console.error('Webhook error:', error);
+    console.error('Webhook error FULL:', error);  // Log full error
     res.status(500).json({ error: 'Internal error', details: error.message });
   }
 });
