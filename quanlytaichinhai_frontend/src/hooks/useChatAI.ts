@@ -53,12 +53,67 @@ export const useChatAI = () => {
   // Thêm state cho socket
   const [socket, setSocket] = useState<Socket | null>(null);
 
+  // ✅ NEW: State cho pending delete confirmation (để handle modal hoặc confirm dialog)
+  // const [pendingDelete, setPendingDelete] = useState<ChatMessage | null>(null);
+
   // Hàm để initialize socket từ component (gọi từ ChatAI)
   const initializeSocket = useCallback((sock: Socket) => {
     setSocket(sock);
   }, []);
 
-  // ✅ FIX: handleReceiveMessage dùng useCallback với deps stable (tránh loop re-bind)
+  // ✅ UNIQUE fetchHistory: Chỉ 1 version (load 7 ngày, sort time) - MOVED UP TO AVOID HOISTING ISSUE
+  const fetchHistory = useCallback(async (): Promise<void> => {
+    try {
+      setIsLoading(true);
+      setError(null);
+
+      const today = new Date().toISOString().split('T')[0];
+      const history = await getChatHistory(currentUser?.user_id, 50, today);
+
+      const uniqueHistory: ChatMessage[] = Array.from(
+        new Map(history.map((msg: ChatMessage) => [msg.id, {
+          ...msg,
+          role: msg.role ?? MessageRole.USER,
+          timestamp: msg.timestamp || new Date(),
+        }])).values()
+      ).sort((a, b) => new Date(a.timestamp).getTime() - new Date(b.timestamp).getTime());
+
+      setMessages(uniqueHistory);
+      console.log(`📥 Loaded ${uniqueHistory.length} messages (for ${today})`);
+    } catch (err) {
+      console.error('Error fetching history:', err);
+      setError('Lỗi khi tải lịch sử chat.');
+    } finally {
+      setIsLoading(false);
+    }
+  }, [currentUser?.user_id]);
+
+  // ✅ NEW: Handler cho confirm delete (gọi API để backend thực hiện xóa)
+  const handleConfirmDelete = useCallback(async (messageId: string): Promise<void> => {
+    if (!currentUser?.user_id) {
+      throw new Error('Không có user ID để xác nhận xóa dữ liệu');
+    }
+
+    try {
+      // Gọi API confirm delete (giả sử backend có endpoint /ai/confirm_delete)
+      const response = await axiosInstance.post('/ai/confirm_delete', {
+        user_id: currentUser.user_id,
+        message_id: messageId,  // Để backend reference message nếu cần
+        confirmed: true,
+      });
+
+      console.log('Delete confirmation response:', response.data);
+      
+      // Nếu success, có thể emit socket hoặc chờ backend emit success message
+      // Backend sẽ emit 'delete_data_success' qua socket, hook sẽ handle ở trên
+      return;
+    } catch (err: unknown) {
+      console.error('❌ Confirm delete error:', err instanceof Error ? err.message : 'Unknown error');
+      throw err;  // Throw để caller handle toast
+    }
+  }, [currentUser?.user_id]);
+
+  // ✅ FIX: handleReceiveMessage dùng useCallback với deps stable (tránh loop re-bind) - NOW AFTER fetchHistory
   const handleReceiveMessage = useCallback((data: SocketMessageData) => {
     console.log('🔥 Received message from socket:', data);  // Debug log
 
@@ -101,6 +156,66 @@ export const useChatAI = () => {
       setTimeout(() => router.push('/financial_plan'), 1500);
     }
 
+    // ✅ UPDATED: Handle delete_data_confirm - Show confirmation dialog và xử lý nếu confirm
+    interface DeleteDataStructured { response_type: 'delete_data_confirm' | 'delete_data_success'; requires_confirm?: boolean; }
+    
+    const deleteStructured = newMessage.structured as DeleteDataStructured | undefined;
+    if (newMessage.role === MessageRole.ASSISTANT && deleteStructured?.response_type === 'delete_data_confirm') {
+      console.log('🗑️ Detected delete_data_confirm, showing confirmation');
+      
+      // Sử dụng window.confirm cho đơn giản (có thể thay bằng modal component nếu cần)
+      const userConfirmed = window.confirm(
+        newMessage.content || 'Bạn có chắc chắn muốn xóa hết dữ liệu chi tiêu của mình? Hành động này không thể hoàn tác và sẽ xóa tất cả giao dịch, kế hoạch tiết kiệm.'
+      );
+      
+      if (userConfirmed) {
+        // Gọi hàm confirm delete
+        handleConfirmDelete(newMessage.id).then(() => {
+          toast.success('Dữ liệu đã được xóa thành công!', { position: 'top-right', autoClose: 3000 });
+          
+          // ✅ UPDATED: Đổi nội dung dòng chat thành "đã xóa thành công" và lưu lại
+          const updatedMessage: ChatMessage = {
+            ...newMessage,
+            content: '✅ Dữ liệu đã được xóa thành công!',
+            structured: undefined, // Clear structured để tránh render form
+          };
+          setMessages((prev) => prev.map((msg) =>
+            msg.id === newMessage.id ? updatedMessage : msg
+          ));
+          
+          // Lưu message đã update vào history (để backend sync nếu cần)
+          saveChatHistory(currentUser?.user_id || 0, [updatedMessage]).catch(console.error);
+          
+          // ✅ UPDATED: Delay refetch để local update có thời gian hiển thị (tránh override ngay)
+          setTimeout(() => {
+            fetchHistory();
+            refreshTransactionGroups();
+          }, 1000); // Delay 1s để user thấy success message trước khi refetch
+        }).catch((err) => {
+          console.error('Delete failed:', err);
+          toast.error('Lỗi khi xóa dữ liệu. Vui lòng thử lại.', { position: 'top-right' });
+        });
+      } else {
+        // Cancelled: Add a cancel message
+        const cancelMsg: ChatMessage = {
+          id: uuidv4(),
+          content: '❌ Yêu cầu xóa dữ liệu đã bị hủy.',
+          role: MessageRole.ASSISTANT,
+          timestamp: new Date(),
+        };
+        setMessages((prev) => [...prev, cancelMsg]);
+        saveChatHistory(currentUser?.user_id || 0, [cancelMsg]).catch(console.error);
+      }
+    }
+
+    // Handle success message (nếu backend emit lại sau delete)
+    if (newMessage.role === MessageRole.ASSISTANT && deleteStructured?.response_type === 'delete_data_success') {
+      toast.success(newMessage.content || 'Dữ liệu đã được xóa thành công!', { position: 'top-right', autoClose: 5000 });
+      // Optional: Clear local confirmedIds hoặc refetch
+      setConfirmedIds([]);
+      localStorage.removeItem('confirmedIds');
+    }
+
     // Auto-confirmed handling (chỉ intent cụ thể, remove || 'transaction' nếu không cần)
     if (newMessage.intent === 'auto_confirmed_transaction') {
       console.log('🔔 Handling auto-confirmed from webhook:', newMessage.structured);
@@ -126,35 +241,7 @@ export const useChatAI = () => {
         console.log('Updated financial summary after auto-confirm:', summary.actual_balance);
       });
     }
-  }, [messages, currentUser?.user_id, router, refreshTransactionGroups]);  // ✅ THÊM: messages để check duplicate chính xác
-
-    // ✅ UNIQUE fetchHistory: Chỉ 1 version (load 7 ngày, sort time)
-    const fetchHistory = useCallback(async () => {
-      try {
-        setIsLoading(true);
-        setError(null);
-
-        const today = new Date().toISOString().split('T')[0];
-        const history = await getChatHistory(currentUser?.user_id, 50, today);
-
-        const uniqueHistory: ChatMessage[] = Array.from(
-          new Map(history.map((msg: ChatMessage) => [msg.id, {
-            ...msg,
-            role: msg.role ?? MessageRole.USER,
-            timestamp: msg.timestamp || new Date(),
-          }])).values()
-        ).sort((a, b) => new Date(a.timestamp).getTime() - new Date(b.timestamp).getTime());
-
-        setMessages(uniqueHistory);
-        console.log(`📥 Loaded ${uniqueHistory.length} messages (for ${today})`);
-      } catch (err) {
-        console.error('Error fetching history:', err);
-        setError('Lỗi khi tải lịch sử chat.');
-      } finally {
-        setIsLoading(false);
-      }
-}, [currentUser?.user_id]);
-
+  }, [messages, currentUser?.user_id, router, refreshTransactionGroups, fetchHistory, handleConfirmDelete]);  // ✅ THÊM: messages để check duplicate chính xác, fetchHistory cho delete
 
   // ✅ useEffect socket: Bind handler đúng cách
   useEffect(() => {
@@ -627,6 +714,7 @@ export const useChatAI = () => {
     handleSaveEdit,
     handleQuickAction,
     currentUser,
-    initializeSocket
+    initializeSocket,
+    handleConfirmDelete,
   };
 };

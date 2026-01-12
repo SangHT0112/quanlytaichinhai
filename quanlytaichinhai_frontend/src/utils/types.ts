@@ -58,6 +58,19 @@ export interface SqlQueryStructured {
   followup?: FollowupData; // Thêm optional followup
 }
 
+// ✅ NEW: Interfaces cho delete data
+export interface DeleteDataConfirmStructured {
+  response_type: 'delete_data_confirm';
+  requires_confirm?: boolean;
+  message?: string;
+}
+
+export interface DeleteDataSuccessStructured {
+  response_type: 'delete_data_success';
+  deleted_count?: number;
+  message?: string;
+}
+
 // Cập nhật StructuredData để bao gồm SqlQueryStructured
 export type StructuredData =
   | {
@@ -115,7 +128,10 @@ export type StructuredData =
         }>;
       };
     }
-  | SqlQueryStructured; // Thêm kiểu SqlQueryStructured vào union
+  | SqlQueryStructured // Thêm kiểu SqlQueryStructured vào union
+  // ✅ NEW: Thêm arms cho delete data
+  | DeleteDataConfirmStructured
+  | DeleteDataSuccessStructured;
 // 5. Kiểu cho TransactionData (từ MessageItem.tsx)
 export interface TransactionData {
   type: 'expense' | 'income';

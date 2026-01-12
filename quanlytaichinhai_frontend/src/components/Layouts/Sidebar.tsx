@@ -10,8 +10,6 @@ import {
   Menu,
   User,
   Shield,
-  MessageCircle, // Thêm icon cho chat
-  Clock, // Icon cho recent
 } from "lucide-react";
 import {
   DropdownMenu,
@@ -237,41 +235,7 @@ export default function Sidebar({
           {/* Divider giữa Menu và Recent Chats */}
           <div className="border-t border-slate-700/50 my-3" />
 
-          {/* Phần 2: Recent Chats */}
-          <div className="flex-1 overflow-y-auto pr-2 max-h-[45%]">
-            <div className="space-y-3 text-sm">
-              <div className="flex items-center space-x-2 px-4 py-2 sticky top-0 bg-slate-900 z-10">
-                <MessageCircle className="w-4 h-4 text-slate-400" />
-                <h3 className="font-semibold text-slate-300">Lịch sử chat gần đây</h3>
-              </div>
-
-              <div className="space-y-2">
-                {recentChats.map((chat) => (
-                  <Link
-                    key={chat.id}
-                    href={chat.href}
-                    onClick={() => handleLinkClick(chat.href)}
-                    className="block"
-                  >
-                    <div className="flex items-start space-x-3 px-4 py-2 rounded-lg text-slate-400 hover:text-white hover:bg-slate-700/50 transition-all duration-200 group cursor-pointer">
-                      <Clock className="w-4 h-4 mt-1 flex-shrink-0 group-hover:text-cyan-400 transition-colors" />
-                      <div className="min-w-0 flex-1">
-                        <p className="font-medium truncate">{chat.title}</p>
-                        <p className="text-xs opacity-75 truncate">
-                          {new Date(chat.timestamp).toLocaleDateString("vi-VN")}
-                        </p>
-                      </div>
-                    </div>
-                  </Link>
-                ))}
-                {recentChats.length === 0 && (
-                  <p className="px-4 py-2 text-slate-500 text-xs italic">
-                    Chưa có lịch sử chat
-                  </p>
-                )}
-              </div>
-            </div>
-          </div>
+         
         </div>
 
 
@@ -284,31 +248,29 @@ export default function Sidebar({
           {user && (
             <>
               {/* Nút Trang Admin nằm trên */}
-              {user.role === "admin" && (
-                <Link href="/admin" onClick={() => handleLinkClick("/admin")}>
-                  <button className="bg-teal-600 hover:bg-teal-700 text-white font-semibold py-2 px-4 rounded-md transition-colors whitespace-nowrap w-full">
-                    Trang Admin
-                  </button>
-                </Link>
-              )}
+        
 
               {/* Greeting user nằm dưới */}
               <DropdownMenu>
-                <DropdownMenuTrigger asChild>
-                  <div className="flex items-center space-x-3 px-3 py-2 rounded-lg bg-teal-100 hover:bg-teal-200 transition-colors cursor-pointer max-w-full">
-                    <div className="w-4 h-4 bg-gradient-to-r from-teal-500 to-cyan-500 rounded-full flex items-center justify-center">
-                      <User className="w-4 h-4 text-white" />
-                    </div>
-                    <span className="text-sm font-medium text-teal-800 truncate">
-                      Xin chào {user.username}
-                    </span>
-                  </div>
-                </DropdownMenuTrigger>
-                <DropdownMenuContent
-                  align="start"
-                  className="bg-white border border-teal-200 mb-1"
-                  side="top"
+              <DropdownMenuTrigger asChild>
+                <button
+                  className="flex items-center space-x-3 px-3 py-2 rounded-lg bg-teal-100 hover:bg-teal-200 transition-colors cursor-pointer max-w-full"
                 >
+                  <div className="w-4 h-4 bg-gradient-to-r from-teal-500 to-cyan-500 rounded-full flex items-center justify-center">
+                    <User className="w-4 h-4 text-white" />
+                  </div>
+                  <span className="text-sm font-medium text-teal-800 truncate">
+                    Xin chào {user.username}
+                  </span>
+                </button>
+              </DropdownMenuTrigger>
+
+<DropdownMenuContent
+  align="end"
+  className="bg-white border border-teal-200 z-[9999] w-40"
+  side="bottom"
+  sideOffset={4}
+>
                   <DropdownMenuItem className="hover:bg-teal-50">
                     <Link href="/profile">Sửa thông tin</Link>
                   </DropdownMenuItem>

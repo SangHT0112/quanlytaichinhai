@@ -126,7 +126,7 @@ export default function RootLayout({ children }: { children: ReactNode }) {
                   href="https://drive.google.com/file/d/12_UR3WlFaeGZ1WTbzg1auKZ_4qwBx9s_/view?usp=sharing"
                   target="_blank"
                   rel="noopener noreferrer"
-                  className="fixed bottom-5 right-4 z-50 px-4 py-2 bg-blue-600 text-white rounded-lg shadow-lg hover:bg-blue-700 transition"
+                  className="fixed top-5 right-12 z-50 px-4 py-2 bg-blue-600 text-white rounded-lg shadow-lg hover:bg-blue-700 transition md:bottom-5 md:top-auto md:right-4"
                 >
                   Xem video hướng dẫn dự án
                 </a>

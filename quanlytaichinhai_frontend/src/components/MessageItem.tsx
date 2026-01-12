@@ -17,6 +17,9 @@ import axiosInstance from "@/config/axios"
 import { extractSqlQueryData } from "../utils/messageHelper"
 import { useRouter } from "next/navigation" // Nếu dùng Next.js
 
+// ✅ NEW: Import DeleteConfirmationForm (tạo file riêng hoặc inline)
+import DeleteConfirmationForm from "./transaction-form/DeleteConfirmationForm"
+
 const isConfirmPriority = (
   data: StructuredData | undefined,
 ): data is Extract<StructuredData, { response_type: "confirm_priority" }> => {
@@ -93,6 +96,48 @@ const isSuggestNewCategory = (
   )
 }
 
+// ✅ NEW: Type guard cho delete_data_confirm
+const isDeleteDataConfirm = (
+  data: StructuredData | undefined,
+): data is { response_type: "delete_data_confirm"; requires_confirm?: boolean; message?: string } => {
+  if (!data) return false
+  let parsedData = data
+  if (typeof data === "string") {
+    try {
+      parsedData = JSON.parse(data)
+    } catch (e) {
+      console.error("Lỗi parse structured data for delete:", e, { data })
+      return false
+    }
+  }
+  return (
+    typeof parsedData === "object" &&
+    "response_type" in parsedData &&
+    parsedData.response_type === "delete_data_confirm"
+  )
+}
+
+// ✅ NEW: Type guard cho delete_data_success (để hiển thị success message)
+const isDeleteDataSuccess = (
+  data: StructuredData | undefined,
+): data is { response_type: "delete_data_success"; deleted_count?: number; message?: string } => {
+  if (!data) return false
+  let parsedData = data
+  if (typeof data === "string") {
+    try {
+      parsedData = JSON.parse(data)
+    } catch (e) {
+      console.error("Lỗi parse structured data for delete success:", e, { data })
+      return false
+    }
+  }
+  return (
+    typeof parsedData === "object" &&
+    "response_type" in parsedData &&
+    parsedData.response_type === "delete_data_success"
+  )
+}
+
 // Trong MessageItem hoặc utils
 const cleanMarkdownContent = (content: string): string => {
   return content
@@ -135,11 +180,15 @@ export const MessageItem = ({
   onConfirm,
   confirmedIds = [],
   onSaveEdit,
+  // ✅ NEW: Prop mới cho delete confirm
+  onDeleteConfirm,
 }: {
   message: ChatMessage
   onConfirm?: (message: ChatMessage, correctedData?: TransactionData | TransactionData[]) => Promise<void>
   confirmedIds?: string[]
   onSaveEdit?: (messageId: string, editedData: TransactionData, editingIndex: number) => Promise<void>
+  // ✅ NEW: Handler cho delete confirm (từ hook: handleConfirmDelete)
+  onDeleteConfirm?: (messageId: string) => Promise<void>
 }) => {
   const router = useRouter()
   const [isEditing, setIsEditing] = useState(false)
@@ -235,6 +284,14 @@ export const MessageItem = ({
   // Sử dụng confirmed từ prop để nhất quán
   const isMessageConfirmed = confirmedIds.includes(message.id)
 
+  // ✅ NEW: Kiểm tra delete confirm/success
+  const isDeleteConfirm = message.structured && isDeleteDataConfirm(message.structured)
+  const isDeleteSuccess = message.structured && isDeleteDataSuccess(message.structured)
+      const deleteData =
+  message.structured && isDeleteDataConfirm(message.structured)
+    ? message.structured
+    : undefined
+
   const handleEditChange = (field: keyof TransactionData, value: string | number) => {
     setEditedData((prev) => ({
       ...prev,
@@ -310,6 +367,26 @@ export const MessageItem = ({
       }
     }
   }
+
+  // ✅ NEW: Handler cho delete confirm
+  const handleDeleteConfirm = async () => {
+    if (!onDeleteConfirm || !isDeleteConfirm) return
+    setIsLoading(true)
+    try {
+      await onDeleteConfirm(message.id)
+      // Optional: Update local state hoặc refetch (hook sẽ handle toast/refetch)
+    } catch (err) {
+      console.error('Lỗi xác nhận xóa:', err)
+    } finally {
+      setIsLoading(false)
+    }
+  }
+
+  const handleDeleteCancel = () => {
+    // Optional: Thêm message cancel nếu cần
+    console.log('Hủy xóa dữ liệu')
+  }
+
   const handlePriorityConfirm = async (priority: string) => {
     if (isLoading) {
       console.log("Request already in progress, ignoring duplicate request")
@@ -525,6 +602,25 @@ export const MessageItem = ({
                 }}
               />
             )}
+          </div>
+        )}
+
+        {/* ✅ NEW: Block cho delete confirmation */}
+        {deleteData && (
+          <div className="mt-4 space-y-4">
+            <DeleteConfirmationForm
+              message={message.id}
+              onConfirm={handleDeleteConfirm}
+              onCancel={handleDeleteCancel}
+            />
+          </div>
+        )}
+
+
+        {/* ✅ NEW: Block cho delete success (hiển thị message success) */}
+        {isDeleteSuccess && (
+          <div className="mt-4 p-4 bg-green-50 border border-green-200 rounded-lg">
+            <MessageRenderer content={message.content || "Dữ liệu đã được xóa thành công!"} role={message.role} />
           </div>
         )}
 
