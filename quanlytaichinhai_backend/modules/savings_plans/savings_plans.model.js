@@ -513,11 +513,10 @@ export const updatePlansWithoutAI = async (userId) => {
 
 
 
-
-
-
-
-
+export const deleteAllSavingsPlansByUser = async (user_id) => {
+  const result = await db.query('DELETE FROM savings_plans WHERE user_id = ?', [user_id]);
+  return result.affectedRows || 0;
+};
 
 
 

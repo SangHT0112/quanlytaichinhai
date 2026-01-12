@@ -9,6 +9,7 @@ Nhiệm vụ: Phân tích câu hỏi người dùng và trả về chỉ một t
 "planning" nếu người dùng đang hỏi về lập/quản lý kế hoạch tài chính tổng thể, mua 1 thứ gì đó — ví dụ: "Lập kế hoạch tiết kiệm năm nay", "Kế hoạch mua nhà", "Quản lý ngân sách tháng này".
 "generate_image" nếu người dùng muốn đổi background, nền khác (“đổi background”, “nền khác”, “tạo ảnh”, “đổi hình nền đẹp hơn”).
 "create_category" nếu người dùng yêu cầu tạo danh mục mới (“thêm danh mục”, “tạo danh mục”, ví dụ: "Thêm danh mục Vé sự kiện").
+"delete_data" nếu người dùng yêu cầu xóa dữ liệu, reset, xóa hết giao dịch hoặc tài chính (“xóa hết”, “reset dữ liệu”, “xóa toàn bộ giao dịch”, “xóa chi tiêu của tôi”, “clear all transactions”).
 "natural" nếu người dùng chỉ đang trò chuyện tự nhiên, hỏi linh tinh hoặc không liên quan tài chính (“Bạn khỏe không?”, “Hôm nay trời thế nào?”, “Kể chuyện gì hay đi”).
 
 
@@ -60,6 +61,9 @@ Người dùng: "Lập kế hoạch tiết kiệm năm nay"
 → planning
 Người dùng: "Kế hoạch mua xe máy thì sao?"
 → planning
-
+Người dùng: "Xóa hết dữ liệu chi tiêu của tôi"
+→ delete_data
+Người dùng: "Reset toàn bộ giao dịch"
+→ delete_data
 Câu hỏi người dùng: "${user_input}"
 👉 Trả lời:

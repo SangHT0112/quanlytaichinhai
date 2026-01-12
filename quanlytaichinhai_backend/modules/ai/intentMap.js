@@ -10,6 +10,8 @@ import { generateForecastSQLPrompt } from './prompts/sqlPrompts/generateForecast
 import { generateImagePrompt } from './prompts/generateImagePrompt.js';
 import { generatePlanningPrompt } from './prompts/generatePlanningPrompt.js';
 import { generateCreateCategoryPrompt } from './prompts/generateCreateCategoryPrompt.js';
+import { deleteAllTransactionsByUser } from '../transaction/transaction.model.js';
+import { deleteAllSavingsPlansByUser } from '../savings_plans/savings_plans.model.js';
 import { saveSavingsPlan } from '../savings_plans/savings_plans.model.js';
 import db from '../../config/db.js';
 import path from 'path'
@@ -355,6 +357,68 @@ export const intentMap = {
         },
       };
     }
+  },
+  delete_data: {
+    generatePrompt: async ({ user_input, now, user_id, historyText }) => {
+      // Prompt đơn giản để AI xác nhận (có thể dùng Gemini để generate message xác nhận)
+      return `Người dùng yêu cầu xóa hết dữ liệu chi tiêu. Hãy trả về JSON xác nhận hành động, với message cảnh báo và lý do (nếu cần). 
+      JSON format: {
+        "response_type": "delete_data",
+        "message": "Xác nhận xóa dữ liệu. Ví dụ: 'Bạn có chắc chắn muốn xóa hết dữ liệu chi tiêu? Hành động này không thể hoàn tác.'",
+        "confirm_required": true  // Để frontend yêu cầu confirm trước khi xóa
+      }`;
+    },
+    isJsonResponse: true,
+    processResponse: async (aiText, { user_input, now, user_id, historyText }) => {
+      const parsed = parseJsonFromText(aiText, { fallback: null });
+      if (!parsed || parsed.response_type !== 'delete_data') {
+        return {
+          raw: 'Không thể xử lý yêu cầu xóa dữ liệu.',
+          structured: { error: 'JSON không hợp lệ' },
+        };
+      }
+
+      // Nếu cần confirm (tùy frontend), trả về message xác nhận trước
+      if (parsed.confirm_required) {
+        return {
+          raw: parsed.message || 'Bạn có chắc chắn muốn xóa hết dữ liệu chi tiêu? Hành động này không thể hoàn tác.',
+          structured: {
+            response_type: 'delete_data_confirm',
+            message: parsed.message,
+            requires_confirm: true,
+          },
+        };
+      }
+
+      // Thực hiện xóa dữ liệu (sau khi confirm từ frontend)
+      try {
+        // Xóa transactions
+        const deletedTx = await deleteAllTransactionsByUser(user_id);
+        
+        // Xóa savings plans
+        const deletedPlans = await deleteAllSavingsPlansByUser(user_id);
+        
+        // Xóa categories user-specific nếu có (comment nếu không cần)
+        // const deletedCats = await deleteUserCategories(user_id);
+
+        const totalDeleted = deletedTx + deletedPlans; // + deletedCats nếu có
+
+        return {
+          raw: `Đã xóa thành công ${totalDeleted} bản ghi dữ liệu chi tiêu của bạn. Dữ liệu đã được reset hoàn toàn.`,
+          structured: {
+            response_type: 'delete_data_success',
+            deleted_count: totalDeleted,
+            message: 'Dữ liệu chi tiêu đã được xóa vĩnh viễn.',
+          },
+        };
+      } catch (err) {
+        console.error('Lỗi xóa dữ liệu:', err);
+        return {
+          raw: 'Lỗi khi xóa dữ liệu. Vui lòng thử lại.',
+          structured: { error: err.message },
+        };
+      }
+    },
   },
   natural: {
     generatePrompt: generateNaturalPrompt,

@@ -74,9 +74,21 @@
 
 
 
-// Load Gemini API keys từ environment variables
-let GEMINI_API_KEYS = Array.from({ length: 56 }, (_, i) => process.env[`GOOGLE_API_KEY_${i + 1}`])
-  .filter(key => key && key !== 'xxx'); // Lọc bỏ key không hợp lệ (undefined hoặc 'xxx')
+// Load Gemini API keys từ environment variables một cách động
+const apiKeyEnvVars = Object.keys(process.env)
+  .filter(key => key.startsWith('GOOGLE_API_KEY_'))
+  .map(key => {
+    const match = key.match(/GOOGLE_API_KEY_(\d+)/);
+    return {
+      num: match ? parseInt(match[1]) : 0,  // Parse số thứ tự, mặc định 0 nếu không match
+      value: process.env[key]
+    };
+  })
+  .filter(({ value }) => value && value !== 'xxx')  // Lọc bỏ key không hợp lệ
+  .sort((a, b) => a.num - b.num)  // Sắp xếp theo thứ tự số (sequential)
+  .map(({ value }) => value);
+
+let GEMINI_API_KEYS = apiKeyEnvVars;
 
 const GEMINI_API_URL = 'https://generativelanguage.googleapis.com/v1/models/gemini-2.5-flash:generateContent';
 

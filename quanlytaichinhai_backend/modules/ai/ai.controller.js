@@ -251,3 +251,53 @@ export const confirmPriority = async (req, res) => {
     return res.status(500).json({ error: 'Lỗi khi xác nhận mức ưu tiên' });
   }
 };
+
+
+// ✅ NEW: Route cho confirm delete (POST /ai/confirm_delete)
+export const handleConfirmDelete = async (req, res) => {
+  const { user_id, message_id, confirmed } = req.body;
+
+  if (!user_id || confirmed !== true) {
+    return res.status(400).json({ error: 'Thiếu user_id hoặc confirmed phải là true.' });
+  }
+
+  try {
+    // Import models nếu chưa (từ trước)
+    const { deleteAllTransactionsByUser } = await import('../transaction/transaction.model.js'); // Hoặc import top-level
+    const { deleteAllSavingsPlansByUser } = await import('../savings_plans/savings_plans.model.js'); // Hoặc import top-level
+    // const { deleteUserCategories } = await import('../category/category.model.js'); // Nếu cần
+
+    // Thực hiện xóa
+    const deletedTx = await deleteAllTransactionsByUser(user_id);
+    const deletedPlans = await deleteAllSavingsPlansByUser(user_id);
+    // const deletedCats = await deleteUserCategories(user_id); // Optional
+
+    const totalDeleted = deletedTx + deletedPlans; // + deletedCats nếu có
+
+    // Emit socket success (nếu có socket từ req, hoặc dùng global socket manager)
+    // Giả sử bạn có socket từ middleware hoặc req.io (tùy setup)
+    if (req.io && req.io.sockets) { // Hoặc dùng socket manager
+      req.io.to(`user_${user_id}`).emit('receive_message', {
+        id: message_id || uuidv4(), // Dùng message_id từ frontend
+        content: `✅ Đã xóa thành công ${totalDeleted} bản ghi dữ liệu chi tiêu của bạn. Dữ liệu đã được reset hoàn toàn.`,
+        role: 'assistant',
+        timestamp: new Date().toISOString(),
+        structured: {
+          response_type: 'delete_data_success',
+          deleted_count: totalDeleted,
+          message: 'Dữ liệu chi tiêu đã được xóa vĩnh viễn.',
+        },
+        intent: 'delete_data',
+      });
+    }
+
+    return res.json({
+      success: true,
+      deleted_count: totalDeleted,
+      message: 'Xóa dữ liệu thành công.',
+    });
+  } catch (err) {
+    console.error('Lỗi xóa dữ liệu:', err);
+    return res.status(500).json({ error: 'Lỗi khi xóa dữ liệu.', details: err.message });
+  }
+};

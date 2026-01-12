@@ -266,3 +266,10 @@ export const getGroupedTransactionsByUserId = async (userId, categoryId = null, 
 
   return grouped;
 };
+
+export const deleteAllTransactionsByUser = async (user_id) => {
+  const result = await db.query('DELETE FROM transactions WHERE user_id = ?', [user_id]);
+  // Xóa groups nếu có liên kết
+  await db.query('DELETE FROM transaction_groups WHERE user_id = ?', [user_id]);
+  return result.affectedRows || 0;
+};
