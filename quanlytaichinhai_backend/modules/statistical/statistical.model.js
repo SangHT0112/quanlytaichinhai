@@ -50,7 +50,26 @@ export async function getDailySpendingTrend(userId, days = 5) {
 }
 
 
-export async function getMonthlyIncomeVsExpense(userId, months = 4) {
+export async function getMonthlyIncomeVsExpense(userId, monthsParam = 4) {
+  // Validation (giữ nguyên)
+  if (!userId) {
+    throw new Error('userId is required');
+  }
+  const months = parseInt(monthsParam, 10);
+  if (isNaN(months) || months < 1 || months > 12) {
+    throw new Error('Invalid months parameter');
+  }
+
+  // Tính startDate ở local time, format local YYYY-MM-DD
+  const now = new Date();
+  now.setHours(0, 0, 0, 0); // Reset giờ local
+  const startDate = new Date(now.getFullYear(), now.getMonth() - (months - 1), 1);
+  
+  // Fix: Dùng toLocaleDateString('sv') cho local YYYY-MM-DD (không offset UTC)
+  const startDateStr = startDate.toLocaleDateString('sv'); // '2025-12-01' đúng!
+
+  console.log(`Query params: userId=${userId}, months=${months}, startDate=${startDateStr}`);
+
   const sql = `
     SELECT 
       month,
@@ -63,18 +82,21 @@ export async function getMonthlyIncomeVsExpense(userId, months = 4) {
         CASE WHEN t.type = 'expense' THEN t.amount ELSE 0 END AS expense
       FROM transactions t
       WHERE t.user_id = ?
-        AND t.transaction_date >= DATE_FORMAT(DATE_SUB(CURDATE(), INTERVAL ? MONTH), '%Y-%m-01')
+        AND t.transaction_date >= ?
     ) AS sub
     GROUP BY month
     ORDER BY STR_TO_DATE(month, "%m/%Y") DESC
     LIMIT ?
-  `
+  `;
 
-  // Lấy từ đầu tháng cách đây (months) tháng (ví dụ months=4 thì lấy từ đầu tháng 4 tháng trước)
-  const [rows] = await db.execute(sql, [userId, months - 1, months])
-  return rows.reverse()
+  try {
+    const [rows] = await db.execute(sql, [userId, startDateStr, months]);
+    return rows.reverse();
+  } catch (error) {
+    console.error('SQL Execute Error:', error.message, { userId, months, startDateStr });
+    throw error;
+  }
 }
-
 
 
 
