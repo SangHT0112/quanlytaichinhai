@@ -1,6 +1,6 @@
 import db from "../../config/db.js"
 import { format, subDays } from "date-fns"
-const mysql = require('mysql2');
+
 export async function getExpensePieChart(userId) {
   const sql = `
     SELECT c.name AS category_name, SUM(t.amount) AS total
@@ -60,16 +60,18 @@ export async function getMonthlyIncomeVsExpense(userId, monthsParam = 4) {
     throw new Error('Invalid months parameter');
   }
 
-  // Tính startDate (giữ nguyên)
+  // Tính startDate (giữ nguyên fix timezone)
   const now = new Date();
   now.setHours(0, 0, 0, 0);
-  const startDate = new Date(now.getFullYear(), now.getMonth() - (months - 1), 1);
-  const startDateStr = startDate.toLocaleDateString('sv'); // String '2025-12-01'
+  const startDateObj = new Date(now.getFullYear(), now.getMonth() - (months - 1), 1);
+  const startDateStr = startDateObj.toLocaleDateString('sv'); // '2025-12-01'
 
-  // Cast chỉ cho userId (months đã number)
-  const castUserId = Number(userId);
+  // Fix: Cast types explicit cho bind an toàn
+  const castUserId = Number(userId); // '1' → 1 (int cho column user_id)
+  const castStartDate = new Date(startDateStr + 'T00:00:00'); // String → Date object cho column DATE
+  // Giữ months là number
 
-  console.log(`Query params: userId=${userId} (cast: ${castUserId}), months=${months}, startDate=${startDateStr} (string)`);
+  console.log(`Query params: userId=${userId} (cast: ${castUserId}), months=${months}, startDate=${startDateStr} (cast: ${castStartDate.toISOString().slice(0, 10)})`);
 
   const sql = `
     SELECT 
@@ -91,26 +93,19 @@ export async function getMonthlyIncomeVsExpense(userId, monthsParam = 4) {
   `;
 
   try {
-    // Bind: number (userId), string (date), number (months) – An toàn cho MySQL 8+
-    const [rows] = await db.execute(sql, [castUserId, startDateStr, months]);
-    console.log(`Query success: ${rows.length} rows returned`);
+    const [rows] = await db.execute(sql, [castUserId, castStartDate, months]);
+    console.log(`Query success: ${rows.length} rows returned`); // Log để verify
     return rows.reverse();
   } catch (error) {
-    // Fallback nếu execute fail: Dùng mysql.format để build safe query string
-    if (error.code === 'ER_WRONG_ARGUMENTS') {
-      console.log('Fallback to mysql.format due to bind error');
-      const formattedSql = mysql.format(sql, [castUserId, startDateStr, months]);
-      console.log('Formatted SQL:', formattedSql); // Log để verify (không có ? literal)
-
-      const [rows] = await db.query(formattedSql);
-      console.log(`Fallback query success: ${rows.length} rows returned`);
-      return rows.reverse();
-    }
-    // Re-throw nếu không phải bind error
-    console.error('SQL Execute Error:', error.message, { castUserId, startDateStr, months });
+    console.error('SQL Execute Error:', error.message, { 
+      castUserId: typeof castUserId + '=' + castUserId, 
+      castStartDate: typeof castStartDate + '=' + castStartDate.toISOString().slice(0, 10), 
+      months: typeof months + '=' + months 
+    });
     throw error;
   }
 }
+
 
 export async function getTopCategories(userId) {
   const sql = `
