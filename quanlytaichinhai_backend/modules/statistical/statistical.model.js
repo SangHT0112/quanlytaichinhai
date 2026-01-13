@@ -60,15 +60,18 @@ export async function getMonthlyIncomeVsExpense(userId, monthsParam = 4) {
     throw new Error('Invalid months parameter');
   }
 
-  // Tính startDate ở local time, format local YYYY-MM-DD
+  // Tính startDate (giữ nguyên fix timezone)
   const now = new Date();
-  now.setHours(0, 0, 0, 0); // Reset giờ local
-  const startDate = new Date(now.getFullYear(), now.getMonth() - (months - 1), 1);
-  
-  // Fix: Dùng toLocaleDateString('sv') cho local YYYY-MM-DD (không offset UTC)
-  const startDateStr = startDate.toLocaleDateString('sv'); // '2025-12-01' đúng!
+  now.setHours(0, 0, 0, 0);
+  const startDateObj = new Date(now.getFullYear(), now.getMonth() - (months - 1), 1);
+  const startDateStr = startDateObj.toLocaleDateString('sv'); // '2025-12-01'
 
-  console.log(`Query params: userId=${userId}, months=${months}, startDate=${startDateStr}`);
+  // Fix: Cast types explicit cho bind an toàn
+  const castUserId = Number(userId); // '1' → 1 (int cho column user_id)
+  const castStartDate = new Date(startDateStr + 'T00:00:00'); // String → Date object cho column DATE
+  // Giữ months là number
+
+  console.log(`Query params: userId=${userId} (cast: ${castUserId}), months=${months}, startDate=${startDateStr} (cast: ${castStartDate.toISOString().slice(0, 10)})`);
 
   const sql = `
     SELECT 
@@ -90,14 +93,18 @@ export async function getMonthlyIncomeVsExpense(userId, monthsParam = 4) {
   `;
 
   try {
-    const [rows] = await db.execute(sql, [userId, startDateStr, months]);
+    const [rows] = await db.execute(sql, [castUserId, castStartDate, months]);
+    console.log(`Query success: ${rows.length} rows returned`); // Log để verify
     return rows.reverse();
   } catch (error) {
-    console.error('SQL Execute Error:', error.message, { userId, months, startDateStr });
+    console.error('SQL Execute Error:', error.message, { 
+      castUserId: typeof castUserId + '=' + castUserId, 
+      castStartDate: typeof castStartDate + '=' + castStartDate.toISOString().slice(0, 10), 
+      months: typeof months + '=' + months 
+    });
     throw error;
   }
 }
-
 
 
 export async function getTopCategories(userId) {
