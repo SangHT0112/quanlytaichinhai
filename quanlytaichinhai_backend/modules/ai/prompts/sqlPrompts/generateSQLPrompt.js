@@ -64,17 +64,24 @@ ${schemaText}
 Yêu cầu:
 - Viết một câu truy vấn **MySQL** phù hợp với câu hỏi của người dùng bên dưới.
 - **Chỉ được sử dụng truy vấn dạng SELECT** để truy xuất dữ liệu.
-- Gắn điều kiện \`user_id = ${user_id}\` nếu có liên quan (trên transactions hoặc transaction_groups).
+- Gắn điều kiện \`user_id = ${user_id}\` nếu có liên quan (trên transactions, transaction_groups, hoặc categories nếu không phải global).
 - **Xử lý global categories: Nếu categories.user_id là NULL (global categories, áp dụng cho mọi user), dùng (C.user_id IS NULL OR C.user_id = ${user_id}) để match chính xác, tránh loại bỏ global data.**
-- Nếu người dùng đề cập đến nội dung mô tả giao dịch (ví dụ: "ăn phở", "đổ xăng", "mua áo", "đóng tiền điện"...), thì tìm trong trường "description" của bảng "transactions", **KHÔNG tìm trong "categories.name"**.
-- **Nếu hỏi tổng chi tiêu/thu nhập tháng này (không chỉ định category), dùng SUM(amount) với WHERE type='expense' (hoặc 'income') và filter MONTH/YEAR(transaction_date)=MONTH/YEAR(CURRENT_DATE()), KHÔNG cần JOIN categories. Thêm COALESCE(SUM(amount), 0) để tránh NULL.**
+- Nếu người dùng đề cập đến nội dung mô tả giao dịch (ví dụ: "ăn phở", "đổ xăng", "mua áo", "đóng tiền điện", "mua thịt heo", "mua rau"...), thì tìm trong trường "description" của bảng "transactions", **KHÔNG tìm trong "categories.name" hoặc "group_name"**.
+- **Xử lý transaction_groups (nếu user đề cập tên nhóm như "đi chợ", "tiền ăn", hoặc từ khóa gợi ý nhóm giao dịch):**
+  - Ưu tiên truy vấn bảng transaction_groups với WHERE G.user_id = ${user_id} AND G.group_name LIKE '%từ_khóa_trong_user_input%'.
+  - Nếu hỏi tổng tiền nhóm: SELECT COALESCE(SUM(G.total_amount), 0) AS total FROM transaction_groups G WHERE ... (thêm filter thời gian nếu có, ví dụ MONTH/G.transaction_date = MONTH(CURRENT_DATE())).
+  - Nếu hỏi chi tiết giao dịch trong nhóm: JOIN với transactions: SELECT T.description, T.amount, T.transaction_date FROM transactions T JOIN transaction_groups G ON T.group_id = G.group_id WHERE G.user_id = ${user_id} AND G.group_name LIKE '%đi chợ%' AND ... ORDER BY T.transaction_date DESC LIMIT 10.
+  - Luôn filter thời gian nếu user chỉ định (tháng/năm/ngày) qua MONTH/YEAR(transaction_date) hoặc DATE(transaction_date).
+- **Nếu hỏi tổng chi tiêu/thu nhập tháng này (không chỉ định category hoặc group), dùng SUM(amount) với WHERE type='expense' (hoặc 'income') và filter MONTH/YEAR(transaction_date)=MONTH/YEAR(CURRENT_DATE()), KHÔNG cần JOIN categories. Thêm COALESCE(SUM(amount), 0) để tránh NULL. Nếu có groups liên quan, ưu tiên SUM từ transaction_groups.total_amount.**
 - Nếu người dùng hỏi về thống kê chi tiêu theo category (ví dụ: "ăn uống", "di chuyển"), JOIN categories ON category_id, filter categories.name=..., type='expense', và dùng (C.user_id IS NULL OR C.user_id = ${user_id}).
 - Nếu người dùng hỏi về thống kê chi tiêu nhiều nhất, cần:
-  - Trả về tổng tiền chi tiêu cho nhóm giao dịch có liên quan (ví dụ: ăn uống).
-  - Có thể liệt kê chi tiết các giao dịch nếu cần (dùng LIMIT 5-10).
+  - Trả về tổng tiền chi tiêu cho nhóm giao dịch có liên quan (ví dụ: ăn uống hoặc nhóm "đi chợ").
+  - Có thể liệt kê chi tiết các giao dịch nếu cần (dùng LIMIT 5-10), ưu tiên từ transactions hoặc groups tùy ngữ cảnh.
 - Ví dụ SQL cho tổng lương tháng này (income 'Lương'): SELECT COALESCE(SUM(T.amount), 0) FROM transactions AS T JOIN categories AS C ON T.category_id = C.category_id WHERE T.user_id = ${user_id} AND (C.user_id IS NULL OR C.user_id = ${user_id}) AND C.name = 'Lương' AND T.type = 'income' AND MONTH(T.transaction_date) = MONTH(CURRENT_DATE()) AND YEAR(T.transaction_date) = YEAR(CURRENT_DATE());
+- Ví dụ SQL cho tổng "đi chợ" tháng này: SELECT COALESCE(SUM(G.total_amount), 0) FROM transaction_groups AS G WHERE G.user_id = ${user_id} AND G.group_name LIKE '%đi chợ%' AND MONTH(G.transaction_date) = MONTH(CURRENT_DATE()) AND YEAR(G.transaction_date) = YEAR(CURRENT_DATE());
 - Trả về **chỉ nội dung SQL**, không giải thích, không ghi chú, không thêm bất kỳ văn bản nào khác.
 - Nếu không thể viết SQL hợp lệ, hãy trả về đúng chuỗi: **"INVALID_SQL"**
 Câu hỏi người dùng: "${escapedInput}"
+${historyPrompt ? `\nLịch sử tham khảo: ${historyPrompt}` : ''}
 `.trim();
 };
