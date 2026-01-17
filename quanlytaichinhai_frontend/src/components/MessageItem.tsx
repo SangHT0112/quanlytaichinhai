@@ -430,7 +430,7 @@ export const MessageItem = ({
   return (
     <div className={`flex w-full mb-3 ${message.role === "user" ? "justify-end" : "justify-start"}`}>
       {message.role === "assistant" && (
-        <div className="flex-shrink-0 w-8 h-8 bg-gradient-to-br from-blue-500 via-purple-500 to-pink-500 rounded-full flex items-center justify-center shadow-lg shadow-purple-500/50 animate-pulse-subtle">
+        <div className="flex-shrink-0 w-8 h-8 bg-gradient-to-br from-blue-200 via-purple-500 to-pink-500 rounded-full flex items-center justify-center">
           <Bot className="w-5 h-5 text-white drop-shadow-lg" />
         </div>
       )}
@@ -447,8 +447,8 @@ export const MessageItem = ({
           break-words
           ${
            message.role === "user" 
-           ? "bg-gradient-to-r from-teal-500 to-cyan-500 text-white rounded-br-none shadow-xl shadow-blue-600/30 border border-blue-500/30"
-           : "bg-gradient-to-br from-white via-purple-50 to-pink-50 text-slate-800 border-2 border-purple-200/50 rounded-bl-none shadow-xl shadow-purple-300/40"
+           ? "bg-gradient-to-r from-teal-500 to-cyan-500 text-white rounded-br-none "
+           : "bg-gradient-to-br from-white via-purple-50 to-pink-50 text-slate-800 "
           }
           ${hasCustomContent || hasChartComponent ? "!min-w-[600px]" : ""}
           transition-all duration-300 hover:scale-[1.02] hover:shadow-2xl
